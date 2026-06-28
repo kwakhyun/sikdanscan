@@ -1,4 +1,4 @@
-package com.fitmate.fitmate
+package com.sikdanscan.app
 
 import io.flutter.embedding.android.FlutterActivity
 
