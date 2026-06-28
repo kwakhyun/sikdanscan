@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
+import '../../l10n/app_localizations_context.dart';
+import '../../providers/app_providers.dart';
 
 class MainScaffold extends ConsumerWidget {
   final Widget child;
@@ -9,6 +11,20 @@ class MainScaffold extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(userProfileProvider);
+    if (!profile.onboardingCompleted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) context.go('/onboarding');
+      });
+      return Scaffold(
+        backgroundColor: context.colorBackground,
+        body: const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+      );
+    }
+    final l10n = context.l10n;
+
     return Scaffold(
       body: child,
       bottomNavigationBar: Container(
@@ -29,23 +45,23 @@ class MainScaffold extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _NavItem(
-                  icon: Icons.dashboard_rounded,
-                  label: '대시보드',
+                  icon: Icons.today_rounded,
+                  label: l10n.navDaily,
                   path: '/dashboard',
                 ),
                 _NavItem(
-                  icon: Icons.restaurant_rounded,
-                  label: '식단',
+                  icon: Icons.insights_rounded,
+                  label: l10n.navReport,
                   path: '/meals',
                 ),
                 _NavItem(
                   icon: Icons.smart_toy_rounded,
-                  label: 'AI 코치',
+                  label: l10n.navAiCoach,
                   path: '/chat',
                 ),
                 _NavItem(
                   icon: Icons.person_rounded,
-                  label: '프로필',
+                  label: l10n.navProfile,
                   path: '/profile',
                 ),
               ],
@@ -62,11 +78,7 @@ class _NavItem extends StatelessWidget {
   final String label;
   final String path;
 
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.path,
-  });
+  const _NavItem({required this.icon, required this.label, required this.path});
 
   @override
   Widget build(BuildContext context) {
@@ -97,8 +109,9 @@ class _NavItem extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                color:
-                    isSelected ? AppColors.primary : context.colorTextTertiary,
+                color: isSelected
+                    ? AppColors.primary
+                    : context.colorTextTertiary,
               ),
             ),
           ],

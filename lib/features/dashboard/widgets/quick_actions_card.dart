@@ -34,10 +34,10 @@ class QuickActionsCard extends ConsumerWidget {
             children: [
               Expanded(
                 child: _ActionButton(
-                  icon: Icons.add_circle_outline_rounded,
-                  label: '식단 기록',
+                  icon: Icons.camera_alt_rounded,
+                  label: '사진 기록',
                   color: AppColors.primary,
-                  onTap: () => context.push('/add-meal'),
+                  onTap: () => context.push('/add-meal?camera=1'),
                 ),
               ),
               const SizedBox(width: 12),
@@ -81,8 +81,11 @@ class QuickActionsCard extends ConsumerWidget {
                 color: AppColors.secondary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.monitor_weight_outlined,
-                  color: AppColors.secondary, size: 20),
+              child: const Icon(
+                Icons.monitor_weight_outlined,
+                color: AppColors.secondary,
+                size: 20,
+              ),
             ),
             const SizedBox(width: 12),
             const Text('오늘의 체중'),
@@ -93,8 +96,9 @@ class QuickActionsCard extends ConsumerWidget {
           children: [
             TextField(
               controller: controller,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               autofocus: true,
               decoration: InputDecoration(
                 hintText: '체중을 입력하세요',
@@ -104,8 +108,10 @@ class QuickActionsCard extends ConsumerWidget {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide:
-                      const BorderSide(color: AppColors.secondary, width: 2),
+                  borderSide: const BorderSide(
+                    color: AppColors.secondary,
+                    width: 2,
+                  ),
                 ),
               ),
             ),
@@ -132,7 +138,8 @@ class QuickActionsCard extends ConsumerWidget {
               backgroundColor: AppColors.secondary,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onPressed: () {
               final weight = double.tryParse(controller.text);
@@ -146,18 +153,20 @@ class QuickActionsCard extends ConsumerWidget {
                 id: const Uuid().v4(),
                 date: DateTime.now(),
                 weight: weight,
-                memo:
-                    memoController.text.isNotEmpty ? memoController.text : null,
+                memo: memoController.text.isNotEmpty
+                    ? memoController.text
+                    : null,
               );
               ref.read(weightRecordsProvider.notifier).addRecord(record);
               ref.read(userProfileProvider.notifier).updateWeight(weight);
               Navigator.pop(ctx);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('체중 ${weight}kg이 기록되었습니다 💪'),
+                  content: Text('체중 ${weight}kg이 기록되었습니다'),
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               );
             },
@@ -177,8 +186,9 @@ class QuickActionsCard extends ConsumerWidget {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           title: Row(
             children: [
               Container(
@@ -187,8 +197,11 @@ class QuickActionsCard extends ConsumerWidget {
                   color: AppColors.accent.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.fitness_center_rounded,
-                    color: AppColors.accent, size: 20),
+                child: const Icon(
+                  Icons.fitness_center_rounded,
+                  color: AppColors.accent,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 12),
               const Text('운동 기록'),
@@ -200,10 +213,7 @@ class QuickActionsCard extends ConsumerWidget {
             children: [
               const Text(
                 '운동 종류',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
               Wrap(
@@ -215,7 +225,9 @@ class QuickActionsCard extends ConsumerWidget {
                     onTap: () => setDialogState(() => selectedExercise = e),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? AppColors.accent
@@ -229,10 +241,9 @@ class QuickActionsCard extends ConsumerWidget {
                           fontWeight: FontWeight.w500,
                           color: isSelected
                               ? Colors.white
-                              : Theme.of(ctx)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: 0.7),
+                              : Theme.of(
+                                  ctx,
+                                ).colorScheme.onSurface.withValues(alpha: 0.7),
                         ),
                       ),
                     ),
@@ -242,10 +253,7 @@ class QuickActionsCard extends ConsumerWidget {
               const SizedBox(height: 16),
               const Text(
                 '운동 시간',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
               TextField(
@@ -260,8 +268,10 @@ class QuickActionsCard extends ConsumerWidget {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide:
-                        const BorderSide(color: AppColors.accent, width: 2),
+                    borderSide: const BorderSide(
+                      color: AppColors.accent,
+                      width: 2,
+                    ),
                   ),
                 ),
               ),
@@ -277,7 +287,8 @@ class QuickActionsCard extends ConsumerWidget {
                 backgroundColor: AppColors.accent,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               onPressed: () {
                 final minutes = int.tryParse(controller.text);
@@ -291,10 +302,11 @@ class QuickActionsCard extends ConsumerWidget {
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('$selectedExercise $minutes분 기록되었습니다 🏃'),
+                    content: Text('$selectedExercise $minutes분 기록되었습니다'),
                     behavior: SnackBarBehavior.floating,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 );
               },

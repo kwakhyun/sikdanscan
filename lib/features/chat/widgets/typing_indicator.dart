@@ -68,8 +68,10 @@ class _TypingIndicatorState extends State<TypingIndicator>
                   mainAxisSize: MainAxisSize.min,
                   children: List.generate(3, (index) {
                     final delay = index * 0.2;
-                    final value =
-                        ((_controller.value - delay) % 1.0).clamp(0.0, 1.0);
+                    final value = ((_controller.value - delay) % 1.0).clamp(
+                      0.0,
+                      1.0,
+                    );
                     final opacity = 0.3 + 0.7 * _bounce(value);
                     final offset = -4.0 * _bounce(value);
 

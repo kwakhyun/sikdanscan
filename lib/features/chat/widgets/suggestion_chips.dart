@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../l10n/app_localizations_context.dart';
+import '../../../shared/widgets/app_svg_icon.dart';
 
 class SuggestionChips extends StatelessWidget {
   final Function(String) onSuggestionTap;
@@ -8,12 +10,28 @@ class SuggestionChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final suggestions = [
-      '🍽️ 오늘 칼로리 분석',
-      '🏃 운동 추천해줘',
-      '💧 수분 섭취 팁',
-      '⚖️ 체중 변화 분석',
-      '🍎 건강한 간식 추천',
+      _SuggestionChipData(
+        label: l10n.suggestionCalories,
+        iconAsset: 'assets/icons/app/chat_calorie.svg',
+      ),
+      _SuggestionChipData(
+        label: l10n.suggestionExercise,
+        iconAsset: 'assets/icons/app/chat_activity.svg',
+      ),
+      _SuggestionChipData(
+        label: l10n.suggestionWater,
+        iconAsset: 'assets/icons/app/chat_water.svg',
+      ),
+      _SuggestionChipData(
+        label: l10n.suggestionWeight,
+        iconAsset: 'assets/icons/app/chat_weight.svg',
+      ),
+      _SuggestionChipData(
+        label: l10n.suggestionSnack,
+        iconAsset: 'assets/icons/app/chat_snack.svg',
+      ),
     ];
 
     return Container(
@@ -22,27 +40,41 @@ class SuggestionChips extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Row(
-          children: suggestions.map((s) {
+          children: suggestions.map((suggestion) {
             return Padding(
               padding: const EdgeInsets.only(right: 8),
               child: GestureDetector(
-                onTap: () => onSuggestionTap(s.substring(2).trim()),
+                onTap: () => onSuggestionTap(suggestion.label),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: context.colorPrimarySurface,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.2)),
-                  ),
-                  child: Text(
-                    s,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.primary,
+                      color: AppColors.primary.withValues(alpha: 0.2),
                     ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AppSvgIcon(
+                        suggestion.iconAsset,
+                        color: AppColors.primary,
+                        size: 15,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        suggestion.label,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -52,4 +84,11 @@ class SuggestionChips extends StatelessWidget {
       ),
     );
   }
+}
+
+class _SuggestionChipData {
+  const _SuggestionChipData({required this.label, required this.iconAsset});
+
+  final String label;
+  final String iconAsset;
 }

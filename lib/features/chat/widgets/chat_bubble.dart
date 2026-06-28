@@ -7,11 +7,7 @@ class ChatBubble extends StatelessWidget {
   final ChatMessage message;
   final bool showAvatar;
 
-  const ChatBubble({
-    super.key,
-    required this.message,
-    this.showAvatar = false,
-  });
+  const ChatBubble({super.key, required this.message, this.showAvatar = false});
 
   @override
   Widget build(BuildContext context) {
@@ -20,8 +16,9 @@ class ChatBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
-        mainAxisAlignment:
-            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isUser && showAvatar) ...[
@@ -68,14 +65,7 @@ class ChatBubble extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    message.content,
-                    style: TextStyle(
-                      fontSize: 14,
-                      height: 1.5,
-                      color: isUser ? Colors.white : context.colorTextPrimary,
-                    ),
-                  ),
+                  _ChatMessageText(content: message.content, isUser: isUser),
                   const SizedBox(height: 4),
                   Text(
                     DateFormat('HH:mm').format(message.timestamp),
@@ -94,4 +84,65 @@ class ChatBubble extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ChatMessageText extends StatelessWidget {
+  const _ChatMessageText({required this.content, required this.isUser});
+
+  final String content;
+  final bool isUser;
+
+  @override
+  Widget build(BuildContext context) {
+    final baseStyle = TextStyle(
+      fontSize: 14,
+      height: 1.5,
+      color: isUser ? Colors.white : context.colorTextPrimary,
+    );
+
+    if (isUser || !content.contains('**')) {
+      return Text(content, style: baseStyle);
+    }
+
+    return Text.rich(
+      TextSpan(style: baseStyle, children: _boldMarkdownSpans(content)),
+    );
+  }
+}
+
+List<TextSpan> _boldMarkdownSpans(String text) {
+  final spans = <TextSpan>[];
+  var cursor = 0;
+
+  while (cursor < text.length) {
+    final start = text.indexOf('**', cursor);
+    if (start == -1) {
+      spans.add(TextSpan(text: text.substring(cursor)));
+      break;
+    }
+
+    if (start > cursor) {
+      spans.add(TextSpan(text: text.substring(cursor, start)));
+    }
+
+    final end = text.indexOf('**', start + 2);
+    if (end == -1) {
+      spans.add(TextSpan(text: text.substring(start).replaceAll('**', '')));
+      break;
+    }
+
+    final boldText = text.substring(start + 2, end);
+    if (boldText.isNotEmpty) {
+      spans.add(
+        TextSpan(
+          text: boldText,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+      );
+    }
+
+    cursor = end + 2;
+  }
+
+  return spans.isEmpty ? [TextSpan(text: text)] : spans;
 }

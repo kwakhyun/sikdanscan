@@ -78,8 +78,11 @@ class HealthMetricsCard extends ConsumerWidget {
                 color: AppColors.secondary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.directions_walk_rounded,
-                  color: AppColors.secondary, size: 20),
+              child: const Icon(
+                Icons.directions_walk_rounded,
+                color: AppColors.secondary,
+                size: 20,
+              ),
             ),
             const SizedBox(width: 12),
             const Text('걸음 수 입력'),
@@ -92,13 +95,13 @@ class HealthMetricsCard extends ConsumerWidget {
           decoration: InputDecoration(
             hintText: '걸음 수를 입력하세요',
             suffixText: '걸음',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide:
-                  const BorderSide(color: AppColors.secondary, width: 2),
+              borderSide: const BorderSide(
+                color: AppColors.secondary,
+                width: 2,
+              ),
             ),
           ),
         ),
@@ -112,7 +115,8 @@ class HealthMetricsCard extends ConsumerWidget {
               backgroundColor: AppColors.secondary,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onPressed: () {
               final steps = int.tryParse(controller.text);
@@ -141,8 +145,11 @@ class HealthMetricsCard extends ConsumerWidget {
                 color: AppColors.accent.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.bedtime_rounded,
-                  color: AppColors.accent, size: 20),
+              child: const Icon(
+                Icons.bedtime_rounded,
+                color: AppColors.accent,
+                size: 20,
+              ),
             ),
             const SizedBox(width: 12),
             const Text('수면 시간 입력'),
@@ -155,9 +162,7 @@ class HealthMetricsCard extends ConsumerWidget {
           decoration: InputDecoration(
             hintText: '수면 시간을 입력하세요',
             suffixText: '시간',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: AppColors.accent, width: 2),
@@ -174,7 +179,8 @@ class HealthMetricsCard extends ConsumerWidget {
               backgroundColor: AppColors.accent,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onPressed: () {
               final hours = double.tryParse(controller.text);
@@ -249,10 +255,7 @@ class _MetricTile extends StatelessWidget {
             ),
             Text(
               subValue,
-              style: TextStyle(
-                fontSize: 10,
-                color: context.colorTextTertiary,
-              ),
+              style: TextStyle(fontSize: 10, color: context.colorTextTertiary),
             ),
             const SizedBox(height: 4),
             Text(

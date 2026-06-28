@@ -32,8 +32,11 @@ class CalorieRingCard extends ConsumerWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.local_fire_department_rounded,
-                  color: Colors.white, size: 20),
+              const Icon(
+                Icons.local_fire_department_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               const Text(
                 '오늘의 칼로리',
@@ -45,8 +48,10 @@ class CalorieRingCard extends ConsumerWidget {
               ),
               const Spacer(),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
@@ -68,13 +73,16 @@ class CalorieRingCard extends ConsumerWidget {
             child: CustomPaint(
               painter: _CalorieRingPainter(
                 progress: (totalCalories / goal).clamp(0.0, 1.0),
-                carbsRatio: macros['carbs']! /
+                carbsRatio:
+                    macros['carbs']! /
                     (macros['carbs']! + macros['protein']! + macros['fat']!)
                         .clamp(1, double.infinity),
-                proteinRatio: macros['protein']! /
+                proteinRatio:
+                    macros['protein']! /
                     (macros['carbs']! + macros['protein']! + macros['fat']!)
                         .clamp(1, double.infinity),
-                fatRatio: macros['fat']! /
+                fatRatio:
+                    macros['fat']! /
                     (macros['carbs']! + macros['protein']! + macros['fat']!)
                         .clamp(1, double.infinity),
               ),
@@ -156,10 +164,7 @@ class _MacroChip extends StatelessWidget {
           Container(
             width: 8,
             height: 8,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 6),
           Column(
@@ -227,15 +232,30 @@ class _CalorieRingPainter extends CustomPainter {
 
     progressPaint.color = AppColors.chartCarbs;
     canvas.drawArc(
-        rect, startAngle, sweepAngle * carbsRatio, false, progressPaint);
+      rect,
+      startAngle,
+      sweepAngle * carbsRatio,
+      false,
+      progressPaint,
+    );
 
     progressPaint.color = AppColors.chartProtein;
-    canvas.drawArc(rect, startAngle + sweepAngle * carbsRatio,
-        sweepAngle * proteinRatio, false, progressPaint);
+    canvas.drawArc(
+      rect,
+      startAngle + sweepAngle * carbsRatio,
+      sweepAngle * proteinRatio,
+      false,
+      progressPaint,
+    );
 
     progressPaint.color = AppColors.chartFat;
-    canvas.drawArc(rect, startAngle + sweepAngle * (carbsRatio + proteinRatio),
-        sweepAngle * fatRatio, false, progressPaint);
+    canvas.drawArc(
+      rect,
+      startAngle + sweepAngle * (carbsRatio + proteinRatio),
+      sweepAngle * fatRatio,
+      false,
+      progressPaint,
+    );
   }
 
   @override

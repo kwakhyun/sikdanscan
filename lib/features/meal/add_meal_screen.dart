@@ -1,33 +1,56 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/theme/app_colors.dart';
+import '../../data/models/food_recognition_result.dart';
 import '../../data/models/meal_record.dart';
 import '../../data/services/food_api_service.dart';
+import '../../data/services/food_image_recognition_service.dart';
+import '../../l10n/app_localizations_context.dart';
 import '../../providers/app_providers.dart';
+import '../../shared/widgets/app_svg_icon.dart';
 
 class AddMealScreen extends ConsumerStatefulWidget {
-  const AddMealScreen({super.key});
+  const AddMealScreen({super.key, this.openCameraOnStart = false});
+
+  final bool openCameraOnStart;
 
   @override
   ConsumerState<AddMealScreen> createState() => _AddMealScreenState();
 }
 
 class _AddMealScreenState extends ConsumerState<AddMealScreen> {
-  MealType _selectedType = MealType.lunch;
+  final _imagePicker = ImagePicker();
   final _searchController = TextEditingController();
   List<FoodItem> _filteredFoods = [];
   final List<FoodItem> _selectedFoods = [];
   bool _isSearching = false;
   bool _isAiAnalyzing = false;
+  bool _isRecognizingImage = false;
   String? _searchError;
+  String? _recognizedImagePath;
+  String? _recognitionSummary;
+  String? _recognitionWarning;
+  double? _recognitionConfidence;
   Timer? _debounce;
+  int _searchRequestId = 0;
 
   @override
   void initState() {
     super.initState();
     _loadInitialFoods();
+    if (widget.openCameraOnStart) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _recognizeMealImage(ImageSource.camera);
+        }
+      });
+    }
   }
 
   @override
@@ -38,11 +61,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   }
 
   Future<void> _loadInitialFoods() async {
-    final foodService = ref.read(foodApiServiceProvider);
-    final foods = await foodService.searchFood('');
-    if (mounted) {
-      setState(() => _filteredFoods = foods);
-    }
+    await _filterFoods('');
   }
 
   void _onSearchChanged(String query) {
@@ -57,18 +76,24 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   }
 
   Future<void> _filterFoods(String query) async {
+    final requestId = ++_searchRequestId;
+    final trimmedQuery = query.trim();
+    final foodService = ref.read(foodApiServiceProvider);
+    final proxyConfigured = foodService.isProxyConfigured;
+
     setState(() {
       _isSearching = true;
-      _isAiAnalyzing = false;
+      _isAiAnalyzing = trimmedQuery.isNotEmpty && proxyConfigured;
       _searchError = null;
     });
 
     try {
-      final foodService = ref.read(foodApiServiceProvider);
+      final foods = await foodService.searchFood(
+        trimmedQuery,
+        locale: ref.read(languageProvider).languageCode,
+      );
 
-      final foods = await foodService.searchFood(query);
-
-      if (mounted) {
+      if (mounted && requestId == _searchRequestId) {
         setState(() {
           _filteredFoods = foods;
           _isAiAnalyzing = false;
@@ -76,11 +101,13 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _searchError = '검색 중 오류가 발생했습니다');
+      if (mounted && requestId == _searchRequestId) {
+        setState(() {
+          _searchError = context.l10n.addMealSearchError;
+        });
       }
     } finally {
-      if (mounted) {
+      if (mounted && requestId == _searchRequestId) {
         setState(() {
           _isSearching = false;
           _isAiAnalyzing = false;
@@ -101,25 +128,206 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     });
   }
 
-  void _saveMeal() {
+  Future<void> _recognizeMealImage(ImageSource source) async {
+    final service = ref.read(foodImageRecognitionServiceProvider);
+    if (!service.isConfigured) {
+      _showMessage(context.l10n.dashboardProxyRequired);
+      return;
+    }
+
+    final picked = await _pickMealImage(source);
+    if (picked == null) return;
+
+    setState(() {
+      _isRecognizingImage = true;
+      _recognizedImagePath = picked.path;
+      _recognitionSummary = null;
+      _recognitionWarning = null;
+      _recognitionConfidence = null;
+      _searchError = null;
+    });
+
+    try {
+      final persistedImagePath = await _persistMealImage(picked);
+      if (mounted && persistedImagePath != _recognizedImagePath) {
+        setState(() => _recognizedImagePath = persistedImagePath);
+      }
+
+      final result = await service.recognizeImageFile(
+        persistedImagePath,
+        locale: ref.read(languageProvider).languageCode,
+      );
+      final foods = result.items
+          .map(
+            (item) =>
+                _recognizedItemToFood(item, imagePath: persistedImagePath),
+          )
+          .toList();
+
+      if (!mounted) return;
+      if (foods.isEmpty) {
+        _clearRecognitionResult();
+        _showMessage(
+          result.warning?.isNotEmpty == true
+              ? result.warning!
+              : context.l10n.dashboardNoFoodFound,
+        );
+        return;
+      }
+
+      setState(() {
+        _selectedFoods.addAll(foods);
+        _recognitionSummary = result.summary;
+        _recognitionWarning = result.warning;
+        _recognitionConfidence = result.confidence;
+      });
+
+      if (result.needsReview) {
+        _showMessage(context.l10n.addMealRecognitionAdded);
+      } else {
+        _showMessage('${foods.length}개 음식을 인식해 선택 목록에 추가했습니다');
+      }
+    } on FoodImageRecognitionException catch (e) {
+      if (!mounted) return;
+      _clearRecognitionResult();
+      _showMessage(e.message);
+    } catch (_) {
+      if (!mounted) return;
+      _clearRecognitionResult();
+      _showMessage(context.l10n.dashboardRecognitionError);
+    } finally {
+      if (mounted) {
+        setState(() => _isRecognizingImage = false);
+      }
+    }
+  }
+
+  Future<XFile?> _pickMealImage(ImageSource source) async {
+    final effectiveSource = _effectiveImageSource(source);
+    if (effectiveSource != source) {
+      _showMessage(context.l10n.dashboardCameraFallback);
+    }
+
+    try {
+      return await _pickImage(effectiveSource);
+    } on PlatformException {
+      if (source == ImageSource.camera &&
+          effectiveSource != ImageSource.gallery &&
+          _imagePicker.supportsImageSource(ImageSource.gallery)) {
+        _showMessage(context.l10n.dashboardCameraFallback);
+        try {
+          return await _pickImage(ImageSource.gallery);
+        } on PlatformException {
+          // Fall through to the generic permission/source message below.
+        }
+      }
+
+      _showMessage(context.l10n.dashboardPhotoPermissionError);
+      return null;
+    }
+  }
+
+  ImageSource _effectiveImageSource(ImageSource source) {
+    if (source == ImageSource.camera &&
+        !_imagePicker.supportsImageSource(ImageSource.camera) &&
+        _imagePicker.supportsImageSource(ImageSource.gallery)) {
+      return ImageSource.gallery;
+    }
+    return source;
+  }
+
+  Future<XFile?> _pickImage(ImageSource source) {
+    return _imagePicker.pickImage(
+      source: source,
+      maxWidth: 1280,
+      imageQuality: 82,
+    );
+  }
+
+  void _clearRecognitionResult() {
+    setState(() {
+      _recognizedImagePath = null;
+      _recognitionSummary = null;
+      _recognitionWarning = null;
+      _recognitionConfidence = null;
+    });
+  }
+
+  Future<String> _persistMealImage(XFile picked) async {
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final imageDirectory = Directory('${directory.path}/meal_images');
+      if (!await imageDirectory.exists()) {
+        await imageDirectory.create(recursive: true);
+      }
+
+      final extension = _imageExtension(picked.path);
+      final fileName = 'meal_${const Uuid().v4()}$extension';
+      final targetPath = '${imageDirectory.path}/$fileName';
+      await File(picked.path).copy(targetPath);
+      return targetPath;
+    } catch (_) {
+      return picked.path;
+    }
+  }
+
+  String _imageExtension(String path) {
+    final lower = path.toLowerCase();
+    if (lower.endsWith('.png')) return '.png';
+    if (lower.endsWith('.webp')) return '.webp';
+    if (lower.endsWith('.heic')) return '.heic';
+    return '.jpg';
+  }
+
+  FoodItem _recognizedItemToFood(
+    RecognizedFoodItem item, {
+    required String imagePath,
+  }) {
+    return FoodItem(
+      name: item.name,
+      calories: item.calories,
+      carbs: item.carbs,
+      protein: item.protein,
+      fat: item.fat,
+      servingSize: item.servingSize,
+      imageUrl: imagePath,
+      recognitionConfidence: item.confidence,
+      isAiGenerated: true,
+      source: FoodSource.imageRecognition,
+    );
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
+  }
+
+  Future<void> _saveMeal() async {
     const uuid = Uuid();
     final selectedDate = ref.read(selectedDateProvider);
+    final now = DateTime.now();
+
+    final notifier = ref.read(mealRecordsProvider.notifier);
     for (final food in _selectedFoods) {
-      ref.read(mealRecordsProvider.notifier).addMeal(
-            food.toMealRecord(
-              id: uuid.v4(),
-              date: DateTime(
-                selectedDate.year,
-                selectedDate.month,
-                selectedDate.day,
-                DateTime.now().hour,
-                DateTime.now().minute,
-              ),
-              mealType: _selectedType,
-            ),
-          );
+      await notifier.addMeal(
+        food.toMealRecord(
+          id: uuid.v4(),
+          date: DateTime(
+            selectedDate.year,
+            selectedDate.month,
+            selectedDate.day,
+            now.hour,
+            now.minute,
+          ),
+          mealType: MealType.lunch,
+        ),
+      );
     }
-    Navigator.pop(context);
+
+    if (mounted) {
+      Navigator.pop(context);
+    }
   }
 
   int get _totalCalories =>
@@ -130,9 +338,9 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     return Scaffold(
       backgroundColor: context.colorBackground,
       appBar: AppBar(
-        title: const Text(
-          '식단 추가',
-          style: TextStyle(fontWeight: FontWeight.w700),
+        title: Text(
+          context.l10n.addMealTitle,
+          style: const TextStyle(fontWeight: FontWeight.w700),
         ),
         leading: IconButton(
           icon: const Icon(Icons.close_rounded),
@@ -142,9 +350,9 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
           if (_selectedFoods.isNotEmpty)
             TextButton(
               onPressed: _saveMeal,
-              child: const Text(
-                '저장',
-                style: TextStyle(
+              child: Text(
+                context.l10n.commonSave,
+                style: const TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 16,
                 ),
@@ -154,7 +362,9 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       ),
       body: Column(
         children: [
-          _buildMealTypeSelector(),
+          _buildPhotoRecognitionPanel(),
+          if (_recognizedImagePath != null || _recognitionSummary != null)
+            _buildRecognitionResultPanel(),
           _buildSearchBar(),
           if (_isAiAnalyzing) _buildAiAnalyzingBanner(),
           if (_selectedFoods.isNotEmpty) _buildSelectedFoods(),
@@ -164,46 +374,163 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     );
   }
 
-  Widget _buildMealTypeSelector() {
+  Widget _buildPhotoRecognitionPanel() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      color: context.colorSurface,
+      margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: context.colorSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.colorBorder),
+      ),
       child: Row(
-        children: MealType.values.map((type) {
-          final isSelected = type == _selectedType;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => _selectedType = type),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.primary
-                      : context.colorSurfaceVariant,
-                  borderRadius: BorderRadius.circular(12),
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.camera_alt_rounded,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  context.l10n.addMealRecognitionTitle,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: context.colorTextPrimary,
+                  ),
                 ),
-                child: Column(
+                const SizedBox(height: 2),
+                Text(
+                  context.l10n.addMealRecognitionSubtitle,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: context.colorTextSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton.filledTonal(
+            tooltip: context.l10n.dashboardPickPhoto,
+            onPressed: _isRecognizingImage
+                ? null
+                : () => _recognizeMealImage(ImageSource.gallery),
+            icon: const Icon(Icons.photo_library_rounded, size: 20),
+          ),
+          const SizedBox(width: 6),
+          IconButton.filled(
+            tooltip: context.l10n.dashboardCaptureNow,
+            onPressed: _isRecognizingImage
+                ? null
+                : () => _recognizeMealImage(ImageSource.camera),
+            icon: _isRecognizingImage
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.camera_alt_rounded, size: 20),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecognitionResultPanel() {
+    final confidence = _recognitionConfidence;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.secondary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_recognizedImagePath != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.file(
+                File(_recognizedImagePath!),
+                width: 56,
+                height: 56,
+                fit: BoxFit.cover,
+              ),
+            )
+          else
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: context.colorSurface,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.image_search_rounded),
+            ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Text(type.emoji, style: const TextStyle(fontSize: 18)),
-                    const SizedBox(height: 4),
-                    Text(
-                      type.label,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: isSelected
-                            ? Colors.white
-                            : context.colorTextSecondary,
+                    Expanded(
+                      child: Text(
+                        _recognitionSummary?.isNotEmpty == true
+                            ? _recognitionSummary!
+                            : _isRecognizingImage
+                            ? context.l10n.addMealAnalyzingPhoto
+                            : context.l10n.addMealRecognitionResult,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: context.colorTextPrimary,
+                        ),
                       ),
                     ),
+                    if (confidence != null)
+                      Text(
+                        '${(confidence * 100).round()}%',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.secondary,
+                        ),
+                      ),
                   ],
                 ),
-              ),
+                if (_recognitionWarning?.isNotEmpty == true) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _recognitionWarning!,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: context.colorTextSecondary,
+                    ),
+                  ),
+                ],
+              ],
             ),
-          );
-        }).toList(),
+          ),
+        ],
       ),
     );
   }
@@ -218,9 +545,11 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
             controller: _searchController,
             onChanged: _onSearchChanged,
             decoration: InputDecoration(
-              hintText: '음식을 검색하세요 (예: 김치찌개, 아사이볼, 연어 포케)',
-              prefixIcon:
-                  Icon(Icons.search_rounded, color: context.colorTextTertiary),
+              hintText: context.l10n.addMealSearchHint,
+              prefixIcon: Icon(
+                Icons.search_rounded,
+                color: context.colorTextTertiary,
+              ),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
                       icon: const Icon(Icons.clear_rounded),
@@ -233,12 +562,24 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
             ),
           ),
           const SizedBox(height: 6),
-          Text(
-            '💡 DB에 없는 음식은 AI가 자동으로 영양 정보를 분석합니다',
-            style: TextStyle(
-              fontSize: 11,
-              color: context.colorTextTertiary,
-            ),
+          Row(
+            children: [
+              const AppSvgIcon(
+                'assets/icons/app/hint.svg',
+                color: AppColors.warning,
+                size: 14,
+              ),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  'DB에 없는 음식은 AI가 자동으로 영양 정보를 분석합니다',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: context.colorTextTertiary,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -298,7 +639,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '선택된 음식 (${_selectedFoods.length})',
+                    '${context.l10n.addMealSelectedFoods} (${_selectedFoods.length})',
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -325,9 +666,18 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                       entry.value.name,
                       style: const TextStyle(fontSize: 12),
                     ),
-                    avatar: entry.value.isAiGenerated
-                        ? const Icon(Icons.auto_awesome,
-                            size: 14, color: AppColors.secondary)
+                    avatar: entry.value.source == FoodSource.imageRecognition
+                        ? const Icon(
+                            Icons.camera_alt_rounded,
+                            size: 14,
+                            color: AppColors.primary,
+                          )
+                        : entry.value.isAiGenerated
+                        ? const Icon(
+                            Icons.auto_awesome,
+                            size: 14,
+                            color: AppColors.secondary,
+                          )
                         : null,
                     deleteIcon: const Icon(Icons.close, size: 16),
                     onDeleted: () => _removeFood(entry.key),
@@ -356,20 +706,20 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline_rounded,
-                color: AppColors.error, size: 48),
+            const Icon(
+              Icons.error_outline_rounded,
+              color: AppColors.error,
+              size: 48,
+            ),
             const SizedBox(height: 12),
             Text(
               _searchError!,
-              style: TextStyle(
-                color: context.colorTextSecondary,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: context.colorTextSecondary, fontSize: 14),
             ),
             const SizedBox(height: 12),
             TextButton(
               onPressed: () => _filterFoods(_searchController.text),
-              child: const Text('다시 시도'),
+              child: Text(context.l10n.addMealRetry),
             ),
           ],
         ),
@@ -381,27 +731,30 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.search_off_rounded,
-                color: context.colorTextTertiary, size: 48),
+            Icon(
+              Icons.search_off_rounded,
+              color: context.colorTextTertiary,
+              size: 48,
+            ),
             const SizedBox(height: 12),
             Text(
-              '검색 결과가 없습니다',
-              style: TextStyle(
-                color: context.colorTextSecondary,
-                fontSize: 14,
-              ),
+              context.l10n.addMealNoSearchResults,
+              style: TextStyle(color: context.colorTextSecondary, fontSize: 14),
             ),
           ],
         ),
       );
     }
 
-    final localFoods =
-        _filteredFoods.where((f) => f.source == FoodSource.localDb).toList();
-    final publicFoods =
-        _filteredFoods.where((f) => f.source == FoodSource.publicApi).toList();
-    final aiFoods =
-        _filteredFoods.where((f) => f.source == FoodSource.aiAnalysis).toList();
+    final localFoods = _filteredFoods
+        .where((f) => f.source == FoodSource.localDb)
+        .toList();
+    final publicFoods = _filteredFoods
+        .where((f) => f.source == FoodSource.publicApi)
+        .toList();
+    final aiFoods = _filteredFoods
+        .where((f) => f.source == FoodSource.aiAnalysis)
+        .toList();
 
     final isSearching = _searchController.text.isNotEmpty;
 
@@ -412,9 +765,9 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
           if (localFoods.isNotEmpty) ...[
             _buildSectionHeader(
               icon: Icons.restaurant_menu_rounded,
-              title: '내장 데이터베이스',
+              title: context.l10n.addMealSourceBuiltInDb,
               count: localFoods.length,
-              emoji: '📦',
+              iconAsset: 'assets/icons/app/source_local_db.svg',
             ),
             const SizedBox(height: 8),
             ...localFoods.map((food) => _buildFoodTile(food)),
@@ -423,10 +776,10 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
             const SizedBox(height: 16),
             _buildSectionHeader(
               icon: Icons.account_balance_rounded,
-              title: '식약처 식품영양정보',
+              title: context.l10n.addMealSourcePublicFoodDb,
               count: publicFoods.length,
-              emoji: '🏛️',
-              tagText: '공공데이터',
+              iconAsset: 'assets/icons/app/source_public_api.svg',
+              tagText: context.l10n.addMealPublicData,
               tagColor: Colors.teal,
             ),
             const SizedBox(height: 8),
@@ -438,7 +791,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
               icon: Icons.auto_awesome,
               title: 'AI 영양 분석 결과',
               count: aiFoods.length,
-              emoji: '🤖',
+              iconAsset: 'assets/icons/app/source_ai.svg',
               isAi: true,
             ),
             const SizedBox(height: 8),
@@ -456,7 +809,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     required IconData icon,
     required String title,
     required int count,
-    String? emoji,
+    String? iconAsset,
     String? tagText,
     Color? tagColor,
     bool isAi = false,
@@ -468,8 +821,8 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       padding: const EdgeInsets.only(top: 4, bottom: 4),
       child: Row(
         children: [
-          if (emoji != null) ...[
-            Text(emoji, style: const TextStyle(fontSize: 14)),
+          if (iconAsset != null) ...[
+            AppSvgIcon(iconAsset, color: effectiveColor, size: 16),
             const SizedBox(width: 6),
           ] else ...[
             Icon(icon, size: 16, color: effectiveColor),
@@ -507,7 +860,8 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   }
 
   Widget _buildFoodTile(FoodItem food) {
-    final isExternal = food.source == FoodSource.aiAnalysis ||
+    final isExternal =
+        food.source == FoodSource.aiAnalysis ||
         food.source == FoodSource.publicApi;
 
     return Container(
@@ -519,8 +873,8 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
           color: food.source == FoodSource.aiAnalysis
               ? AppColors.secondary.withValues(alpha: 0.3)
               : food.source == FoodSource.publicApi
-                  ? Colors.teal.withValues(alpha: 0.3)
-                  : context.colorBorder,
+              ? Colors.teal.withValues(alpha: 0.3)
+              : context.colorBorder,
         ),
       ),
       child: ListTile(
@@ -536,23 +890,27 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Center(
-                  child: Text(food.sourceEmoji,
-                      style: const TextStyle(fontSize: 16)),
+                  child: AppSvgIcon(
+                    food.sourceIconAsset,
+                    color: food.source == FoodSource.aiAnalysis
+                        ? AppColors.secondary
+                        : Colors.teal,
+                    size: 18,
+                  ),
                 ),
               )
             : null,
         title: Text(
           food.name,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
         subtitle: Row(
           children: [
             Flexible(
               child: Text(
-                '탄 ${food.carbs.toStringAsFixed(0)}g · 단 ${food.protein.toStringAsFixed(0)}g · 지 ${food.fat.toStringAsFixed(0)}g',
+                Localizations.localeOf(context).languageCode == 'en'
+                    ? 'C ${food.carbs.toStringAsFixed(0)}g · P ${food.protein.toStringAsFixed(0)}g · F ${food.fat.toStringAsFixed(0)}g'
+                    : '탄 ${food.carbs.toStringAsFixed(0)}g · 단 ${food.protein.toStringAsFixed(0)}g · 지 ${food.fat.toStringAsFixed(0)}g',
                 style: TextStyle(
                   fontSize: 11,
                   color: context.colorTextTertiary,
@@ -591,8 +949,8 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                   color: food.source == FoodSource.aiAnalysis
                       ? AppColors.secondary.withValues(alpha: 0.1)
                       : food.source == FoodSource.publicApi
-                          ? Colors.teal.withValues(alpha: 0.1)
-                          : context.colorPrimarySurface,
+                      ? Colors.teal.withValues(alpha: 0.1)
+                      : context.colorPrimarySurface,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -600,8 +958,8 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                   color: food.source == FoodSource.aiAnalysis
                       ? AppColors.secondary
                       : food.source == FoodSource.publicApi
-                          ? Colors.teal
-                          : AppColors.primary,
+                      ? Colors.teal
+                      : AppColors.primary,
                   size: 20,
                 ),
               ),

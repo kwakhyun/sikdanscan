@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/chat_message.dart';
+import '../../l10n/app_localizations_context.dart';
 import '../../providers/app_providers.dart';
 import 'widgets/chat_bubble.dart';
 import 'widgets/suggestion_chips.dart';
@@ -61,16 +62,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _showClearChatDialog(BuildContext context) {
+    final l10n = context.l10n;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('대화 초기화'),
-        content: const Text('모든 대화 내용이 삭제됩니다.\n정말 초기화하시겠습니까?'),
+        title: Text(l10n.chatClearTitle),
+        content: Text(l10n.chatClearMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('취소'),
+            child: Text(l10n.commonCancel),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -84,7 +86,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ref.invalidate(chatMessagesProvider);
               Navigator.pop(ctx);
             },
-            child: const Text('초기화'),
+            child: Text(l10n.chatClearAction),
           ),
         ],
       ),
@@ -95,6 +97,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget build(BuildContext context) {
     final messages = ref.watch(chatMessagesProvider);
     final isLoading = ref.watch(chatLoadingProvider);
+    final l10n = context.l10n;
 
     ref.listen(chatMessagesProvider, (prev, next) {
       _scrollToBottom();
@@ -111,22 +114,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 gradient: AppColors.primaryGradient,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.smart_toy_rounded,
-                  color: Colors.white, size: 20),
+              child: const Icon(
+                Icons.smart_toy_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
             const SizedBox(width: 12),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'FitMate AI 코치',
-                  style: TextStyle(
+                Text(
+                  l10n.chatTitle,
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 Text(
-                  isLoading ? '답변 작성 중...' : '온라인',
+                  isLoading ? l10n.chatTyping : l10n.commonOnline,
                   style: TextStyle(
                     fontSize: 11,
                     color: isLoading ? AppColors.secondary : AppColors.success,
@@ -140,7 +146,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_outline_rounded),
-            tooltip: '대화 초기화',
+            tooltip: l10n.chatClearTitle,
             onPressed: () => _showClearChatDialog(context),
           ),
         ],
@@ -159,15 +165,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 final message = messages[index];
                 return ChatBubble(
                   message: message,
-                  showAvatar: !message.isUser &&
+                  showAvatar:
+                      !message.isUser &&
                       (index == 0 || messages[index - 1].isUser),
                 );
               },
             ),
           ),
-          SuggestionChips(
-            onSuggestionTap: _sendMessage,
-          ),
+          SuggestionChips(onSuggestionTap: _sendMessage),
           _buildInputBar(),
         ],
       ),
@@ -205,11 +210,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 focusNode: _focusNode,
                 textInputAction: TextInputAction.send,
                 onSubmitted: _sendMessage,
-                decoration: const InputDecoration(
-                  hintText: '무엇이든 물어보세요...',
+                decoration: InputDecoration(
+                  hintText: context.l10n.chatInputHint,
                   border: InputBorder.none,
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
                 ),
               ),
             ),

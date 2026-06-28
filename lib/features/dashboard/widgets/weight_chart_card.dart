@@ -11,8 +11,9 @@ class WeightChartCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final records = ref.watch(weightRecordsProvider);
-    final recent =
-        records.length > 30 ? records.sublist(records.length - 30) : records;
+    final recent = records.length > 30
+        ? records.sublist(records.length - 30)
+        : records;
     final profile = ref.watch(userProfileProvider);
 
     if (recent.isEmpty) return const SizedBox.shrink();
@@ -40,8 +41,11 @@ class WeightChartCard extends ConsumerWidget {
                   color: context.colorPrimarySurface,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.show_chart_rounded,
-                    color: AppColors.primary, size: 20),
+                child: const Icon(
+                  Icons.show_chart_rounded,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -55,8 +59,10 @@ class WeightChartCard extends ConsumerWidget {
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.success.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
@@ -96,10 +102,8 @@ class WeightChartCard extends ConsumerWidget {
                   show: true,
                   drawVerticalLine: false,
                   horizontalInterval: 2,
-                  getDrawingHorizontalLine: (value) => FlLine(
-                    color: context.colorBorder,
-                    strokeWidth: 1,
-                  ),
+                  getDrawingHorizontalLine: (value) =>
+                      FlLine(color: context.colorBorder, strokeWidth: 1),
                 ),
                 titlesData: FlTitlesData(
                   leftTitles: AxisTitles(
@@ -137,9 +141,11 @@ class WeightChartCard extends ConsumerWidget {
                     ),
                   ),
                   topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false)),
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                   rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false)),
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                 ),
                 borderData: FlBorderData(show: false),
                 minX: 0,
@@ -151,7 +157,9 @@ class WeightChartCard extends ConsumerWidget {
                     spots: [
                       FlSpot(0, profile.targetWeight),
                       FlSpot(
-                          (recent.length - 1).toDouble(), profile.targetWeight),
+                        (recent.length - 1).toDouble(),
+                        profile.targetWeight,
+                      ),
                     ],
                     isCurved: false,
                     color: AppColors.success.withValues(alpha: 0.5),

@@ -7,32 +7,71 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'data/services/local_storage_service.dart';
+import 'l10n/generated/app_localizations.dart';
 import 'providers/app_providers.dart';
 
 Future<void> main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
-  await dotenv.load(fileName: '.env');
-  await LocalStorageService().initialize();
-  await initializeDateFormatting('ko');
-  SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
-  SystemChrome.setEnabledSystemUIMode(
-    SystemUiMode.edgeToEdge,
-    overlays: SystemUiOverlay.values,
+
+  Object? startupError;
+  StackTrace? startupStackTrace;
+
+  try {
+    await _loadOptionalEnv();
+    await LocalStorageService().initialize();
+    await Future.wait([
+      initializeDateFormatting('ko'),
+      initializeDateFormatting('en'),
+    ]);
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+    await SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.edgeToEdge,
+      overlays: SystemUiOverlay.values,
+    );
+  } catch (error, stackTrace) {
+    startupError = error;
+    startupStackTrace = stackTrace;
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: error,
+        stack: stackTrace,
+        library: 'sikdanscan bootstrap',
+        context: ErrorDescription('while initializing app services'),
+      ),
+    );
+  } finally {
+    FlutterNativeSplash.remove();
+  }
+
+  runApp(
+    startupError == null
+        ? const ProviderScope(child: SikdanScanApp())
+        : SikdanScanStartupErrorApp(
+            error: startupError,
+            stackTrace: startupStackTrace,
+          ),
   );
-  FlutterNativeSplash.remove();
-  runApp(const ProviderScope(child: FitMateApp()));
 }
 
-class FitMateApp extends ConsumerWidget {
-  const FitMateApp({super.key});
+Future<void> _loadOptionalEnv() async {
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (error) {
+    debugPrint('Optional .env was not loaded: $error');
+  }
+}
+
+class SikdanScanApp extends ConsumerWidget {
+  const SikdanScanApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDarkMode = ref.watch(darkModeProvider);
+    final language = ref.watch(languageProvider);
 
     final overlayStyle = isDarkMode
         ? const SystemUiOverlayStyle(
@@ -53,12 +92,60 @@ class FitMateApp extends ConsumerWidget {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: overlayStyle,
       child: MaterialApp.router(
-        title: 'FitMate - 스마트 다이어트',
+        onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
         themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
+        locale: language.locale,
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
         routerConfig: appRouter,
+      ),
+    );
+  }
+}
+
+class SikdanScanStartupErrorApp extends StatelessWidget {
+  const SikdanScanStartupErrorApp({
+    required this.error,
+    this.stackTrace,
+    super.key,
+  });
+
+  final Object error;
+  final StackTrace? stackTrace;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.error_outline_rounded,
+                  size: 48,
+                  color: Colors.redAccent,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  '앱을 시작할 수 없습니다',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                Text(error.toString(), style: const TextStyle(fontSize: 14)),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
