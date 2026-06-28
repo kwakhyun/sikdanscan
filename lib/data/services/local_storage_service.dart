@@ -8,9 +8,7 @@ class LocalStorageService {
   static const String _dailyHealthBox = 'daily_health';
   static const String _settingsBox = 'settings';
 
-  static final LocalStorageService _instance = LocalStorageService._internal();
-  factory LocalStorageService() => _instance;
-  LocalStorageService._internal();
+  LocalStorageService();
 
   Future<void> initialize() async {
     await Hive.initFlutter();
@@ -30,9 +28,7 @@ class LocalStorageService {
 
   Map<String, dynamic>? getUserProfile() {
     final box = Hive.box<String>(_userProfileBox);
-    final data = box.get('profile');
-    if (data == null) return null;
-    return jsonDecode(data) as Map<String, dynamic>;
+    return _decodeJsonMap(box.get('profile'));
   }
 
   Future<void> saveWeightRecords(List<Map<String, dynamic>> records) async {
@@ -42,10 +38,7 @@ class LocalStorageService {
 
   List<Map<String, dynamic>> getWeightRecords() {
     final box = Hive.box<String>(_weightRecordsBox);
-    final data = box.get('records');
-    if (data == null) return [];
-    final list = jsonDecode(data) as List;
-    return list.cast<Map<String, dynamic>>();
+    return _decodeJsonMapList(box.get('records'));
   }
 
   Future<void> addWeightRecord(Map<String, dynamic> record) async {
@@ -67,10 +60,7 @@ class LocalStorageService {
 
   List<Map<String, dynamic>> getMealRecords() {
     final box = Hive.box<String>(_mealRecordsBox);
-    final data = box.get('records');
-    if (data == null) return [];
-    final list = jsonDecode(data) as List;
-    return list.cast<Map<String, dynamic>>();
+    return _decodeJsonMapList(box.get('records'));
   }
 
   Future<void> addMealRecord(Map<String, dynamic> record) async {
@@ -87,21 +77,18 @@ class LocalStorageService {
 
   Future<void> saveDailyHealth(Map<String, dynamic> health) async {
     final box = Hive.box<String>(_dailyHealthBox);
-    final dateKey = health['date'] as String;
+    final date = DateTime.tryParse(health['date'] as String? ?? '');
+    final dateKey = _dateKey(date ?? DateTime.now());
     await box.put(dateKey, jsonEncode(health));
   }
 
   Map<String, dynamic>? getDailyHealth(String dateKey) {
     final box = Hive.box<String>(_dailyHealthBox);
-    final data = box.get(dateKey);
-    if (data == null) return null;
-    return jsonDecode(data) as Map<String, dynamic>;
+    return _decodeJsonMap(box.get(dateKey));
   }
 
   Map<String, dynamic>? getTodayHealth() {
-    final now = DateTime.now();
-    final dateKey = DateTime(now.year, now.month, now.day).toIso8601String();
-    return getDailyHealth(dateKey);
+    return getDailyHealth(_dateKey(DateTime.now()));
   }
 
   Future<void> saveSetting(String key, dynamic value) async {
@@ -113,7 +100,12 @@ class LocalStorageService {
     final box = Hive.box<String>(_settingsBox);
     final data = box.get(key);
     if (data == null) return null;
-    return jsonDecode(data) as T;
+    try {
+      final decoded = jsonDecode(data);
+      return decoded is T ? decoded : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> clearAll() async {
@@ -129,5 +121,40 @@ class LocalStorageService {
   bool get hasData {
     final box = Hive.box<String>(_userProfileBox);
     return box.isNotEmpty;
+  }
+
+  static String _dateKey(DateTime date) {
+    return DateTime(date.year, date.month, date.day).toIso8601String();
+  }
+
+  static Map<String, dynamic>? _decodeJsonMap(String? data) {
+    if (data == null || data.isEmpty) return null;
+
+    try {
+      final decoded = jsonDecode(data);
+      if (decoded is! Map) return null;
+
+      return decoded.map((key, value) => MapEntry(key.toString(), value));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static List<Map<String, dynamic>> _decodeJsonMapList(String? data) {
+    if (data == null || data.isEmpty) return const [];
+
+    try {
+      final decoded = jsonDecode(data);
+      if (decoded is! List) return const [];
+
+      return decoded
+          .whereType<Map>()
+          .map(
+            (item) => item.map((key, value) => MapEntry(key.toString(), value)),
+          )
+          .toList();
+    } catch (_) {
+      return const [];
+    }
   }
 }

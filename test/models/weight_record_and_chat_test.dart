@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fitmate/data/models/weight_record.dart';
-import 'package:fitmate/data/models/chat_message.dart';
+import 'package:sikdanscan/data/models/weight_record.dart';
+import 'package:sikdanscan/data/models/chat_message.dart';
 
 void main() {
   group('WeightRecord', () {

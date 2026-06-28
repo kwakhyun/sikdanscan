@@ -15,16 +15,19 @@ class DummyData {
       final date = now.subtract(Duration(days: i));
       weight -= (_random.nextDouble() * 0.3 - 0.05);
       weight = weight.clamp(58.0, 72.0);
-      records.add(WeightRecord(
-        id: 'w_$i',
-        date: date,
-        weight: double.parse(weight.toStringAsFixed(1)),
-        bodyFat: double.parse((25.0 - (72.0 - weight) * 0.5)
-            .clamp(18.0, 28.0)
-            .toStringAsFixed(1)),
-        muscleMass:
-            double.parse((26.0 + _random.nextDouble() * 2).toStringAsFixed(1)),
-      ));
+      records.add(
+        WeightRecord(
+          id: 'w_$i',
+          date: date,
+          weight: double.parse(weight.toStringAsFixed(1)),
+          bodyFat: double.parse(
+            (25.0 - (72.0 - weight) * 0.5).clamp(18.0, 28.0).toStringAsFixed(1),
+          ),
+          muscleMass: double.parse(
+            (26.0 + _random.nextDouble() * 2).toStringAsFixed(1),
+          ),
+        ),
+      );
     }
     return records;
   }
@@ -94,7 +97,7 @@ class DummyData {
       steps: 7234,
       sleepHours: 7.5,
       exerciseMinutes: 45,
-      mood: '😊',
+      mood: '좋음',
     );
   }
 
@@ -109,7 +112,7 @@ class DummyData {
         steps: 3000 + _random.nextInt(10000),
         sleepHours: 5.5 + _random.nextDouble() * 3,
         exerciseMinutes: _random.nextInt(90),
-        mood: ['😊', '😐', '😴', '💪', '😃'][_random.nextInt(5)],
+        mood: ['좋음', '보통', '피곤', '활기', '상쾌'][_random.nextInt(5)],
       );
     });
   }
@@ -122,7 +125,7 @@ class DummyData {
       'carbs': 66.0,
       'protein': 5.0,
       'fat': 0.5,
-      'category': '밥'
+      'category': '밥',
     },
     {
       'name': '현미밥 1공기',
@@ -130,7 +133,7 @@ class DummyData {
       'carbs': 56.0,
       'protein': 6.0,
       'fat': 2.0,
-      'category': '밥'
+      'category': '밥',
     },
     {
       'name': '잡곡밥 1공기',
@@ -138,7 +141,7 @@ class DummyData {
       'carbs': 60.0,
       'protein': 7.0,
       'fat': 1.5,
-      'category': '밥'
+      'category': '밥',
     },
     {
       'name': '볶음밥 1인분',
@@ -146,7 +149,7 @@ class DummyData {
       'carbs': 65.0,
       'protein': 12.0,
       'fat': 15.0,
-      'category': '밥'
+      'category': '밥',
     },
     {
       'name': '김밥 1줄',
@@ -154,7 +157,7 @@ class DummyData {
       'carbs': 55.0,
       'protein': 10.0,
       'fat': 12.0,
-      'category': '밥'
+      'category': '밥',
     },
     {
       'name': '비빔밥 1인분',
@@ -162,7 +165,7 @@ class DummyData {
       'carbs': 72.0,
       'protein': 18.0,
       'fat': 16.0,
-      'category': '밥'
+      'category': '밥',
     },
     {
       'name': '오트밀 1컵',
@@ -170,7 +173,7 @@ class DummyData {
       'carbs': 27.0,
       'protein': 6.0,
       'fat': 3.0,
-      'category': '밥'
+      'category': '밥',
     },
     // ── 면류 ──
     {
@@ -179,7 +182,7 @@ class DummyData {
       'carbs': 75.0,
       'protein': 10.0,
       'fat': 18.0,
-      'category': '면'
+      'category': '면',
     },
     {
       'name': '짜장면 1인분',
@@ -187,7 +190,7 @@ class DummyData {
       'carbs': 85.0,
       'protein': 15.0,
       'fat': 25.0,
-      'category': '면'
+      'category': '면',
     },
     {
       'name': '짬뽕 1인분',
@@ -195,7 +198,7 @@ class DummyData {
       'carbs': 70.0,
       'protein': 20.0,
       'fat': 17.0,
-      'category': '면'
+      'category': '면',
     },
     {
       'name': '칼국수 1인분',
@@ -203,7 +206,7 @@ class DummyData {
       'carbs': 65.0,
       'protein': 15.0,
       'fat': 10.0,
-      'category': '면'
+      'category': '면',
     },
     {
       'name': '냉면 1인분',
@@ -211,7 +214,7 @@ class DummyData {
       'carbs': 80.0,
       'protein': 12.0,
       'fat': 8.0,
-      'category': '면'
+      'category': '면',
     },
     {
       'name': '파스타(토마토) 1인분',
@@ -219,7 +222,7 @@ class DummyData {
       'carbs': 70.0,
       'protein': 16.0,
       'fat': 18.0,
-      'category': '면'
+      'category': '면',
     },
     {
       'name': '우동 1인분',
@@ -227,7 +230,7 @@ class DummyData {
       'carbs': 60.0,
       'protein': 12.0,
       'fat': 10.0,
-      'category': '면'
+      'category': '면',
     },
     // ── 고기·생선 ──
     {
@@ -236,7 +239,7 @@ class DummyData {
       'carbs': 0.0,
       'protein': 31.0,
       'fat': 3.6,
-      'category': '고기'
+      'category': '고기',
     },
     {
       'name': '소고기(등심) 100g',
@@ -244,7 +247,7 @@ class DummyData {
       'carbs': 0.0,
       'protein': 26.0,
       'fat': 16.0,
-      'category': '고기'
+      'category': '고기',
     },
     {
       'name': '돼지고기(삼겹살) 100g',
@@ -252,7 +255,7 @@ class DummyData {
       'carbs': 0.0,
       'protein': 18.0,
       'fat': 28.0,
-      'category': '고기'
+      'category': '고기',
     },
     {
       'name': '연어 100g',
@@ -260,7 +263,7 @@ class DummyData {
       'carbs': 0.0,
       'protein': 20.0,
       'fat': 13.0,
-      'category': '생선'
+      'category': '생선',
     },
     {
       'name': '고등어구이 1토막',
@@ -268,7 +271,7 @@ class DummyData {
       'carbs': 0.0,
       'protein': 20.0,
       'fat': 11.0,
-      'category': '생선'
+      'category': '생선',
     },
     {
       'name': '참치회 100g',
@@ -276,7 +279,7 @@ class DummyData {
       'carbs': 0.0,
       'protein': 28.0,
       'fat': 1.5,
-      'category': '생선'
+      'category': '생선',
     },
     {
       'name': '새우 100g',
@@ -284,7 +287,7 @@ class DummyData {
       'carbs': 0.0,
       'protein': 18.0,
       'fat': 1.0,
-      'category': '생선'
+      'category': '생선',
     },
     // ── 한식 반찬 ──
     {
@@ -293,7 +296,7 @@ class DummyData {
       'carbs': 10.0,
       'protein': 14.0,
       'fat': 12.0,
-      'category': '찌개'
+      'category': '찌개',
     },
     {
       'name': '된장찌개 1인분',
@@ -301,7 +304,7 @@ class DummyData {
       'carbs': 12.0,
       'protein': 10.0,
       'fat': 7.0,
-      'category': '찌개'
+      'category': '찌개',
     },
     {
       'name': '순두부찌개 1인분',
@@ -309,7 +312,7 @@ class DummyData {
       'carbs': 8.0,
       'protein': 12.0,
       'fat': 10.0,
-      'category': '찌개'
+      'category': '찌개',
     },
     {
       'name': '제육볶음 1인분',
@@ -317,7 +320,7 @@ class DummyData {
       'carbs': 15.0,
       'protein': 22.0,
       'fat': 22.0,
-      'category': '반찬'
+      'category': '반찬',
     },
     {
       'name': '불고기 1인분',
@@ -325,7 +328,7 @@ class DummyData {
       'carbs': 12.0,
       'protein': 28.0,
       'fat': 16.0,
-      'category': '반찬'
+      'category': '반찬',
     },
     {
       'name': '잡채 1인분',
@@ -333,7 +336,7 @@ class DummyData {
       'carbs': 35.0,
       'protein': 8.0,
       'fat': 10.0,
-      'category': '반찬'
+      'category': '반찬',
     },
     {
       'name': '김치 1접시',
@@ -341,7 +344,7 @@ class DummyData {
       'carbs': 4.0,
       'protein': 1.5,
       'fat': 0.3,
-      'category': '반찬'
+      'category': '반찬',
     },
     {
       'name': '계란찜 1인분',
@@ -349,7 +352,7 @@ class DummyData {
       'carbs': 2.0,
       'protein': 10.0,
       'fat': 8.0,
-      'category': '반찬'
+      'category': '반찬',
     },
     {
       'name': '시금치나물 1접시',
@@ -357,7 +360,7 @@ class DummyData {
       'carbs': 3.0,
       'protein': 3.0,
       'fat': 1.5,
-      'category': '반찬'
+      'category': '반찬',
     },
     {
       'name': '콩나물무침 1접시',
@@ -365,7 +368,7 @@ class DummyData {
       'carbs': 4.0,
       'protein': 4.0,
       'fat': 1.0,
-      'category': '반찬'
+      'category': '반찬',
     },
     // ── 분식·간식 ──
     {
@@ -374,7 +377,7 @@ class DummyData {
       'carbs': 70.0,
       'protein': 8.0,
       'fat': 8.0,
-      'category': '분식'
+      'category': '분식',
     },
     {
       'name': '순대 1인분',
@@ -382,7 +385,7 @@ class DummyData {
       'carbs': 35.0,
       'protein': 14.0,
       'fat': 14.0,
-      'category': '분식'
+      'category': '분식',
     },
     {
       'name': '튀김(모듬) 1인분',
@@ -390,7 +393,7 @@ class DummyData {
       'carbs': 40.0,
       'protein': 10.0,
       'fat': 22.0,
-      'category': '분식'
+      'category': '분식',
     },
     {
       'name': '만두(5개)',
@@ -398,7 +401,7 @@ class DummyData {
       'carbs': 30.0,
       'protein': 12.0,
       'fat': 12.0,
-      'category': '분식'
+      'category': '분식',
     },
     {
       'name': '토스트 1개',
@@ -406,7 +409,7 @@ class DummyData {
       'carbs': 35.0,
       'protein': 12.0,
       'fat': 14.0,
-      'category': '분식'
+      'category': '분식',
     },
     // ── 빵·베이커리 ──
     {
@@ -415,7 +418,7 @@ class DummyData {
       'carbs': 14.0,
       'protein': 3.0,
       'fat': 1.0,
-      'category': '빵'
+      'category': '빵',
     },
     {
       'name': '크로아상 1개',
@@ -423,7 +426,7 @@ class DummyData {
       'carbs': 26.0,
       'protein': 5.0,
       'fat': 12.0,
-      'category': '빵'
+      'category': '빵',
     },
     {
       'name': '베이글 1개',
@@ -431,7 +434,7 @@ class DummyData {
       'carbs': 53.0,
       'protein': 10.0,
       'fat': 1.5,
-      'category': '빵'
+      'category': '빵',
     },
     // ── 달걀·유제품 ──
     {
@@ -440,7 +443,7 @@ class DummyData {
       'carbs': 0.6,
       'protein': 6.0,
       'fat': 5.3,
-      'category': '유제품'
+      'category': '유제품',
     },
     {
       'name': '계란 프라이 1개',
@@ -448,7 +451,7 @@ class DummyData {
       'carbs': 0.6,
       'protein': 6.0,
       'fat': 9.0,
-      'category': '유제품'
+      'category': '유제품',
     },
     {
       'name': '그릭요거트 1컵',
@@ -456,7 +459,7 @@ class DummyData {
       'carbs': 6.0,
       'protein': 17.0,
       'fat': 4.0,
-      'category': '유제품'
+      'category': '유제품',
     },
     {
       'name': '우유 1잔 (200ml)',
@@ -464,7 +467,7 @@ class DummyData {
       'carbs': 10.0,
       'protein': 6.0,
       'fat': 6.0,
-      'category': '유제품'
+      'category': '유제품',
     },
     {
       'name': '치즈 1장',
@@ -472,7 +475,7 @@ class DummyData {
       'carbs': 1.0,
       'protein': 4.0,
       'fat': 4.5,
-      'category': '유제품'
+      'category': '유제품',
     },
     {
       'name': '두부 반모',
@@ -480,7 +483,7 @@ class DummyData {
       'carbs': 2.0,
       'protein': 10.0,
       'fat': 5.0,
-      'category': '유제품'
+      'category': '유제품',
     },
     // ── 과일 ──
     {
@@ -489,7 +492,7 @@ class DummyData {
       'carbs': 27.0,
       'protein': 1.3,
       'fat': 0.4,
-      'category': '과일'
+      'category': '과일',
     },
     {
       'name': '사과 1개',
@@ -497,7 +500,7 @@ class DummyData {
       'carbs': 25.0,
       'protein': 0.5,
       'fat': 0.3,
-      'category': '과일'
+      'category': '과일',
     },
     {
       'name': '귤 1개',
@@ -505,7 +508,7 @@ class DummyData {
       'carbs': 10.0,
       'protein': 0.6,
       'fat': 0.2,
-      'category': '과일'
+      'category': '과일',
     },
     {
       'name': '딸기 10개',
@@ -513,7 +516,7 @@ class DummyData {
       'carbs': 12.0,
       'protein': 1.0,
       'fat': 0.5,
-      'category': '과일'
+      'category': '과일',
     },
     {
       'name': '아보카도 반개',
@@ -521,7 +524,7 @@ class DummyData {
       'carbs': 6.0,
       'protein': 1.5,
       'fat': 11.0,
-      'category': '과일'
+      'category': '과일',
     },
     {
       'name': '블루베리 1컵',
@@ -529,7 +532,7 @@ class DummyData {
       'carbs': 21.0,
       'protein': 1.0,
       'fat': 0.5,
-      'category': '과일'
+      'category': '과일',
     },
     // ── 채소·샐러드 ──
     {
@@ -538,7 +541,7 @@ class DummyData {
       'carbs': 12.0,
       'protein': 3.0,
       'fat': 10.0,
-      'category': '채소'
+      'category': '채소',
     },
     {
       'name': '고구마 1개',
@@ -546,7 +549,7 @@ class DummyData {
       'carbs': 30.0,
       'protein': 2.0,
       'fat': 0.1,
-      'category': '채소'
+      'category': '채소',
     },
     {
       'name': '감자 1개',
@@ -554,7 +557,7 @@ class DummyData {
       'carbs': 25.0,
       'protein': 2.5,
       'fat': 0.1,
-      'category': '채소'
+      'category': '채소',
     },
     {
       'name': '옥수수 1개',
@@ -562,7 +565,7 @@ class DummyData {
       'carbs': 27.0,
       'protein': 4.0,
       'fat': 1.5,
-      'category': '채소'
+      'category': '채소',
     },
     // ── 음료 ──
     {
@@ -571,7 +574,7 @@ class DummyData {
       'carbs': 2.0,
       'protein': 0.3,
       'fat': 0.0,
-      'category': '음료'
+      'category': '음료',
     },
     {
       'name': '카페라떼',
@@ -579,7 +582,7 @@ class DummyData {
       'carbs': 12.0,
       'protein': 8.0,
       'fat': 8.0,
-      'category': '음료'
+      'category': '음료',
     },
     {
       'name': '녹차라떼',
@@ -587,7 +590,7 @@ class DummyData {
       'carbs': 28.0,
       'protein': 7.0,
       'fat': 5.0,
-      'category': '음료'
+      'category': '음료',
     },
     {
       'name': '스무디 1잔',
@@ -595,7 +598,7 @@ class DummyData {
       'carbs': 45.0,
       'protein': 3.0,
       'fat': 2.0,
-      'category': '음료'
+      'category': '음료',
     },
     {
       'name': '콜라 1캔',
@@ -603,7 +606,7 @@ class DummyData {
       'carbs': 39.0,
       'protein': 0.0,
       'fat': 0.0,
-      'category': '음료'
+      'category': '음료',
     },
     {
       'name': '오렌지주스 1잔',
@@ -611,7 +614,7 @@ class DummyData {
       'carbs': 26.0,
       'protein': 2.0,
       'fat': 0.0,
-      'category': '음료'
+      'category': '음료',
     },
     // ── 건강식 ──
     {
@@ -620,7 +623,7 @@ class DummyData {
       'carbs': 5.0,
       'protein': 25.0,
       'fat': 3.0,
-      'category': '건강식'
+      'category': '건강식',
     },
     {
       'name': '프로틴 바',
@@ -628,7 +631,7 @@ class DummyData {
       'carbs': 20.0,
       'protein': 15.0,
       'fat': 7.0,
-      'category': '건강식'
+      'category': '건강식',
     },
     {
       'name': '견과류 한줌',
@@ -636,7 +639,7 @@ class DummyData {
       'carbs': 6.0,
       'protein': 5.0,
       'fat': 16.0,
-      'category': '건강식'
+      'category': '건강식',
     },
     {
       'name': '닭가슴살 샐러드',
@@ -644,7 +647,7 @@ class DummyData {
       'carbs': 10.0,
       'protein': 35.0,
       'fat': 8.0,
-      'category': '건강식'
+      'category': '건강식',
     },
     {
       'name': '곤약젤리 1개',
@@ -652,7 +655,7 @@ class DummyData {
       'carbs': 3.0,
       'protein': 0.0,
       'fat': 0.0,
-      'category': '건강식'
+      'category': '건강식',
     },
     // ── 외식·패스트푸드 ──
     {
@@ -661,7 +664,7 @@ class DummyData {
       'carbs': 8.0,
       'protein': 18.0,
       'fat': 16.0,
-      'category': '외식'
+      'category': '외식',
     },
     {
       'name': '피자 1조각',
@@ -669,7 +672,7 @@ class DummyData {
       'carbs': 35.0,
       'protein': 12.0,
       'fat': 12.0,
-      'category': '외식'
+      'category': '외식',
     },
     {
       'name': '햄버거 1개',
@@ -677,7 +680,7 @@ class DummyData {
       'carbs': 40.0,
       'protein': 22.0,
       'fat': 22.0,
-      'category': '외식'
+      'category': '외식',
     },
     {
       'name': '감자튀김(중)',
@@ -685,7 +688,7 @@ class DummyData {
       'carbs': 44.0,
       'protein': 4.0,
       'fat': 16.0,
-      'category': '외식'
+      'category': '외식',
     },
     {
       'name': '돈까스 1인분',
@@ -693,7 +696,7 @@ class DummyData {
       'carbs': 45.0,
       'protein': 25.0,
       'fat': 28.0,
-      'category': '외식'
+      'category': '외식',
     },
     {
       'name': '초밥(8피스)',
@@ -701,7 +704,7 @@ class DummyData {
       'carbs': 52.0,
       'protein': 18.0,
       'fat': 6.0,
-      'category': '외식'
+      'category': '외식',
     },
     {
       'name': '샌드위치 1개',
@@ -709,7 +712,7 @@ class DummyData {
       'carbs': 38.0,
       'protein': 16.0,
       'fat': 14.0,
-      'category': '외식'
+      'category': '외식',
     },
     {
       'name': '타코 1개',
@@ -717,7 +720,7 @@ class DummyData {
       'carbs': 20.0,
       'protein': 10.0,
       'fat': 10.0,
-      'category': '외식'
+      'category': '외식',
     },
     // ── 디저트 ──
     {
@@ -726,7 +729,7 @@ class DummyData {
       'carbs': 17.0,
       'protein': 2.0,
       'fat': 7.0,
-      'category': '디저트'
+      'category': '디저트',
     },
     {
       'name': '초콜릿 1줄(30g)',
@@ -734,7 +737,7 @@ class DummyData {
       'carbs': 17.0,
       'protein': 2.0,
       'fat': 9.0,
-      'category': '디저트'
+      'category': '디저트',
     },
     {
       'name': '케이크 1조각',
@@ -742,7 +745,7 @@ class DummyData {
       'carbs': 45.0,
       'protein': 4.0,
       'fat': 17.0,
-      'category': '디저트'
+      'category': '디저트',
     },
     {
       'name': '마카롱 1개',
@@ -750,7 +753,7 @@ class DummyData {
       'carbs': 14.0,
       'protein': 1.5,
       'fat': 4.0,
-      'category': '디저트'
+      'category': '디저트',
     },
     {
       'name': '붕어빵 1개',
@@ -758,7 +761,7 @@ class DummyData {
       'carbs': 28.0,
       'protein': 3.0,
       'fat': 3.0,
-      'category': '디저트'
+      'category': '디저트',
     },
   ];
 }

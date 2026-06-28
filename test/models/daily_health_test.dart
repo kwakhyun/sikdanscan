@@ -1,13 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fitmate/data/models/daily_health.dart';
+import 'package:sikdanscan/data/models/daily_health.dart';
 
 void main() {
   group('DailyHealth', () {
     test('creates with default values', () {
-      final health = DailyHealth(
-        id: 'test',
-        date: DateTime(2026, 2, 12),
-      );
+      final health = DailyHealth(id: 'test', date: DateTime(2026, 2, 12));
 
       expect(health.waterMl, 0);
       expect(health.steps, 0);
@@ -45,10 +42,10 @@ void main() {
         sleepHours: 7.0,
       );
 
-      final updated = health.copyWith(waterMl: 1500, mood: '😊');
+      final updated = health.copyWith(waterMl: 1500, mood: '좋음');
 
       expect(updated.waterMl, 1500);
-      expect(updated.mood, '😊');
+      expect(updated.mood, '좋음');
       expect(updated.steps, 5000); // unchanged
       expect(updated.sleepHours, 7.0); // unchanged
     });
@@ -61,7 +58,7 @@ void main() {
         steps: 8500,
         sleepHours: 7.5,
         exerciseMinutes: 45,
-        mood: '💪',
+        mood: '활기',
       );
 
       final json = health.toJson();

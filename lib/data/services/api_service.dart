@@ -3,37 +3,34 @@ import 'package:flutter/foundation.dart';
 import '../../core/constants/api_constants.dart';
 
 class ApiService {
-  late final Dio _dio;
+  ApiService({Dio? dio}) : _dio = dio ?? Dio(_baseOptions) {
+    if (dio == null) {
+      _configureInterceptors();
+    }
+  }
 
-  static final ApiService _instance = ApiService._internal();
-  factory ApiService() => _instance;
+  final Dio _dio;
 
-  ApiService._internal() {
-    _dio = Dio(
-      BaseOptions(
-        connectTimeout:
-            const Duration(milliseconds: ApiConstants.connectTimeout),
-        receiveTimeout:
-            const Duration(milliseconds: ApiConstants.receiveTimeout),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      ),
-    );
+  static final _baseOptions = BaseOptions(
+    connectTimeout: const Duration(milliseconds: ApiConstants.connectTimeout),
+    receiveTimeout: const Duration(milliseconds: ApiConstants.receiveTimeout),
+    headers: {'Content-Type': 'application/json'},
+  );
 
+  void _configureInterceptors() {
     if (kDebugMode) {
       _dio.interceptors.add(
         LogInterceptor(
-          requestBody: true,
-          responseBody: true,
+          requestHeader: false,
+          requestBody: false,
+          responseHeader: false,
+          responseBody: false,
           logPrint: (obj) => debugPrint(obj.toString()),
         ),
       );
     }
 
-    _dio.interceptors.add(
-      RetryInterceptor(dio: _dio),
-    );
+    _dio.interceptors.add(RetryInterceptor(dio: _dio));
 
     _dio.interceptors.add(
       InterceptorsWrapper(
@@ -50,6 +47,10 @@ class ApiService {
         },
       ),
     );
+  }
+
+  void close() {
+    _dio.close(force: true);
   }
 
   Dio get dio => _dio;
@@ -90,10 +91,7 @@ class ApiService {
           code: 'TIMEOUT',
         );
       case DioExceptionType.connectionError:
-        return ApiError(
-          message: '인터넷 연결을 확인해주세요.',
-          code: 'NO_CONNECTION',
-        );
+        return ApiError(message: '인터넷 연결을 확인해주세요.', code: 'NO_CONNECTION');
       case DioExceptionType.badResponse:
         final statusCode = error.response?.statusCode;
         if (statusCode == 401) {
@@ -113,10 +111,7 @@ class ApiService {
           code: 'SERVER_ERROR',
         );
       default:
-        return ApiError(
-          message: '알 수 없는 오류가 발생했습니다.',
-          code: 'UNKNOWN',
-        );
+        return ApiError(message: '알 수 없는 오류가 발생했습니다.', code: 'UNKNOWN');
     }
   }
 }
@@ -138,13 +133,15 @@ class RetryInterceptor extends Interceptor {
       }
     }
 
-    final shouldRetry = retryCount < ApiConstants.maxRetries &&
+    final shouldRetry =
+        retryCount < ApiConstants.maxRetries &&
         (statusCode == 429 || (statusCode != null && statusCode >= 500));
 
     if (shouldRetry) {
-      final delay = ApiConstants.retryDelayMs * (retryCount + 1);
+      final delay = ApiConstants.retryDelayMs * (1 << retryCount);
       debugPrint(
-          '🔄 API 재시도 ${retryCount + 1}/${ApiConstants.maxRetries} (${delay}ms 후)');
+        '🔄 API 재시도 ${retryCount + 1}/${ApiConstants.maxRetries} (${delay}ms 후)',
+      );
       await Future.delayed(Duration(milliseconds: delay));
 
       err.requestOptions.extra['retryCount'] = retryCount + 1;

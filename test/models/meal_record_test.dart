@@ -1,17 +1,20 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fitmate/data/models/meal_record.dart';
+import 'package:sikdanscan/data/models/meal_record.dart';
 
 void main() {
   group('MealRecord', () {
-    test('MealType has correct labels and emojis', () {
+    test('MealType has correct labels and icon assets', () {
       expect(MealType.breakfast.label, '아침');
-      expect(MealType.breakfast.emoji, '🌅');
+      expect(
+        MealType.breakfast.iconAsset,
+        'assets/icons/app/meal_breakfast.svg',
+      );
       expect(MealType.lunch.label, '점심');
-      expect(MealType.lunch.emoji, '☀️');
+      expect(MealType.lunch.iconAsset, 'assets/icons/app/meal_lunch.svg');
       expect(MealType.dinner.label, '저녁');
-      expect(MealType.dinner.emoji, '🌙');
+      expect(MealType.dinner.iconAsset, 'assets/icons/app/meal_dinner.svg');
       expect(MealType.snack.label, '간식');
-      expect(MealType.snack.emoji, '🍪');
+      expect(MealType.snack.iconAsset, 'assets/icons/app/meal_snack.svg');
     });
 
     test('creates MealRecord with required fields', () {
@@ -62,6 +65,10 @@ void main() {
         carbs: 10,
         protein: 35,
         fat: 25,
+        imageUrl: '/tmp/meal.jpg',
+        servingSize: '1접시',
+        isAiRecognized: true,
+        recognitionConfidence: 0.87,
         memo: '맛있었다',
       );
 
@@ -75,6 +82,10 @@ void main() {
       expect(restored.carbs, meal.carbs);
       expect(restored.protein, meal.protein);
       expect(restored.fat, meal.fat);
+      expect(restored.imageUrl, meal.imageUrl);
+      expect(restored.servingSize, meal.servingSize);
+      expect(restored.isAiRecognized, isTrue);
+      expect(restored.recognitionConfidence, meal.recognitionConfidence);
       expect(restored.memo, meal.memo);
     });
   });

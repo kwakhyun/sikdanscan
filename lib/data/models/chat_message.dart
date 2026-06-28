@@ -1,38 +1,20 @@
-class ChatMessage {
-  final String id;
-  final String content;
-  final bool isUser;
-  final DateTime timestamp;
-  final ChatMessageType type;
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  ChatMessage({
-    required this.id,
-    required this.content,
-    required this.isUser,
-    required this.timestamp,
-    this.type = ChatMessageType.text,
-  });
+part 'chat_message.freezed.dart';
+part 'chat_message.g.dart';
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'content': content,
-        'isUser': isUser,
-        'timestamp': timestamp.toIso8601String(),
-        'type': type.name,
-      };
+@freezed
+abstract class ChatMessage with _$ChatMessage {
+  const factory ChatMessage({
+    required String id,
+    required String content,
+    required bool isUser,
+    required DateTime timestamp,
+    @Default(ChatMessageType.text) ChatMessageType type,
+  }) = _ChatMessage;
 
-  factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
-        id: json['id'] as String,
-        content: json['content'] as String,
-        isUser: json['isUser'] as bool,
-        timestamp: DateTime.parse(json['timestamp'] as String),
-        type: ChatMessageType.values.byName(json['type'] as String? ?? 'text'),
-      );
+  factory ChatMessage.fromJson(Map<String, dynamic> json) =>
+      _$ChatMessageFromJson(json);
 }
 
-enum ChatMessageType {
-  text,
-  suggestion,
-  mealAnalysis,
-  encouragement,
-}
+enum ChatMessageType { text, suggestion, mealAnalysis, encouragement }

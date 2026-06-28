@@ -1,53 +1,19 @@
-class WeightRecord {
-  final String id;
-  final DateTime date;
-  final double weight;
-  final double? bodyFat;
-  final double? muscleMass;
-  final String? memo;
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  WeightRecord({
-    required this.id,
-    required this.date,
-    required this.weight,
-    this.bodyFat,
-    this.muscleMass,
-    this.memo,
-  });
+part 'weight_record.freezed.dart';
+part 'weight_record.g.dart';
 
-  WeightRecord copyWith({
-    String? id,
-    DateTime? date,
-    double? weight,
+@freezed
+abstract class WeightRecord with _$WeightRecord {
+  const factory WeightRecord({
+    required String id,
+    required DateTime date,
+    required double weight,
     double? bodyFat,
     double? muscleMass,
     String? memo,
-  }) {
-    return WeightRecord(
-      id: id ?? this.id,
-      date: date ?? this.date,
-      weight: weight ?? this.weight,
-      bodyFat: bodyFat ?? this.bodyFat,
-      muscleMass: muscleMass ?? this.muscleMass,
-      memo: memo ?? this.memo,
-    );
-  }
+  }) = _WeightRecord;
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'date': date.toIso8601String(),
-        'weight': weight,
-        'bodyFat': bodyFat,
-        'muscleMass': muscleMass,
-        'memo': memo,
-      };
-
-  factory WeightRecord.fromJson(Map<String, dynamic> json) => WeightRecord(
-        id: json['id'] as String,
-        date: DateTime.parse(json['date'] as String),
-        weight: (json['weight'] as num).toDouble(),
-        bodyFat: (json['bodyFat'] as num?)?.toDouble(),
-        muscleMass: (json['muscleMass'] as num?)?.toDouble(),
-        memo: json['memo'] as String?,
-      );
+  factory WeightRecord.fromJson(Map<String, dynamic> json) =>
+      _$WeightRecordFromJson(json);
 }

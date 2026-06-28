@@ -1,42 +1,36 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../core/constants/api_constants.dart';
 import '../models/meal_record.dart';
 import '../repositories/dummy_data.dart';
 import 'api_service.dart';
+import 'proxy_client_config.dart';
 
 class FoodApiService {
   final ApiService _apiService;
+  final ProxyClientConfig _proxyConfig;
   final Map<String, List<FoodItem>> _aiCache = {};
   final Map<String, List<FoodItem>> _publicApiCache = {};
 
-  FoodApiService({ApiService? apiService})
-      : _apiService = apiService ?? ApiService();
+  FoodApiService({
+    ApiService? apiService,
+    String? proxyBaseUrl,
+    String? proxyClientToken,
+    ProxyClientConfig? proxyConfig,
+  }) : _apiService = apiService ?? ApiService(),
+       _proxyConfig =
+           proxyConfig ??
+           ProxyClientConfig.fromEnvironment(
+             baseUrlOverride: proxyBaseUrl,
+             clientTokenOverride: proxyClientToken,
+           );
 
-  String get _apiKey {
-    try {
-      return dotenv.env['OPENAI_API_KEY'] ?? '';
-    } catch (_) {
-      return '';
-    }
-  }
+  bool get isProxyConfigured => _proxyConfig.isConfigured;
 
-  String get _foodApiKey {
-    try {
-      return dotenv.env['FOOD_API_KEY'] ?? '';
-    } catch (_) {
-      return '';
-    }
-  }
-
-  bool get _isAiConfigured =>
-      _apiKey.isNotEmpty && _apiKey != 'your_openai_api_key_here';
-
-  bool get _isFoodApiConfigured =>
-      _foodApiKey.isNotEmpty && _foodApiKey != 'your_data_go_kr_api_key_here';
-
-  Future<List<FoodItem>> searchFood(String query) async {
+  Future<List<FoodItem>> searchFood(
+    String query, {
+    String locale = 'ko',
+  }) async {
     final trimmed = query.trim();
     if (trimmed.isEmpty) {
       return _searchLocal('');
@@ -45,7 +39,7 @@ class FoodApiService {
     final localResults = _searchLocal(trimmed);
 
     List<FoodItem> publicResults = [];
-    if (_isFoodApiConfigured) {
+    if (isProxyConfigured) {
       publicResults = await _searchPublicApi(trimmed);
     }
 
@@ -55,14 +49,14 @@ class FoodApiService {
       return combinedResults;
     }
 
-    final cacheKey = trimmed.toLowerCase();
+    final cacheKey = '${_normalizeLocale(locale)}:${trimmed.toLowerCase()}';
     if (_aiCache.containsKey(cacheKey)) {
       return _mergeResults(combinedResults, _aiCache[cacheKey]!);
     }
 
-    if (_isAiConfigured) {
+    if (isProxyConfigured) {
       try {
-        final aiResults = await _searchWithAi(trimmed);
+        final aiResults = await _searchWithAi(trimmed, locale: locale);
         if (aiResults.isNotEmpty) {
           _aiCache[cacheKey] = aiResults;
           return _mergeResults(combinedResults, aiResults);
@@ -83,51 +77,17 @@ class FoodApiService {
 
     try {
       final response = await _apiService.get(
-        ApiConstants.foodNtrBaseUrl,
-        ApiConstants.foodNtrEndpoint,
-        queryParams: {
-          'serviceKey': _foodApiKey,
-          'pageNo': '1',
-          'numOfRows': '20',
-          'type': 'json',
-          'FOOD_NM_KR': query,
-        },
+        _proxyConfig.baseUrl,
+        ApiConstants.proxyFoodPublicEndpoint,
+        queryParams: {'query': query},
+        headers: _proxyConfig.authHeaders,
       );
 
-      final data = response.data;
-      final Map<String, dynamic> jsonData =
-          data is String ? jsonDecode(data) : data as Map<String, dynamic>;
-
-      final header = jsonData['header'] as Map<String, dynamic>?;
-      if (header == null || header['resultCode'] != '00') {
-        debugPrint(
-            '공공 API 응답 오류: ${header?['resultCode']} - ${header?['resultMsg']}');
-        return [];
-      }
-
-      final body = jsonData['body'] as Map<String, dynamic>?;
-      if (body == null) return [];
-
-      final items = body['items'] as List<dynamic>?;
-      if (items == null || items.isEmpty) return [];
-
-      final results = items
-          .map((item) {
-            final map = item as Map<String, dynamic>;
-            return FoodItem(
-              name: _cleanFoodName(map['FOOD_NM_KR'] as String? ?? ''),
-              calories:
-                  _parseNutrientValue(map['AMT_NUM1']?.toString()).toInt(),
-              carbs: _parseNutrientValue(map['AMT_NUM6']?.toString()),
-              protein: _parseNutrientValue(map['AMT_NUM3']?.toString()),
-              fat: _parseNutrientValue(map['AMT_NUM4']?.toString()),
-              servingSize: map['SERVING_SIZE'] as String? ?? '100g',
-              source: FoodSource.publicApi,
-              isAiGenerated: false,
-            );
-          })
-          .where((item) => item.calories > 0)
-          .toList();
+      final results = _parseProxyFoodItems(
+        response.data,
+        defaultSource: FoodSource.publicApi,
+        defaultIsAiGenerated: false,
+      );
 
       _publicApiCache[cacheKey] = results;
       return results;
@@ -137,80 +97,69 @@ class FoodApiService {
     }
   }
 
-  double _parseNutrientValue(String? value) {
-    if (value == null || value.isEmpty || value == '-' || value == 'N/A') {
+  double _parseNutrientValue(Object? value) {
+    if (value is num) {
+      return value.toDouble().clamp(0.0, double.infinity).toDouble();
+    }
+    final raw = value?.toString().trim();
+    if (raw == null || raw.isEmpty || raw == '-' || raw == 'N/A') {
       return 0.0;
     }
-    return double.tryParse(value.replaceAll(',', '')) ?? 0.0;
+    final normalized = raw.replaceAll(',', '');
+    final match = RegExp(r'-?\d+(\.\d+)?').firstMatch(normalized);
+    final parsed = match == null ? null : double.tryParse(match.group(0)!);
+    if (parsed == null || parsed < 0) return 0.0;
+    return parsed;
   }
 
-  String _cleanFoodName(String name) {
-    if (name.length > 30) {
-      return '${name.substring(0, 27)}...';
-    }
-    return name.trim();
-  }
-
-  Future<List<FoodItem>> _searchWithAi(String query) async {
+  Future<List<FoodItem>> _searchWithAi(
+    String query, {
+    required String locale,
+  }) async {
     final response = await _apiService.post(
-      ApiConstants.openAiBaseUrl,
-      ApiConstants.chatCompletionsEndpoint,
-      data: {
-        'model': ApiConstants.openAiModel,
-        'messages': [
-          {'role': 'system', 'content': ApiConstants.foodAnalysisPrompt},
-          {'role': 'user', 'content': query},
-        ],
-        'max_tokens': 500,
-        'temperature': 0.3,
-      },
-      headers: {
-        'Authorization': 'Bearer $_apiKey',
-      },
+      _proxyConfig.baseUrl,
+      ApiConstants.proxyFoodAnalyzeEndpoint,
+      data: {'query': query, 'locale': _normalizeLocale(locale)},
+      headers: _proxyConfig.authHeaders,
     );
 
-    final data = response.data as Map<String, dynamic>;
-    final choices = data['choices'] as List;
-    if (choices.isEmpty) return [];
-
-    final message = choices[0]['message'] as Map<String, dynamic>;
-    final content = (message['content'] as String).trim();
-
-    return _parseAiResponse(content);
+    return _parseProxyFoodItems(
+      response.data,
+      defaultSource: FoodSource.aiAnalysis,
+      defaultIsAiGenerated: true,
+    );
   }
 
-  List<FoodItem> _parseAiResponse(String content) {
-    try {
-      var cleaned = content;
-      if (cleaned.contains('```')) {
-        cleaned = cleaned
-            .replaceAll(RegExp(r'```json\s*'), '')
-            .replaceAll(RegExp(r'```\s*'), '');
-      }
-      cleaned = cleaned.trim();
+  List<FoodItem> _parseProxyFoodItems(
+    Object? responseData, {
+    required FoodSource defaultSource,
+    required bool defaultIsAiGenerated,
+  }) {
+    final responseMap = _decodeJsonObject(responseData);
+    final items = _asList(responseMap?['items'] ?? responseData);
+    if (items == null || items.isEmpty) return [];
 
-      final List<dynamic> jsonList = jsonDecode(cleaned);
-      return jsonList.map((item) {
-        final map = item as Map<String, dynamic>;
-        return FoodItem(
-          name: map['name'] as String,
-          calories: (map['calories'] as num).toInt(),
-          carbs: (map['carbs'] as num).toDouble(),
-          protein: (map['protein'] as num).toDouble(),
-          fat: (map['fat'] as num).toDouble(),
-          servingSize: map['servingSize'] as String?,
-          source: FoodSource.aiAnalysis,
-          isAiGenerated: true,
-        );
-      }).toList();
-    } catch (e) {
-      debugPrint('AI 응답 파싱 실패: $e\n원본: $content');
-      return [];
-    }
+    return items
+        .map((item) {
+          final map = _asStringMap(item);
+          if (map == null) return null;
+
+          return FoodItem.fromJson({
+            ...map,
+            'source': _readString(map['source']) ?? defaultSource.name,
+            'isAiGenerated':
+                map['isAiGenerated'] as bool? ?? defaultIsAiGenerated,
+          });
+        })
+        .whereType<FoodItem>()
+        .where((item) => item.calories > 0 && item.name.isNotEmpty)
+        .toList();
   }
 
   List<FoodItem> _mergeResults(
-      List<FoodItem> primary, List<FoodItem> secondary) {
+    List<FoodItem> primary,
+    List<FoodItem> secondary,
+  ) {
     final merged = [...primary];
     final existingNames = primary.map((f) => f.name.toLowerCase()).toSet();
 
@@ -227,21 +176,25 @@ class FoodApiService {
     final results = query.isEmpty
         ? DummyData.foodDatabase
         : DummyData.foodDatabase
-            .where((f) => (f['name'] as String)
-                .toLowerCase()
-                .contains(query.toLowerCase()))
-            .toList();
+              .where(
+                (f) => (f['name'] as String).toLowerCase().contains(
+                  query.toLowerCase(),
+                ),
+              )
+              .toList();
 
     return results
-        .map((f) => FoodItem(
-              name: f['name'] as String,
-              calories: f['calories'] as int,
-              carbs: (f['carbs'] as num).toDouble(),
-              protein: (f['protein'] as num).toDouble(),
-              fat: (f['fat'] as num).toDouble(),
-              source: FoodSource.localDb,
-              isAiGenerated: false,
-            ))
+        .map(
+          (f) => FoodItem(
+            name: f['name'] as String,
+            calories: f['calories'] as int,
+            carbs: (f['carbs'] as num).toDouble(),
+            protein: (f['protein'] as num).toDouble(),
+            fat: (f['fat'] as num).toDouble(),
+            source: FoodSource.localDb,
+            isAiGenerated: false,
+          ),
+        )
         .toList();
   }
 
@@ -257,23 +210,28 @@ class FoodApiService {
         '/api/v0/product/$barcode.json',
       );
 
-      final data = response.data as Map<String, dynamic>;
-      if (data['status'] != 1) return null;
+      final data = _asStringMap(response.data);
+      if (data == null || _parseNutrientValue(data['status']).round() != 1) {
+        return null;
+      }
 
-      final product = data['product'] as Map<String, dynamic>;
-      final nutriments = product['nutriments'] as Map<String, dynamic>? ?? {};
-      final name = product['product_name_ko'] as String? ??
-          product['product_name'] as String? ??
+      final product = _asStringMap(data['product']);
+      if (product == null) return null;
+
+      final nutriments = _asStringMap(product['nutriments']) ?? {};
+      final name =
+          _readString(product['product_name_ko']) ??
+          _readString(product['product_name']) ??
           '알 수 없는 제품';
 
       return FoodItem(
         name: name,
-        calories: (nutriments['energy-kcal_100g'] as num?)?.toInt() ?? 0,
-        carbs: (nutriments['carbohydrates_100g'] as num?)?.toDouble() ?? 0,
-        protein: (nutriments['proteins_100g'] as num?)?.toDouble() ?? 0,
-        fat: (nutriments['fat_100g'] as num?)?.toDouble() ?? 0,
-        brand: product['brands'] as String?,
-        servingSize: product['serving_size'] as String? ?? '100g',
+        calories: _parseNutrientValue(nutriments['energy-kcal_100g']).round(),
+        carbs: _parseNutrientValue(nutriments['carbohydrates_100g']),
+        protein: _parseNutrientValue(nutriments['proteins_100g']),
+        fat: _parseNutrientValue(nutriments['fat_100g']),
+        brand: _readString(product['brands']),
+        servingSize: _readString(product['serving_size']) ?? '100g',
         source: FoodSource.barcode,
         isAiGenerated: false,
       );
@@ -286,19 +244,19 @@ class FoodApiService {
   Map<String, bool> getApiStatus() {
     return {
       'localDb': true,
-      'publicApi': _isFoodApiConfigured,
-      'aiAnalysis': _isAiConfigured,
+      'proxy': isProxyConfigured,
+      'publicApi': isProxyConfigured,
+      'aiAnalysis': isProxyConfigured,
       'barcode': true,
     };
   }
+
+  String _normalizeLocale(String locale) {
+    return locale.toLowerCase().startsWith('en') ? 'en' : 'ko';
+  }
 }
 
-enum FoodSource {
-  localDb,
-  publicApi,
-  aiAnalysis,
-  barcode,
-}
+enum FoodSource { localDb, publicApi, aiAnalysis, barcode, imageRecognition }
 
 class FoodItem {
   final String name;
@@ -308,6 +266,8 @@ class FoodItem {
   final double fat;
   final String? brand;
   final String? servingSize;
+  final String? imageUrl;
+  final double? recognitionConfidence;
 
   final bool isAiGenerated;
   final FoodSource source;
@@ -320,6 +280,8 @@ class FoodItem {
     required this.fat,
     this.brand,
     this.servingSize,
+    this.imageUrl,
+    this.recognitionConfidence,
     this.isAiGenerated = false,
     this.source = FoodSource.localDb,
   });
@@ -334,19 +296,23 @@ class FoodItem {
         return 'AI 분석';
       case FoodSource.barcode:
         return '바코드';
+      case FoodSource.imageRecognition:
+        return '사진 인식';
     }
   }
 
-  String get sourceEmoji {
+  String get sourceIconAsset {
     switch (source) {
       case FoodSource.localDb:
-        return '📦';
+        return 'assets/icons/app/source_local_db.svg';
       case FoodSource.publicApi:
-        return '🏛️';
+        return 'assets/icons/app/source_public_api.svg';
       case FoodSource.aiAnalysis:
-        return '🤖';
+        return 'assets/icons/app/source_ai.svg';
       case FoodSource.barcode:
-        return '📷';
+        return 'assets/icons/app/source_barcode.svg';
+      case FoodSource.imageRecognition:
+        return 'assets/icons/app/source_image_recognition.svg';
     }
   }
 
@@ -364,33 +330,91 @@ class FoodItem {
       carbs: carbs,
       protein: protein,
       fat: fat,
+      imageUrl: imageUrl,
+      servingSize: servingSize,
+      isAiRecognized: source == FoodSource.imageRecognition,
+      recognitionConfidence: recognitionConfidence,
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'calories': calories,
-        'carbs': carbs,
-        'protein': protein,
-        'fat': fat,
-        'brand': brand,
-        'servingSize': servingSize,
-        'isAiGenerated': isAiGenerated,
-        'source': source.name,
-      };
+    'name': name,
+    'calories': calories,
+    'carbs': carbs,
+    'protein': protein,
+    'fat': fat,
+    'brand': brand,
+    'servingSize': servingSize,
+    'imageUrl': imageUrl,
+    'recognitionConfidence': recognitionConfidence,
+    'isAiGenerated': isAiGenerated,
+    'source': source.name,
+  };
 
   factory FoodItem.fromJson(Map<String, dynamic> json) => FoodItem(
-        name: json['name'] as String,
-        calories: json['calories'] as int,
-        carbs: (json['carbs'] as num).toDouble(),
-        protein: (json['protein'] as num).toDouble(),
-        fat: (json['fat'] as num).toDouble(),
-        brand: json['brand'] as String?,
-        servingSize: json['servingSize'] as String?,
-        isAiGenerated: json['isAiGenerated'] as bool? ?? false,
-        source: FoodSource.values.firstWhere(
-          (e) => e.name == (json['source'] as String?),
-          orElse: () => FoodSource.localDb,
-        ),
-      );
+    name: _readString(json['name']) ?? '',
+    calories: _readNumeric(json['calories']).round(),
+    carbs: _readNumeric(json['carbs']),
+    protein: _readNumeric(json['protein']),
+    fat: _readNumeric(json['fat']),
+    brand: _readString(json['brand']),
+    servingSize: _readString(json['servingSize']),
+    imageUrl: _readString(json['imageUrl']),
+    recognitionConfidence: _readNullableNumeric(json['recognitionConfidence']),
+    isAiGenerated: json['isAiGenerated'] as bool? ?? false,
+    source: FoodSource.values.firstWhere(
+      (e) => e.name == _readString(json['source']),
+      orElse: () => FoodSource.localDb,
+    ),
+  );
+}
+
+Map<String, dynamic>? _decodeJsonObject(Object? data) {
+  if (data is String) {
+    try {
+      return _asStringMap(jsonDecode(data));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  return _asStringMap(data);
+}
+
+Map<String, dynamic>? _asStringMap(Object? data) {
+  if (data is! Map) return null;
+
+  return data.map((key, value) => MapEntry(key.toString(), value));
+}
+
+List<dynamic>? _asList(Object? data) {
+  if (data == null) return null;
+  if (data is List) return data;
+  return [data];
+}
+
+String? _readString(Object? value) {
+  final string = value?.toString().trim();
+  if (string == null || string.isEmpty) return null;
+  return string;
+}
+
+double _readNumeric(Object? value) {
+  if (value is num) {
+    return value.toDouble().clamp(0.0, double.infinity).toDouble();
+  }
+
+  final raw = value?.toString().trim();
+  if (raw == null || raw.isEmpty) return 0;
+
+  final normalized = raw.replaceAll(',', '');
+  final match = RegExp(r'-?\d+(\.\d+)?').firstMatch(normalized);
+  final parsed = match == null ? null : double.tryParse(match.group(0)!);
+  if (parsed == null || parsed < 0) return 0;
+  return parsed;
+}
+
+double? _readNullableNumeric(Object? value) {
+  if (value == null) return null;
+  return _readNumeric(value);
 }
