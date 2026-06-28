@@ -17,9 +17,9 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-iOS%20%7C%20Android-2DD4A8?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Tests-144%20passed-brightgreen?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Dart%20Files-91-blue?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Dart%20Lines-16.3k-blue?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Tests-153%20passed-brightgreen?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Dart%20Files-68-blue?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Dart%20Lines-17.9k-blue?style=for-the-badge" />
 </p>
 
 ---
@@ -34,7 +34,6 @@
 - [환경 설정](#-환경-설정)
 - [아키텍처](#-아키텍처)
 - [테스트](#-테스트)
-- [포트폴리오 어필 포인트](#-포트폴리오-어필-포인트)
 
 ---
 
@@ -58,10 +57,10 @@
 
 ### 📊 리포트 — 섭취 대시보드
 
-- 날짜별 섭취량, 목표 달성률, 매크로 요약 제공
-- 아침 / 점심 / 저녁 / 간식별 칼로리 분포 시각화
-- 선택 날짜에 기록된 음식 목록 요약
-- 리포트 화면에서도 사진 기록 액션 제공
+- 일일 / 주간 / 월간 단위 섭취량, 목표 달성률, 매크로 요약 제공
+- 일일은 시간대별 기록, 주간/월간은 일별 추이를 막대 그래프로 시각화
+- 선택 기간에 기록된 음식 목록 요약
+- 촬영 액션은 데일리 화면에 집중하고, 리포트는 분석/회고 화면으로 단순화
 
 ### 📸 음식 기록 — 카메라 우선 자동 기록
 
@@ -76,8 +75,7 @@
 - 카메라 촬영 즉시 음식 후보를 인식하고 선택 목록에 자동 추가
 - 촬영 이미지는 앱 문서 디렉터리에 보관하고, 저장된 식단 기록과 연결
 - confidence/needsReview 기반으로 인식 결과 검토 필요 여부 표시
-- 아침 / 점심 / 저녁 / 간식별 식단 기록
-- 영양소 자동 계산 및 Swipe-to-delete
+- 영양소 자동 계산 및 선택 목록 기반 저장
 
 ### 🤖 AI 코치 (챗봇)
 
@@ -92,6 +90,7 @@
 - BMI 자동 계산 및 분류 (저체중/정상/과체중/비만)
 - 피부 개선, 체중 감량, 장 건강, 컨디션, 단백질 보강, 혈당 안정 등 개선 방향 설정
 - API 연결 상태 확인 대시보드
+- 언어 설정 — 시스템 언어 / 한국어 / English 지원
 - 데이터 내보내기 (JSON) / 전체 초기화
 - 다크 모드 / 알림 설정
 
@@ -112,8 +111,9 @@
 | **Charts**           | fl_chart (라인/링 차트)                                   |
 | **UI**               | percent_indicator, Google Fonts, shimmer, flutter_animate |
 | **Icons**            | flutter_lucide                                            |
+| **Localization**     | Flutter gen-l10n — 한국어/영어, 시스템 언어/수동 선택 지원 |
 | **Code Generation**  | Freezed, json_serializable, build_runner                  |
-| **Testing**          | flutter_test — 144개 단위·위젯·서버 테스트                 |
+| **Testing**          | flutter_test — 153개 단위·위젯·서버 테스트                 |
 | **CI/CD**            | GitHub Actions — build_runner, format, analyze, test      |
 | **Architecture**     | Feature-first + Service Layer + Typed Model Layer         |
 
@@ -122,7 +122,7 @@
 ## 📁 프로젝트 구조
 
 ```
-lib/                                    # 64개 Dart 파일
+lib/                                    # 68개 Dart 파일
 ├── main.dart                           # 앱 진입점 (Hive/dotenv/splash 초기화)
 │
 ├── core/
@@ -172,15 +172,19 @@ lib/                                    # 64개 Dart 파일
 │   │   └── widgets/
 │   │       ├── daily_intake_overview_card.dart # 일일 섭취 상태 카드
 │   │       ├── goal_strategy_card.dart # 개선 목표별 다음 식사 전략
-│   │       └── ...                     # 리포트/보조 카드 위젯
+│   │       ├── calorie_ring_card.dart
+│   │       ├── health_metrics_card.dart
+│   │       ├── quick_actions_card.dart
+│   │       └── weight_chart_card.dart
 │   ├── meal/                           # 📊 섭취 리포트 + 음식 기록
 │   │   ├── providers/
 │   │   │   └── meal_providers.dart
 │   │   ├── meal_screen.dart            # 날짜별 섭취 리포트
 │   │   ├── add_meal_screen.dart        # 카메라/검색 기반 음식 기록
 │   │   └── widgets/
-│   │       ├── meal_type_section.dart  # 식사 유형별 섹션
 │   │       └── nutrition_summary_bar.dart # 영양소 요약 바
+│   ├── onboarding/                     # 최초 실행 맞춤 플로우
+│   │   └── onboarding_screen.dart
 │   ├── chat/                           # 🤖 AI 챗봇
 │   │   ├── providers/
 │   │   │   └── chat_providers.dart
@@ -201,14 +205,21 @@ lib/                                    # 64개 Dart 파일
 │
 └── shared/
     └── widgets/
+        ├── app_svg_icon.dart           # SVG 아이콘 래퍼
         └── main_scaffold.dart          # 하단 네비게이션 공통 레이아웃
 
-test/                                   # 144개 테스트
-├── models/                             # 모델 단위 테스트 (4개 파일, 26개 테스트)
-├── services/                           # 서비스 단위 테스트 (4개 파일, 59개 테스트)
-├── providers/                          # 프로바이더 테스트 (2개 파일, 30개 테스트)
+lib/l10n/                               # Flutter gen-l10n 다국어 리소스
+├── app_ko.arb                          # 한국어 UI 문자열
+├── app_en.arb                          # 영어 UI 문자열
+├── app_localizations_context.dart      # context.l10n / enum label helper
+└── generated/                          # AppLocalizations generated files
+
+test/                                   # 153개 테스트
+├── models/                             # 모델 단위 테스트 (4개 파일, 27개 테스트)
+├── services/                           # 서비스 단위 테스트 (4개 파일, 60개 테스트)
+├── providers/                          # 프로바이더 테스트 (2개 파일, 34개 테스트)
 ├── server/                             # 프록시 서버 단위/통합 테스트 (2개 파일, 25개 테스트)
-└── widget_test.dart                    # 위젯 통합 테스트 (4개 테스트)
+└── widget_test.dart                    # 위젯 통합 테스트 (7개 테스트)
 
 server/
 ├── bin/
@@ -358,7 +369,16 @@ OPENAI_MODEL=gpt-5.4-mini
 
 - Hive NoSQL 기반 — 모든 StateNotifier가 자동 저장/복원
 - 앱 재시작 시 사용자 데이터 유지
+- 언어 설정은 `system` / `ko` / `en` 값을 Hive settings에 저장하고, `system` 모드에서는 기기 locale을 따름
 - 데이터 내보내기(JSON) 및 전체 초기화 기능 제공
+
+### 다국어 처리
+
+- Flutter 공식 `gen-l10n` 기반 — `lib/l10n/app_ko.arb`, `lib/l10n/app_en.arb`
+- `MaterialApp.router`에서 `AppLocalizations` delegate와 `languageProvider`를 연결해 런타임 언어 전환 지원
+- 프로필 > 설정 > 언어 바텀시트에서 시스템 언어, 한국어, English 선택 가능
+- AI 코치, 음식 텍스트 분석, 사진 인식 프록시 요청에 `locale`을 포함해 응답 언어를 맞춤
+- 사용자 입력값, 저장된 음식명, 과거 기록명은 자동 번역하지 않고 원문 유지
 
 ### 모델링 & 코드 생성
 
@@ -372,16 +392,16 @@ OPENAI_MODEL=gpt-5.4-mini
 ## 🧪 테스트
 
 ```bash
-flutter test        # 전체 144개 테스트 실행
+flutter test        # 전체 153개 테스트 실행
 dart analyze        # 정적 분석 (0 issues)
 dart run build_runner build
 ```
 
 | 영역           | 파일 수 | 테스트 수 | 커버리지                                      |
 | -------------- | ------- | --------- | --------------------------------------------- |
-| **모델**       | 4       | 26        | JSON 직렬화/역직렬화, 개선 목표, BMI, 날짜 계산 |
-| **서비스**     | 4       | 59        | 음식 검색/캐시/프록시 파싱, 사진 인식 payload, AI 폴백, 프록시 상태 확인 |
-| **프로바이더** | 2       | 30        | StateNotifier CRUD, 목표별 식단 전략, 저장 복원/rollback |
+| **모델**       | 4       | 27        | JSON 직렬화/역직렬화, 개선 목표, BMI, 날짜 계산 |
+| **서비스**     | 4       | 60        | 음식 검색/캐시/프록시 파싱, 사진 인식 locale payload, AI 폴백, 프록시 상태 확인 |
+| **프로바이더** | 2       | 34        | StateNotifier CRUD, 목표별 식단 전략, 언어 설정 저장 복원/rollback |
 | **서버**       | 2       | 25        | 프록시 헬스체크, Bearer 인증, CORS, JSON 오류, 본문 제한, rate limit, 이미지 payload 검증, 텍스트/이미지 파서 |
-| **위젯**       | 1       | 4         | 데일리 홈 로드, 네비게이션, 촬영 CTA, Chips |
-| **합계**       | **13**  | **144**   | **All passed ✅**                             |
+| **위젯**       | 1       | 7         | 데일리 홈 로드, 한국어/영어 네비게이션, 촬영 CTA, Chips, 언어 설정 바텀시트 |
+| **합계**       | **13**  | **153**   | **All passed ✅**                             |
