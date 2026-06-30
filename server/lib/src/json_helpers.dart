@@ -32,6 +32,14 @@ double readNumeric(Object? value) {
   return parsed;
 }
 
+int? readInt(Object? value) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  final raw = value?.toString().trim();
+  if (raw == null || raw.isEmpty) return null;
+  return int.tryParse(raw);
+}
+
 Map<String, dynamic> decodeJsonObject(String body) {
   final decoded = jsonDecode(body);
   final map = asStringMap(decoded);

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../data/models/user_profile.dart';
+import '../../features/auth/widgets/supabase_account_card.dart';
 import '../../l10n/app_localizations_context.dart';
 import '../../providers/app_providers.dart';
 import 'widgets/edit_profile_sheet.dart';
@@ -60,6 +61,8 @@ class ProfileScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(20),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
+                const SupabaseAccountCard(),
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(

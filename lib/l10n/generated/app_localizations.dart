@@ -188,6 +188,192 @@ abstract class AppLocalizations {
   /// **'분석 중'**
   String get commonAnalyzing;
 
+  /// No description provided for @authCloudNotConfiguredTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'클라우드 동기화 미설정'**
+  String get authCloudNotConfiguredTitle;
+
+  /// No description provided for @authCloudNotConfiguredSubtitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'Supabase URL과 publishable key를 설정하면 계정 동기화를 사용할 수 있습니다.'**
+  String get authCloudNotConfiguredSubtitle;
+
+  /// No description provided for @authCloudSignedOutTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'계정으로 데이터 동기화'**
+  String get authCloudSignedOutTitle;
+
+  /// No description provided for @authCloudSignedOutSubtitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'프로필과 식단 기록을 Supabase에 백업하고 기기 변경 시 복원합니다.'**
+  String get authCloudSignedOutSubtitle;
+
+  /// No description provided for @authCloudSignedInTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'클라우드 동기화 활성화'**
+  String get authCloudSignedInTitle;
+
+  /// No description provided for @authCloudSignedInSubtitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'계정으로 로그인되어 있습니다.'**
+  String get authCloudSignedInSubtitle;
+
+  /// No description provided for @authSignIn.
+  ///
+  /// In ko, this message translates to:
+  /// **'로그인'**
+  String get authSignIn;
+
+  /// No description provided for @authSignUp.
+  ///
+  /// In ko, this message translates to:
+  /// **'회원가입'**
+  String get authSignUp;
+
+  /// No description provided for @authSignInOrSignUp.
+  ///
+  /// In ko, this message translates to:
+  /// **'로그인 / 가입'**
+  String get authSignInOrSignUp;
+
+  /// No description provided for @authSignOut.
+  ///
+  /// In ko, this message translates to:
+  /// **'로그아웃'**
+  String get authSignOut;
+
+  /// No description provided for @authSyncNow.
+  ///
+  /// In ko, this message translates to:
+  /// **'지금 동기화'**
+  String get authSyncNow;
+
+  /// No description provided for @authSignInTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'계정 로그인'**
+  String get authSignInTitle;
+
+  /// No description provided for @authSignUpTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'계정 만들기'**
+  String get authSignUpTitle;
+
+  /// No description provided for @authSheetSubtitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'로그인하면 현재 기기의 프로필과 식단 기록을 Supabase와 동기화합니다.'**
+  String get authSheetSubtitle;
+
+  /// No description provided for @authDisplayName.
+  ///
+  /// In ko, this message translates to:
+  /// **'이름'**
+  String get authDisplayName;
+
+  /// No description provided for @authEmail.
+  ///
+  /// In ko, this message translates to:
+  /// **'이메일'**
+  String get authEmail;
+
+  /// No description provided for @authPassword.
+  ///
+  /// In ko, this message translates to:
+  /// **'비밀번호'**
+  String get authPassword;
+
+  /// No description provided for @authSubmitSignIn.
+  ///
+  /// In ko, this message translates to:
+  /// **'로그인하기'**
+  String get authSubmitSignIn;
+
+  /// No description provided for @authSubmitSignUp.
+  ///
+  /// In ko, this message translates to:
+  /// **'가입하고 동기화'**
+  String get authSubmitSignUp;
+
+  /// No description provided for @authInvalidInput.
+  ///
+  /// In ko, this message translates to:
+  /// **'이메일과 8자 이상 비밀번호를 입력해주세요.'**
+  String get authInvalidInput;
+
+  /// No description provided for @authSignInDone.
+  ///
+  /// In ko, this message translates to:
+  /// **'로그인되었습니다.'**
+  String get authSignInDone;
+
+  /// No description provided for @authSignUpDone.
+  ///
+  /// In ko, this message translates to:
+  /// **'가입되었습니다. 이메일 인증이 필요한 경우 메일함을 확인해주세요.'**
+  String get authSignUpDone;
+
+  /// No description provided for @authSignOutDone.
+  ///
+  /// In ko, this message translates to:
+  /// **'로그아웃되었습니다.'**
+  String get authSignOutDone;
+
+  /// No description provided for @authSyncDone.
+  ///
+  /// In ko, this message translates to:
+  /// **'동기화가 완료되었습니다.'**
+  String get authSyncDone;
+
+  /// No description provided for @authFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'계정 처리 중 오류가 발생했습니다.'**
+  String get authFailed;
+
+  /// No description provided for @authSocialDivider.
+  ///
+  /// In ko, this message translates to:
+  /// **'또는'**
+  String get authSocialDivider;
+
+  /// No description provided for @authContinueWithGoogle.
+  ///
+  /// In ko, this message translates to:
+  /// **'Google로 계속하기'**
+  String get authContinueWithGoogle;
+
+  /// No description provided for @authContinueWithKakao.
+  ///
+  /// In ko, this message translates to:
+  /// **'카카오로 계속하기'**
+  String get authContinueWithKakao;
+
+  /// No description provided for @authContinueWithApple.
+  ///
+  /// In ko, this message translates to:
+  /// **'Apple로 계속하기'**
+  String get authContinueWithApple;
+
+  /// No description provided for @authOAuthStarted.
+  ///
+  /// In ko, this message translates to:
+  /// **'브라우저에서 로그인을 완료한 뒤 앱으로 돌아와주세요.'**
+  String get authOAuthStarted;
+
+  /// No description provided for @authOAuthDone.
+  ///
+  /// In ko, this message translates to:
+  /// **'소셜 로그인되었습니다.'**
+  String get authOAuthDone;
+
   /// No description provided for @settingsTitle.
   ///
   /// In ko, this message translates to:

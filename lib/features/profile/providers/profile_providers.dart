@@ -10,13 +10,25 @@ import '../../../providers/service_providers.dart';
 final userProfileProvider =
     StateNotifierProvider<UserProfileNotifier, UserProfile>((ref) {
       final storage = ref.read(localStorageServiceProvider);
-      return UserProfileNotifier(storage);
+      return UserProfileNotifier(
+        storage,
+        remoteSync: (profile) async {
+          final service = ref.read(supabaseBackendServiceProvider);
+          if (!service.isConfigured || service.currentUser == null) return;
+          await service.upsertProfile(profile);
+        },
+      );
     });
 
 class UserProfileNotifier extends StateNotifier<UserProfile> {
-  UserProfileNotifier(this._storage) : super(_loadProfile(_storage));
+  UserProfileNotifier(
+    this._storage, {
+    Future<void> Function(UserProfile)? remoteSync,
+  }) : _remoteSync = remoteSync,
+       super(_loadProfile(_storage));
 
   final LocalStorageService _storage;
+  final Future<void> Function(UserProfile)? _remoteSync;
 
   static UserProfile _loadProfile(LocalStorageService storage) {
     final data = storage.getUserProfile();
@@ -38,9 +50,21 @@ class UserProfileNotifier extends StateNotifier<UserProfile> {
 
     try {
       await _storage.saveUserProfile(nextState.toJson());
+      await _tryRemoteSync(nextState);
     } catch (_) {
       state = previousState;
       rethrow;
+    }
+  }
+
+  Future<void> _tryRemoteSync(UserProfile profile) async {
+    final remoteSync = _remoteSync;
+    if (remoteSync == null || !profile.onboardingCompleted) return;
+
+    try {
+      await remoteSync(profile);
+    } catch (_) {
+      // Local persistence remains the source of truth when remote sync fails.
     }
   }
 }

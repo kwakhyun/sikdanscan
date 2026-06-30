@@ -11,6 +11,14 @@ Future<Map<String, dynamic>> readJsonObject(
   HttpRequest request, {
   int maxBytes = maxRequestBodyBytes,
 }) async {
+  if (request.contentLength > maxBytes) {
+    await request.drain<void>();
+    throw const ClientException(
+      HttpStatus.requestEntityTooLarge,
+      'Request body is too large.',
+    );
+  }
+
   final chunks = <int>[];
   await for (final chunk in request) {
     chunks.addAll(chunk);

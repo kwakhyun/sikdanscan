@@ -15,3 +15,15 @@ Future<void> sendJson(
 Future<void> sendError(HttpRequest request, int statusCode, String message) {
   return sendJson(request, {'error': message}, statusCode: statusCode);
 }
+
+Future<void> sendText(
+  HttpRequest request,
+  String body, {
+  int statusCode = HttpStatus.ok,
+  ContentType? contentType,
+}) async {
+  request.response.statusCode = statusCode;
+  request.response.headers.contentType = contentType ?? ContentType.text;
+  request.response.write(body);
+  await request.response.close();
+}

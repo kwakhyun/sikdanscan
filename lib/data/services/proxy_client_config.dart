@@ -18,9 +18,8 @@ class ProxyClientConfig {
     String? clientTokenOverride,
     bool allowDebugFallback = false,
   }) {
-    final configuredBaseUrl = _readValue(
-      ApiConstants.proxyBaseUrlEnv,
-      baseUrlOverride,
+    final configuredBaseUrl = _releaseSafeBaseUrl(
+      _readValue(ApiConstants.proxyBaseUrlEnv, baseUrlOverride),
     );
 
     return ProxyClientConfig(
@@ -47,6 +46,9 @@ class ProxyClientConfig {
   static String _readValue(String envKey, String? override) {
     if (override != null) return override.trim();
 
+    final compileTimeValue = _compileTimeValue(envKey);
+    if (compileTimeValue.isNotEmpty) return compileTimeValue;
+
     try {
       return dotenv.env[envKey]?.trim() ?? '';
     } catch (_) {
@@ -57,6 +59,31 @@ class ProxyClientConfig {
   static String _normalizeBaseUrl(String value) {
     return value.trim().replaceAll(RegExp(r'/+$'), '');
   }
+
+  static String _releaseSafeBaseUrl(String value) {
+    final normalized = _normalizeBaseUrl(value);
+    if (normalized.isEmpty || !kReleaseMode) return normalized;
+
+    final uri = Uri.tryParse(normalized);
+    if (uri != null && uri.scheme == 'https') return normalized;
+
+    return '';
+  }
+
+  static String _compileTimeValue(String envKey) {
+    return switch (envKey) {
+      ApiConstants.proxyBaseUrlEnv => _proxyBaseUrlFromDefine,
+      ApiConstants.proxyClientTokenEnv => _proxyClientTokenFromDefine,
+      _ => '',
+    };
+  }
+
+  static const _proxyBaseUrlFromDefine = String.fromEnvironment(
+    'SIKDANSCAN_PROXY_BASE_URL',
+  );
+  static const _proxyClientTokenFromDefine = String.fromEnvironment(
+    'SIKDANSCAN_PROXY_CLIENT_TOKEN',
+  );
 
   static String _debugFallbackBaseUrl(bool allowDebugFallback) {
     if (!allowDebugFallback || !kDebugMode) return '';

@@ -24,23 +24,23 @@ dependencies:
   hive: ^2.2.3
   hive_flutter: ^1.1.0
 
+  # Remote Backend
+  supabase_flutter: ^2.15.2
+
   # Charts
   fl_chart: ^0.70.2
 
   # UI Components
   google_fonts: ^6.2.1
   flutter_animate: ^4.5.2
-  shimmer: ^3.0.0
-  cached_network_image: ^3.4.1
   flutter_svg: ^2.0.17
-  percent_indicator: ^4.2.3
-  lottie: ^3.3.1
 
   # Networking
   dio: ^5.7.0
   flutter_dotenv: ^5.2.1
 
   # Utilities
+  crypto: ^3.0.6
   freezed_annotation: ^3.1.0
   intl: ^0.20.2
   json_annotation: ^4.12.0

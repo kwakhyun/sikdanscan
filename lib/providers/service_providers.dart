@@ -7,6 +7,10 @@ import '../data/services/food_image_recognition_service.dart';
 import '../data/services/local_storage_service.dart';
 import '../data/services/proxy_client_config.dart';
 import '../data/services/proxy_status_service.dart';
+import '../data/services/supabase_backend_service.dart';
+import '../data/services/supabase_bootstrap.dart';
+import '../data/services/supabase_config.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 final localStorageServiceProvider = Provider<LocalStorageService>((ref) {
   return LocalStorageService();
@@ -49,6 +53,23 @@ final proxyStatusServiceProvider = Provider<ProxyStatusService>((ref) {
     apiService: ref.watch(apiServiceProvider),
     config: ref.watch(proxyClientConfigProvider),
   );
+});
+
+final supabaseConfigProvider = Provider<SupabaseConfig>((ref) {
+  return SupabaseConfig.fromEnvironment();
+});
+
+final supabaseBackendServiceProvider = Provider<SupabaseBackendService>((ref) {
+  final config = ref.watch(supabaseConfigProvider);
+  final client = config.isConfigured && SupabaseBootstrap.isInitialized
+      ? Supabase.instance.client
+      : null;
+
+  return SupabaseBackendService(config: config, client: client);
+});
+
+final supabaseConfiguredProvider = Provider<bool>((ref) {
+  return ref.watch(supabaseBackendServiceProvider).isConfigured;
 });
 
 final proxyConnectionStatusProvider =

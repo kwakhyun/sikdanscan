@@ -54,6 +54,101 @@ class AppLocalizationsKo extends AppLocalizations {
   String get commonAnalyzing => '분석 중';
 
   @override
+  String get authCloudNotConfiguredTitle => '클라우드 동기화 미설정';
+
+  @override
+  String get authCloudNotConfiguredSubtitle =>
+      'Supabase URL과 publishable key를 설정하면 계정 동기화를 사용할 수 있습니다.';
+
+  @override
+  String get authCloudSignedOutTitle => '계정으로 데이터 동기화';
+
+  @override
+  String get authCloudSignedOutSubtitle =>
+      '프로필과 식단 기록을 Supabase에 백업하고 기기 변경 시 복원합니다.';
+
+  @override
+  String get authCloudSignedInTitle => '클라우드 동기화 활성화';
+
+  @override
+  String get authCloudSignedInSubtitle => '계정으로 로그인되어 있습니다.';
+
+  @override
+  String get authSignIn => '로그인';
+
+  @override
+  String get authSignUp => '회원가입';
+
+  @override
+  String get authSignInOrSignUp => '로그인 / 가입';
+
+  @override
+  String get authSignOut => '로그아웃';
+
+  @override
+  String get authSyncNow => '지금 동기화';
+
+  @override
+  String get authSignInTitle => '계정 로그인';
+
+  @override
+  String get authSignUpTitle => '계정 만들기';
+
+  @override
+  String get authSheetSubtitle => '로그인하면 현재 기기의 프로필과 식단 기록을 Supabase와 동기화합니다.';
+
+  @override
+  String get authDisplayName => '이름';
+
+  @override
+  String get authEmail => '이메일';
+
+  @override
+  String get authPassword => '비밀번호';
+
+  @override
+  String get authSubmitSignIn => '로그인하기';
+
+  @override
+  String get authSubmitSignUp => '가입하고 동기화';
+
+  @override
+  String get authInvalidInput => '이메일과 8자 이상 비밀번호를 입력해주세요.';
+
+  @override
+  String get authSignInDone => '로그인되었습니다.';
+
+  @override
+  String get authSignUpDone => '가입되었습니다. 이메일 인증이 필요한 경우 메일함을 확인해주세요.';
+
+  @override
+  String get authSignOutDone => '로그아웃되었습니다.';
+
+  @override
+  String get authSyncDone => '동기화가 완료되었습니다.';
+
+  @override
+  String get authFailed => '계정 처리 중 오류가 발생했습니다.';
+
+  @override
+  String get authSocialDivider => '또는';
+
+  @override
+  String get authContinueWithGoogle => 'Google로 계속하기';
+
+  @override
+  String get authContinueWithKakao => '카카오로 계속하기';
+
+  @override
+  String get authContinueWithApple => 'Apple로 계속하기';
+
+  @override
+  String get authOAuthStarted => '브라우저에서 로그인을 완료한 뒤 앱으로 돌아와주세요.';
+
+  @override
+  String get authOAuthDone => '소셜 로그인되었습니다.';
+
+  @override
   String get settingsTitle => '설정';
 
   @override

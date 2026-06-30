@@ -7,13 +7,46 @@ import 'cors.dart';
 import 'food_parsers.dart';
 import 'http_response.dart';
 import 'json_helpers.dart';
+import 'observability.dart';
 import 'prompts.dart';
 import 'proxy_config.dart';
 import 'proxy_exceptions.dart';
 import 'request_body.dart';
+import 'server_database.dart';
 import 'upstream_client.dart';
 
 Future<void> handleRequest(HttpRequest request, ProxyConfig config) async {
+  final requestId = ensureRequestId(request);
+  final stopwatch = Stopwatch()..start();
+  final remoteAddress =
+      request.connectionInfo?.remoteAddress.address ?? 'unknown';
+
+  try {
+    await _handleRequestInternal(request, config);
+  } finally {
+    stopwatch.stop();
+    final statusCode = request.response.statusCode;
+    config.metrics.record(
+      method: request.method,
+      path: request.uri.path,
+      statusCode: statusCode,
+      durationMs: stopwatch.elapsedMilliseconds,
+    );
+    config.logger.request(
+      requestId: requestId,
+      method: request.method,
+      path: request.uri.path,
+      statusCode: statusCode,
+      durationMs: stopwatch.elapsedMilliseconds,
+      remoteAddress: remoteAddress,
+    );
+  }
+}
+
+Future<void> _handleRequestInternal(
+  HttpRequest request,
+  ProxyConfig config,
+) async {
   if (!applyCorsHeaders(request, config)) {
     await sendError(request, HttpStatus.forbidden, 'Origin is not allowed.');
     return;
@@ -39,6 +72,38 @@ Future<void> handleRequest(HttpRequest request, ProxyConfig config) async {
     final path = request.uri.path;
     if (request.method == 'GET' && path == '/health') {
       await sendJson(request, {'status': 'ok'});
+      return;
+    }
+
+    if (request.method == 'GET' && path == '/ready') {
+      await _handleReady(request, config);
+      return;
+    }
+
+    if (request.method == 'GET' && path == '/metrics') {
+      if (!await _requireProxyClient(request, config)) return;
+      await sendText(
+        request,
+        config.metrics.toPrometheus(),
+        contentType: ContentType('text', 'plain', charset: 'utf-8'),
+      );
+      return;
+    }
+
+    if (request.method == 'POST' && path == '/v1/auth/register') {
+      if (!await _requireProxyClient(request, config)) return;
+      await _handleRegister(request, config);
+      return;
+    }
+
+    if (request.method == 'POST' && path == '/v1/auth/login') {
+      if (!await _requireProxyClient(request, config)) return;
+      await _handleLogin(request, config);
+      return;
+    }
+
+    if (path == '/v1/me' || path == '/v1/me/meals') {
+      await _handleUserScopedRequest(request, config);
       return;
     }
 
@@ -86,6 +151,158 @@ Future<void> handleRequest(HttpRequest request, ProxyConfig config) async {
       'Internal server error.',
     );
   }
+}
+
+Future<bool> _requireProxyClient(
+  HttpRequest request,
+  ProxyConfig config,
+) async {
+  final authError = validateClientAuthorization(request, config);
+  if (authError != null) {
+    await sendError(request, authError.statusCode, authError.message);
+    return false;
+  }
+  return true;
+}
+
+Future<void> _handleReady(HttpRequest request, ProxyConfig config) async {
+  await config.database.open();
+  await sendJson(request, {
+    'status': config.database.isReady ? 'ok' : 'degraded',
+    'database': {'ready': config.database.isReady, 'type': 'file'},
+    'auth': {'configured': config.authService.isConfigured},
+    'upstreams': {
+      'openAiConfigured': config.openAiApiKey.isNotEmpty,
+      'foodApiConfigured': config.foodApiKey.isNotEmpty,
+    },
+  });
+}
+
+Future<void> _handleRegister(HttpRequest request, ProxyConfig config) async {
+  _ensureAuthConfigured(config);
+  final body = await readJsonObject(request);
+  final email = _readRequiredEmail(body);
+  final password = _readRequiredPassword(body);
+  final displayName = readString(body['displayName']) ?? '';
+
+  try {
+    final session = await config.authService.register(
+      email: email,
+      password: password,
+      displayName: displayName,
+    );
+    await sendJson(request, session.toJson(), statusCode: HttpStatus.created);
+  } on DuplicateUserException {
+    throw const ClientException(HttpStatus.conflict, 'User already exists.');
+  }
+}
+
+Future<void> _handleLogin(HttpRequest request, ProxyConfig config) async {
+  _ensureAuthConfigured(config);
+  final body = await readJsonObject(request);
+  final email = _readRequiredEmail(body);
+  final password = _readRequiredPassword(body);
+  final session = await config.authService.login(
+    email: email,
+    password: password,
+  );
+
+  if (session == null) {
+    throw const ClientException(
+      HttpStatus.unauthorized,
+      'Invalid email or password.',
+    );
+  }
+
+  await sendJson(request, session.toJson());
+}
+
+Future<void> _handleUserScopedRequest(
+  HttpRequest request,
+  ProxyConfig config,
+) async {
+  final user = await _requireUser(request, config);
+  final path = request.uri.path;
+
+  if (request.method == 'GET' && path == '/v1/me') {
+    await sendJson(request, {'user': user.toPublicJson()});
+    return;
+  }
+
+  if (request.method == 'GET' && path == '/v1/me/meals') {
+    final records = await config.database.listMealRecords(user.id);
+    await sendJson(request, {'items': records});
+    return;
+  }
+
+  if (request.method == 'POST' && path == '/v1/me/meals') {
+    final body = await readJsonObject(request);
+    final record = asStringMap(body['record']);
+    if (record == null) {
+      throw const ClientException(
+        HttpStatus.badRequest,
+        'record object is required.',
+      );
+    }
+    final stored = await config.database.addMealRecord(user.id, record);
+    await sendJson(request, {'item': stored}, statusCode: HttpStatus.created);
+    return;
+  }
+
+  await sendError(request, HttpStatus.methodNotAllowed, 'Method not allowed.');
+}
+
+Future<StoredUser> _requireUser(HttpRequest request, ProxyConfig config) async {
+  _ensureAuthConfigured(config);
+  final authorization = request.headers.value(HttpHeaders.authorizationHeader);
+  final token = authorization == null ? null : readBearerToken(authorization);
+  if (token == null) {
+    throw const ClientException(
+      HttpStatus.unauthorized,
+      'User access token is required.',
+    );
+  }
+
+  final user = await config.authService.userForToken(token);
+  if (user == null) {
+    throw const ClientException(
+      HttpStatus.unauthorized,
+      'User access token is invalid or expired.',
+    );
+  }
+
+  return user;
+}
+
+void _ensureAuthConfigured(ProxyConfig config) {
+  if (!config.authService.isConfigured) {
+    throw const ClientException(
+      HttpStatus.serviceUnavailable,
+      'AUTH_TOKEN_SECRET must be configured on the proxy.',
+    );
+  }
+}
+
+String _readRequiredEmail(Map<String, dynamic> body) {
+  final email = readString(body['email']);
+  if (email == null || !email.contains('@')) {
+    throw const ClientException(
+      HttpStatus.badRequest,
+      'A valid email is required.',
+    );
+  }
+  return email;
+}
+
+String _readRequiredPassword(Map<String, dynamic> body) {
+  final password = readString(body['password']);
+  if (password == null || password.length < 8) {
+    throw const ClientException(
+      HttpStatus.badRequest,
+      'Password must be at least 8 characters.',
+    );
+  }
+  return password;
 }
 
 Future<void> _handleFoodImageRecognition(

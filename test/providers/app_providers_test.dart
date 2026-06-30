@@ -5,6 +5,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sikdanscan/providers/app_providers.dart';
 import 'package:sikdanscan/data/models/weight_record.dart';
+import 'package:sikdanscan/data/models/user_profile.dart';
 import 'package:sikdanscan/data/models/meal_record.dart';
 import 'package:sikdanscan/data/services/local_storage_service.dart';
 
@@ -88,6 +89,50 @@ void main() {
         expect(notifier.state, previous);
       },
     );
+    test("syncs completed profile remotely after local persistence", () async {
+      final syncedProfiles = <UserProfile>[];
+      final notifier = UserProfileNotifier(
+        LocalStorageService(),
+        remoteSync: (profile) async => syncedProfiles.add(profile),
+      );
+      final profile = UserProfile.defaultProfile().copyWith(
+        name: "원격 유저",
+        age: 30,
+        height: 170,
+        currentWeight: 65,
+        targetWeight: 60,
+        onboardingCompleted: true,
+      );
+
+      await notifier.updateProfile(profile);
+
+      expect(syncedProfiles.single.name, "원격 유저");
+    });
+
+    test("keeps local profile when remote sync fails", () async {
+      final notifier = UserProfileNotifier(
+        LocalStorageService(),
+        remoteSync: (_) async => throw StateError("remote failed"),
+      );
+      final profile = UserProfile.defaultProfile().copyWith(
+        name: "로컬 유지",
+        age: 31,
+        height: 171,
+        currentWeight: 66,
+        targetWeight: 61,
+        onboardingCompleted: true,
+      );
+
+      await notifier.updateProfile(profile);
+
+      expect(notifier.state.name, "로컬 유지");
+    });
+  });
+
+  group('Service providers', () {
+    test('Supabase is optional by default', () {
+      expect(container.read(supabaseConfiguredProvider), isFalse);
+    });
   });
 
   group('WeightRecordsNotifier', () {
@@ -223,6 +268,68 @@ void main() {
       );
 
       expect(notifier.state, previous);
+    });
+    test("syncs meal upsert and delete callbacks", () async {
+      final upserts = <String>[];
+      final deletes = <String>[];
+      final notifier = MealRecordsNotifier(
+        LocalStorageService(),
+        remoteUpsert: (meal) async => upserts.add(meal.id),
+        remoteDelete: (id) async => deletes.add(id),
+      );
+      final date = DateTime(2026, 1, 1);
+
+      await notifier.addMeal(
+        MealRecord(
+          id: "remote_meal",
+          date: date,
+          mealType: MealType.lunch,
+          name: "원격 식사",
+          calories: 400,
+          carbs: 45,
+          protein: 25,
+          fat: 12,
+        ),
+      );
+      await notifier.removeMeal("remote_meal");
+      await notifier.addMeal(
+        MealRecord(
+          id: "clear_meal",
+          date: date,
+          mealType: MealType.dinner,
+          name: "삭제 식사",
+          calories: 500,
+          carbs: 50,
+          protein: 30,
+          fat: 14,
+        ),
+      );
+      await notifier.clearDay(date);
+
+      expect(upserts, ["remote_meal", "clear_meal"]);
+      expect(deletes, ["remote_meal", "clear_meal"]);
+    });
+
+    test("keeps local meal when remote sync fails", () async {
+      final notifier = MealRecordsNotifier(
+        LocalStorageService(),
+        remoteUpsert: (_) async => throw StateError("remote failed"),
+      );
+
+      await notifier.addMeal(
+        MealRecord(
+          id: "offline_meal",
+          date: DateTime(2026, 1, 1),
+          mealType: MealType.lunch,
+          name: "오프라인 식사",
+          calories: 420,
+          carbs: 48,
+          protein: 24,
+          fat: 13,
+        ),
+      );
+
+      expect(notifier.state.single.id, "offline_meal");
     });
   });
 

@@ -16,8 +16,114 @@ void main() {
 
         expect(response.statusCode, HttpStatus.ok);
         expect(response.jsonBody?['status'], 'ok');
+        expect(response.headers.value('x-request-id'), isNotEmpty);
       },
     );
+
+    test('ready endpoint reports database and auth readiness', () async {
+      final proxy = await _startProxy(
+        authTokenSecret: '12345678901234567890123456789012',
+      );
+      addTearDown(proxy.stop);
+
+      final response = await _request(proxy, 'GET', '/ready');
+
+      expect(response.statusCode, HttpStatus.ok);
+      expect(response.jsonBody?['status'], 'ok');
+      expect(response.jsonBody?['database'], containsPair('ready', true));
+      expect(response.jsonBody?['auth'], containsPair('configured', true));
+    });
+
+    test(
+      'supports register, login, current user, and meal persistence',
+      () async {
+        final proxy = await _startProxy(
+          clientToken: 'client-token',
+          authTokenSecret: '12345678901234567890123456789012',
+        );
+        addTearDown(proxy.stop);
+
+        final register = await _request(
+          proxy,
+          'POST',
+          '/v1/auth/register',
+          headers: {HttpHeaders.authorizationHeader: 'Bearer client-token'},
+          body: {
+            'email': 'USER@example.com',
+            'password': 'password-1234',
+            'displayName': 'Tester',
+          },
+        );
+        expect(register.statusCode, HttpStatus.created);
+        expect(register.jsonBody?['accessToken'], isA<String>());
+
+        final duplicate = await _request(
+          proxy,
+          'POST',
+          '/v1/auth/register',
+          headers: {HttpHeaders.authorizationHeader: 'Bearer client-token'},
+          body: {'email': 'user@example.com', 'password': 'password-1234'},
+        );
+        expect(duplicate.statusCode, HttpStatus.conflict);
+
+        final login = await _request(
+          proxy,
+          'POST',
+          '/v1/auth/login',
+          headers: {HttpHeaders.authorizationHeader: 'Bearer client-token'},
+          body: {'email': 'user@example.com', 'password': 'password-1234'},
+        );
+        expect(login.statusCode, HttpStatus.ok);
+        final accessToken = login.jsonBody?['accessToken'] as String;
+
+        final me = await _request(
+          proxy,
+          'GET',
+          '/v1/me',
+          headers: {HttpHeaders.authorizationHeader: 'Bearer $accessToken'},
+        );
+        expect(me.statusCode, HttpStatus.ok);
+        expect(me.jsonBody?['user'], containsPair('email', 'user@example.com'));
+
+        final savedMeal = await _request(
+          proxy,
+          'POST',
+          '/v1/me/meals',
+          headers: {HttpHeaders.authorizationHeader: 'Bearer $accessToken'},
+          body: {
+            'record': {'name': '치즈버거', 'calories': 520},
+          },
+        );
+        expect(savedMeal.statusCode, HttpStatus.created);
+
+        final meals = await _request(
+          proxy,
+          'GET',
+          '/v1/me/meals',
+          headers: {HttpHeaders.authorizationHeader: 'Bearer $accessToken'},
+        );
+        expect(meals.statusCode, HttpStatus.ok);
+        expect(meals.jsonBody?['items'], hasLength(1));
+      },
+    );
+
+    test('exposes metrics behind the proxy client token gate', () async {
+      final proxy = await _startProxy(clientToken: 'client-token');
+      addTearDown(proxy.stop);
+
+      await _request(proxy, 'GET', '/health');
+      final denied = await _request(proxy, 'GET', '/metrics');
+      final allowed = await _request(
+        proxy,
+        'GET',
+        '/metrics',
+        headers: {HttpHeaders.authorizationHeader: 'Bearer client-token'},
+      );
+
+      expect(denied.statusCode, HttpStatus.unauthorized);
+      expect(allowed.statusCode, HttpStatus.ok);
+      expect(allowed.body, contains('sikdanscan_proxy_requests_total'));
+    });
 
     test('protected endpoints require a valid bearer token', () async {
       final proxy = await _startProxy(clientToken: 'client-token');
@@ -169,8 +275,15 @@ Future<_StartedProxy> _startProxy({
   String foodApiKey = '',
   String allowedOrigins = '',
   int rateLimitPerMinute = 60,
+  String authTokenSecret = '',
+  String? databasePath,
 }) async {
   final port = await _findFreePort();
+  final databaseDirectory = Directory.systemTemp.createTempSync(
+    'sikdanscan_proxy_db_test_',
+  );
+  final effectiveDatabasePath =
+      databasePath ?? '${databaseDirectory.path}/db.json';
   final process = await Process.start(
     _dartExecutable,
     ['server/bin/sikdanscan_proxy.dart'],
@@ -182,6 +295,8 @@ Future<_StartedProxy> _startProxy({
       'FOOD_API_KEY': foodApiKey,
       'ALLOWED_ORIGINS': allowedOrigins,
       'PROXY_RATE_LIMIT_PER_MINUTE': '$rateLimitPerMinute',
+      'AUTH_TOKEN_SECRET': authTokenSecret,
+      'DATABASE_PATH': effectiveDatabasePath,
     },
   );
 
@@ -230,6 +345,7 @@ Future<_StartedProxy> _startProxy({
     port: port,
     stdoutSub: stdoutSub,
     stderrSub: stderrSub,
+    databaseDirectory: databaseDirectory,
   );
 }
 
@@ -266,8 +382,10 @@ Future<_HttpResult> _request(
     headers?.forEach(request.headers.set);
     final encodedBody = rawBody ?? (body == null ? null : jsonEncode(body));
     if (encodedBody != null) {
+      final encodedBytes = utf8.encode(encodedBody);
       request.headers.contentType = ContentType.json;
-      request.write(encodedBody);
+      request.contentLength = encodedBytes.length;
+      request.add(encodedBytes);
     }
 
     final response = await request.close();
@@ -289,12 +407,14 @@ class _StartedProxy {
     required this.port,
     required this.stdoutSub,
     required this.stderrSub,
+    required this.databaseDirectory,
   });
 
   final Process process;
   final int port;
   final StreamSubscription<String> stdoutSub;
   final StreamSubscription<String> stderrSub;
+  final Directory databaseDirectory;
 
   Future<void> stop() async {
     process.kill();
@@ -304,6 +424,9 @@ class _StartedProxy {
       const Duration(seconds: 3),
       onTimeout: () => -1,
     );
+    if (databaseDirectory.existsSync()) {
+      databaseDirectory.deleteSync(recursive: true);
+    }
   }
 }
 

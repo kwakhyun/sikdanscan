@@ -7,6 +7,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'data/services/local_storage_service.dart';
+import 'data/services/supabase_bootstrap.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'providers/app_providers.dart';
 
@@ -19,6 +20,7 @@ Future<void> main() async {
 
   try {
     await _loadOptionalEnv();
+    await SupabaseBootstrap.initializeFromEnvironment();
     await LocalStorageService().initialize();
     await Future.wait([
       initializeDateFormatting('ko'),

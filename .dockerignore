@@ -1,0 +1,8 @@
+*
+!server/
+!server/bin/
+!server/bin/**
+!server/lib/
+!server/lib/**
+!server/pubspec.yaml
+!server/pubspec.lock

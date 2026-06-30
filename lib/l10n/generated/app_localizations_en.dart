@@ -54,6 +54,105 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonAnalyzing => 'Analyzing';
 
   @override
+  String get authCloudNotConfiguredTitle => 'Cloud sync is not configured';
+
+  @override
+  String get authCloudNotConfiguredSubtitle =>
+      'Set Supabase URL and publishable key to enable account sync.';
+
+  @override
+  String get authCloudSignedOutTitle => 'Sync data with an account';
+
+  @override
+  String get authCloudSignedOutSubtitle =>
+      'Back up your profile and meal records to Supabase and restore them on another device.';
+
+  @override
+  String get authCloudSignedInTitle => 'Cloud sync enabled';
+
+  @override
+  String get authCloudSignedInSubtitle => 'You are signed in with an account.';
+
+  @override
+  String get authSignIn => 'Sign in';
+
+  @override
+  String get authSignUp => 'Sign up';
+
+  @override
+  String get authSignInOrSignUp => 'Sign in / Sign up';
+
+  @override
+  String get authSignOut => 'Sign out';
+
+  @override
+  String get authSyncNow => 'Sync now';
+
+  @override
+  String get authSignInTitle => 'Sign in';
+
+  @override
+  String get authSignUpTitle => 'Create account';
+
+  @override
+  String get authSheetSubtitle =>
+      'After signing in, SikdanScan syncs this device\'s profile and meal records with Supabase.';
+
+  @override
+  String get authDisplayName => 'Name';
+
+  @override
+  String get authEmail => 'Email';
+
+  @override
+  String get authPassword => 'Password';
+
+  @override
+  String get authSubmitSignIn => 'Sign in';
+
+  @override
+  String get authSubmitSignUp => 'Create and sync';
+
+  @override
+  String get authInvalidInput =>
+      'Enter a valid email and a password with at least 8 characters.';
+
+  @override
+  String get authSignInDone => 'Signed in.';
+
+  @override
+  String get authSignUpDone =>
+      'Account created. Check your email if confirmation is required.';
+
+  @override
+  String get authSignOutDone => 'Signed out.';
+
+  @override
+  String get authSyncDone => 'Sync completed.';
+
+  @override
+  String get authFailed => 'An account operation failed.';
+
+  @override
+  String get authSocialDivider => 'or';
+
+  @override
+  String get authContinueWithGoogle => 'Continue with Google';
+
+  @override
+  String get authContinueWithKakao => 'Continue with Kakao';
+
+  @override
+  String get authContinueWithApple => 'Continue with Apple';
+
+  @override
+  String get authOAuthStarted =>
+      'Complete sign-in in the browser, then return to the app.';
+
+  @override
+  String get authOAuthDone => 'Signed in with social account.';
+
+  @override
   String get settingsTitle => 'Settings';
 
   @override

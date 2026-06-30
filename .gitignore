@@ -47,3 +47,10 @@ app.*.map.json
 # Environment variables
 .env
 .env.proxy
+.sikdanscan_proxy_db.json
+.sikdanscan_proxy_db.json.tmp
+
+# Android release signing secrets
+android/key.properties
+android/app/*.jks
+android/app/*.keystore

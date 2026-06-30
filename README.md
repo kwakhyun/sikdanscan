@@ -17,9 +17,9 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-iOS%20%7C%20Android-2DD4A8?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Tests-153%20passed-brightgreen?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Dart%20Files-68-blue?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Dart%20Lines-17.9k-blue?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Tests-168%20passed-brightgreen?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Dart%20Files-101-blue?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Dart%20Lines-23.8k-blue?style=for-the-badge" />
 </p>
 
 ---
@@ -105,15 +105,17 @@
 | **Navigation**       | GoRouter (선언적 라우팅)                                  |
 | **Networking**       | Dio (RetryInterceptor, 지수 백오프 자동 재시도)           |
 | **Local Storage**    | Hive (NoSQL, 데이터 영속화)                               |
+| **Remote Backend**   | Supabase Auth/Postgres/Storage — 선택형 원격 계정·식단 동기화 인프라 |
+| **Backend Proxy**    | Dart HTTP server — AI/API key 격리, Cloud Run AI gateway, `/ready`, `/metrics`, 구조화 로그 |
 | **AI / ML**          | OpenAI GPT-5.4-mini (서버 프록시 경유 챗봇 + 음식 텍스트/이미지 영양 분석) |
 | **외부 API**         | 식단스캔 API Proxy, 식약처 식품영양성분DB정보, Open Food Facts |
 | **환경 설정**        | flutter_dotenv (.env 기반 프록시 URL 관리)                |
 | **Charts**           | fl_chart (라인/링 차트)                                   |
-| **UI**               | percent_indicator, Google Fonts, shimmer, flutter_animate |
+| **UI**               | Google Fonts, flutter_animate, flutter_svg, flutter_lucide |
 | **Icons**            | flutter_lucide                                            |
 | **Localization**     | Flutter gen-l10n — 한국어/영어, 시스템 언어/수동 선택 지원 |
 | **Code Generation**  | Freezed, json_serializable, build_runner                  |
-| **Testing**          | flutter_test — 153개 단위·위젯·서버 테스트                 |
+| **Testing**          | flutter_test — 168개 단위·위젯·서버 테스트                 |
 | **CI/CD**            | GitHub Actions — build_runner, format, analyze, test      |
 | **Architecture**     | Feature-first + Service Layer + Typed Model Layer         |
 
@@ -122,7 +124,7 @@
 ## 📁 프로젝트 구조
 
 ```
-lib/                                    # 68개 Dart 파일
+lib/                                    # 70개 Dart 파일
 ├── main.dart                           # 앱 진입점 (Hive/dotenv/splash 초기화)
 │
 ├── core/
@@ -147,14 +149,17 @@ lib/                                    # 68개 Dart 파일
 │   │   ├── food_recognition_result.dart # 사진 인식 결과/confidence 모델
 │   │   ├── persisted_model_decoder.dart # 저장 데이터 안전 복원/마이그레이션 가드
 │   │   └── *.freezed.dart / *.g.dart   # generated copyWith/equality/JSON
-│   ├── services/                       # 서비스 계층 (7개)
+│   ├── services/                       # 서비스 계층 (10개)
 │   │   ├── api_service.dart            # Dio HTTP 클라이언트 + RetryInterceptor
 │   │   ├── ai_chat_service.dart        # OpenAI GPT 챗봇 서비스
 │   │   ├── food_api_service.dart       # 다중 소스 음식 검색 서비스
 │   │   ├── food_image_recognition_service.dart # 사진 기반 음식 인식 클라이언트
 │   │   ├── local_storage_service.dart  # Hive 영속화 서비스
 │   │   ├── proxy_client_config.dart    # 프록시 URL/토큰 환경 설정
-│   │   └── proxy_status_service.dart   # /health 기반 프록시 상태 확인
+│   │   ├── proxy_status_service.dart   # /health 기반 프록시 상태 확인
+│   │   ├── supabase_config.dart        # Supabase 공개 설정 로더
+│   │   ├── supabase_bootstrap.dart     # 설정된 경우에만 Supabase 초기화
+│   │   └── supabase_backend_service.dart # Supabase Auth/Postgres/Storage 래퍼
 │   └── repositories/
 │       └── dummy_data.dart             # 로컬 음식 DB (80+)
 │
@@ -164,6 +169,12 @@ lib/                                    # 68개 Dart 파일
 │   └── service_providers.dart          # API/프록시/스토리지 서비스 DI
 │
 ├── features/
+│   ├── auth/                           # Supabase 계정/동기화
+│   │   ├── providers/
+│   │   │   └── auth_providers.dart     # Supabase Auth session + local/remote sync
+│   │   └── widgets/
+│   │       ├── supabase_account_card.dart # 프로필 계정 동기화 카드
+│   │       └── supabase_auth_sheet.dart # 로그인/회원가입 바텀시트
 │   ├── dashboard/                      # 📅 데일리 홈
 │   │   ├── providers/
 │   │   │   ├── daily_health_providers.dart
@@ -171,11 +182,7 @@ lib/                                    # 68개 Dart 파일
 │   │   ├── dashboard_screen.dart
 │   │   └── widgets/
 │   │       ├── daily_intake_overview_card.dart # 일일 섭취 상태 카드
-│   │       ├── goal_strategy_card.dart # 개선 목표별 다음 식사 전략
-│   │       ├── calorie_ring_card.dart
-│   │       ├── health_metrics_card.dart
-│   │       ├── quick_actions_card.dart
-│   │       └── weight_chart_card.dart
+│   │       └── goal_strategy_card.dart # 개선 목표별 다음 식사 전략
 │   ├── meal/                           # 📊 섭취 리포트 + 음식 기록
 │   │   ├── providers/
 │   │   │   └── meal_providers.dart
@@ -214,17 +221,23 @@ lib/l10n/                               # Flutter gen-l10n 다국어 리소스
 ├── app_localizations_context.dart      # context.l10n / enum label helper
 └── generated/                          # AppLocalizations generated files
 
-test/                                   # 153개 테스트
+test/                                   # 168개 테스트
 ├── models/                             # 모델 단위 테스트 (4개 파일, 27개 테스트)
-├── services/                           # 서비스 단위 테스트 (4개 파일, 60개 테스트)
-├── providers/                          # 프로바이더 테스트 (2개 파일, 34개 테스트)
-├── server/                             # 프록시 서버 단위/통합 테스트 (2개 파일, 25개 테스트)
+├── services/                           # 서비스 단위 테스트 (5개 파일, 64개 테스트)
+├── providers/                          # 프로바이더 테스트 (2개 파일, 39개 테스트)
+├── server/                             # 프록시 서버 단위/통합 테스트 (2개 파일, 31개 테스트)
 └── widget_test.dart                    # 위젯 통합 테스트 (7개 테스트)
 
 server/
 ├── bin/
 │   └── sikdanscan_proxy.dart              # 프록시 서버 엔트리포인트
-└── lib/src/                            # 인증, CORS, rate limit, upstream, parser, handler 모듈
+└── lib/src/                            # 인증, DB, 관측, CORS, rate limit, upstream, parser, handler 모듈
+
+supabase/
+├── README.md                           # Supabase 무료 프로젝트 설정 가이드
+└── migrations/
+    ├── 20260701000000_initial_sikdanscan_schema.sql # RLS 기반 초기 운영 스키마
+    └── 20260701001000_grant_authenticated_data_api_access.sql # Data API authenticated grant
 
 .github/workflows/
 └── flutter-ci.yml                      # pub get, build_runner, format, analyze, test
@@ -254,6 +267,7 @@ flutter pub get
 cp .env.example .env
 # .env 파일에 SIKDANSCAN_PROXY_BASE_URL 입력
 # 프록시에 PROXY_CLIENT_TOKEN을 설정했다면 SIKDANSCAN_PROXY_CLIENT_TOKEN도 입력
+# release 빌드에서는 HTTPS 프록시 URL만 사용됩니다.
 
 # 4. 로컬 프록시 실행 (선택사항)
 cp .env.proxy.example .env.proxy
@@ -278,8 +292,8 @@ dart run build_runner build
 ## 🔑 환경 설정
 
 ```bash
-# Flutter 앱 .env 파일 예시
-SIKDANSCAN_PROXY_BASE_URL=http://localhost:8080
+# Flutter 앱 .env 파일 예시 (개발용)
+SIKDANSCAN_PROXY_BASE_URL=http://127.0.0.1:8080
 SIKDANSCAN_PROXY_CLIENT_TOKEN=replace_with_non_secret_client_token
 
 # 서버 프록시 .env.proxy 파일 예시
@@ -288,13 +302,21 @@ FOOD_API_KEY=your_data_go_kr_api_key_here
 PROXY_CLIENT_TOKEN=replace_with_non_secret_client_token
 PORT=8080
 OPENAI_MODEL=gpt-5.4-mini
+AUTH_TOKEN_SECRET=replace_with_at_least_32_random_bytes
+AUTH_TOKEN_TTL_MINUTES=43200
+DATABASE_PATH=.sikdanscan_proxy_db.json
+
+# Supabase 앱 공개 설정 예시
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
 ```
 
 | 실행 대상 | `SIKDANSCAN_PROXY_BASE_URL` |
 | --------- | ------------------------ |
 | iOS Simulator / macOS / web | `http://localhost:8080` |
 | Android Emulator | `http://10.0.2.2:8080` |
-| 실기기 | `http://<개발 머신 LAN IP>:8080` 또는 배포된 HTTPS URL |
+| 실기기 개발 | `http://<개발 머신 LAN IP>:8080` |
+| 운영 빌드 | `https://<배포된 프록시 도메인>` |
 
 | API                    | 용도                     | 발급처                                                           |
 | ---------------------- | ------------------------ | ---------------------------------------------------------------- |
@@ -303,9 +325,13 @@ OPENAI_MODEL=gpt-5.4-mini
 
 > 💡 **프록시 없이도 앱은 동작합니다.** 내장 DB(80+ 음식)와 로컬 폴백 응답이 제공되며, 프록시 연결 시 AI/공공데이터 검색이 활성화됩니다.
 
-> 🔒 Flutter 앱 `.env`에는 프록시 URL과 선택적 클라이언트 토큰만 둡니다. OpenAI 및 공공 API 키는 로컬 `.env.proxy` 또는 배포 플랫폼의 Secret Manager에만 보관합니다. `server/bin/sikdanscan_proxy.dart`는 로컬 실행 시 `.env.proxy`를 우선 읽고, 없으면 `.env`를 fallback으로 읽습니다.
+> 🔒 Flutter 앱 `.env`에는 프록시 URL과 선택적 클라이언트 토큰만 둡니다. OpenAI 및 공공 API 키는 로컬 `.env.proxy` 또는 배포 플랫폼의 Secret Manager에만 보관합니다. 운영 앱은 `--dart-define=SIKDANSCAN_PROXY_BASE_URL=https://...` 방식으로 주입하는 것을 권장합니다. `server/bin/sikdanscan_proxy.dart`는 로컬 실행 시 `.env.proxy`를 우선 읽고, 없으면 `.env`를 fallback으로 읽습니다.
 
-> ⚠️ `SIKDANSCAN_PROXY_CLIENT_TOKEN`은 모바일 앱에 포함되므로 완전한 사용자 인증이 아닙니다. 포트폴리오/개발 환경의 최소 보호막으로 사용하고, 운영 환경에서는 사용자 인증, App Check/DeviceCheck, WAF/rate limit을 함께 적용하세요.
+> 🚫 Release 빌드는 `http://` 프록시 URL을 무시합니다. 운영 환경에서는 반드시 TLS가 적용된 HTTPS 프록시를 사용하세요.
+
+> ⚠️ `SIKDANSCAN_PROXY_CLIENT_TOKEN`은 모바일 앱에 포함되므로 사용자 인증이 아닙니다. OpenAI/공공 API 프록시 보호용 최소 장치로만 사용하고, 사용자 계정/식단 영구 데이터는 Supabase Auth/Postgres/RLS로 분리합니다. 운영 환경에서는 App Check/DeviceCheck, WAF/rate limit, 토큰 로테이션을 함께 적용하세요.
+
+> 🟢 Supabase는 `.env`에 `SUPABASE_URL`과 `SUPABASE_PUBLISHABLE_KEY`가 있을 때만 초기화됩니다. 무료 프로젝트를 사용해 Auth/Postgres/Storage를 붙일 수 있으며, secret/service role key는 모바일 앱에 넣지 않습니다.
 
 ---
 
@@ -361,6 +387,9 @@ OPENAI_MODEL=gpt-5.4-mini
 | **Secret Isolation**     | 모바일 앱은 프록시 URL/클라이언트 토큰만 보관하고 외부 API 키는 서버 환경변수로 격리 |
 | **Proxy Health Check**   | 설정 화면에서 `/health`를 호출해 실제 프록시 연결 상태 확인     |
 | **Proxy Guardrails**     | Bearer 토큰, CORS Origin 제한, 요청 본문 크기 제한, IP 기반 rate limit |
+| **Cloud Sync Auth**      | Supabase Auth 기반 이메일/소셜 로그인, RLS 사용자 데이터 분리 |
+| **Readiness & Metrics**  | `/ready` DB/auth/upstream 준비 상태, `/metrics` Prometheus 스타일 카운터/latency |
+| **Structured Logging**   | 요청별 `x-request-id`, method/path/status/duration JSON 로그 |
 | **메모리 캐시**          | AI/공공 API 결과를 캐시하여 중복 API 호출 방지                  |
 | **입력 디바운스**        | 검색 입력 300ms 디바운스로 불필요한 API 호출 최소화             |
 | **검색 레이스 방지**     | 최신 검색 요청만 UI 상태를 갱신하여 빠른 입력에도 결과 일관성 유지 |
@@ -369,8 +398,21 @@ OPENAI_MODEL=gpt-5.4-mini
 
 - Hive NoSQL 기반 — 모든 StateNotifier가 자동 저장/복원
 - 앱 재시작 시 사용자 데이터 유지
+- Supabase Auth/Postgres/Storage 기반 원격 인프라를 선택적으로 지원하며, RLS로 사용자별 프로필/식단/사진 접근을 제한
+- 서버 프록시 파일 DB는 로컬 fallback/데모용으로만 유지하고, 실제 사용자 계정·장기 식단 데이터의 운영 기준은 Supabase Postgres/RLS
 - 언어 설정은 `system` / `ko` / `en` 값을 Hive settings에 저장하고, `system` 모드에서는 기기 locale을 따름
 - 데이터 내보내기(JSON) 및 전체 초기화 기능 제공
+
+### Supabase 원격 인프라
+
+- `supabase_flutter` 기반 공식 SDK 초기화 — `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`가 있을 때만 활성화
+- `profiles`, `meal_records`, `food_recognition_results` 테이블과 `meal-images`, `avatars` private bucket migration 제공
+- 모든 테이블과 Storage object는 `auth.uid()` 기반 RLS policy로 사용자별 접근 제한
+- 프로필 화면에서 이메일 로그인/회원가입과 Google/Kakao/Apple 소셜 로그인, 로그아웃, 수동 동기화를 제공하고, 로그인 시 원격 데이터가 있으면 로컬 상태로 병합
+- 프로필·식단 저장은 로컬 Hive를 우선 성공시킨 뒤 Supabase에 best-effort 동기화해 네트워크 장애 시에도 앱 기록 흐름을 유지
+- Data API 자동 노출 설정을 끈 프로젝트에서도 동작하도록 `authenticated` role 명시 grant migration 제공
+- OpenAI/Data.go.kr 호출은 기존 Dart proxy에 유지해 secret key가 앱에 포함되지 않도록 분리
+- 소셜 로그인은 Supabase OAuth 리다이렉트 `sikdanscan://auth/callback`을 사용하며, provider secret은 Supabase Dashboard에만 저장
 
 ### 다국어 처리
 
@@ -392,16 +434,33 @@ OPENAI_MODEL=gpt-5.4-mini
 ## 🧪 테스트
 
 ```bash
-flutter test        # 전체 153개 테스트 실행
+flutter test        # 전체 168개 테스트 실행
 dart analyze        # 정적 분석 (0 issues)
 dart run build_runner build
+flutter build apk --release
+flutter build appbundle --release
+flutter build ios --release --no-codesign
 ```
 
 | 영역           | 파일 수 | 테스트 수 | 커버리지                                      |
 | -------------- | ------- | --------- | --------------------------------------------- |
 | **모델**       | 4       | 27        | JSON 직렬화/역직렬화, 개선 목표, BMI, 날짜 계산 |
-| **서비스**     | 4       | 60        | 음식 검색/캐시/프록시 파싱, 사진 인식 locale payload, AI 폴백, 프록시 상태 확인 |
-| **프로바이더** | 2       | 34        | StateNotifier CRUD, 목표별 식단 전략, 언어 설정 저장 복원/rollback |
-| **서버**       | 2       | 25        | 프록시 헬스체크, Bearer 인증, CORS, JSON 오류, 본문 제한, rate limit, 이미지 payload 검증, 텍스트/이미지 파서 |
+| **서비스**     | 5       | 64        | 음식 검색/캐시/프록시 파싱, 사진 인식 locale payload, AI 폴백, 프록시 상태 확인, Supabase 설정/비활성 상태 |
+| **프로바이더** | 2       | 39        | StateNotifier CRUD, 목표별 식단 전략, 언어 설정 저장 복원/rollback, Supabase optional provider |
+| **서버**       | 2       | 31        | 프록시 헬스체크, readiness, metrics, 사용자 인증, 파일 DB persistence, Bearer 인증, CORS, JSON 오류, 본문 제한, rate limit, 이미지 payload 검증, 텍스트/이미지 파서 |
 | **위젯**       | 1       | 7         | 데일리 홈 로드, 한국어/영어 네비게이션, 촬영 CTA, Chips, 언어 설정 바텀시트 |
-| **합계**       | **13**  | **153**   | **All passed ✅**                             |
+| **합계**       | **14**  | **168**   | **All passed ✅**                             |
+
+## 🚢 운영 배포 체크리스트
+
+- 프록시 서버를 HTTPS 도메인 뒤에 배포하고 `SIKDANSCAN_PROXY_BASE_URL`을 HTTPS로 주입
+- Cloud Run 배포는 루트 `Dockerfile`과 `scripts/deploy_cloud_run.sh`를 사용하고, secret은 Secret Manager에서 주입
+- OpenAI/Data.go.kr 키는 서버 Secret Manager에만 저장
+- `AUTH_TOKEN_SECRET`은 32바이트 이상 난수로 설정하고 Secret Manager에서 로테이션
+- Cloud Run은 AI/API gateway로 운영하고, 사용자 영구 데이터는 Supabase Postgres/RLS를 기준으로 운영. 데모용 파일 DB auth는 `ENABLE_LOCAL_DEMO_AUTH=true`일 때만 활성화
+- `/ready`를 배포 health check에 연결하고, `/metrics`를 Prometheus/Grafana 또는 호스팅 플랫폼 메트릭 수집기에 연결
+- `PROXY_CLIENT_TOKEN`은 upstream 보호용 최소 장치로만 사용하고, 운영에는 App Check/DeviceCheck, WAF/rate limit 추가
+- Android 배포 전 `android/key.properties.example`을 복사해 `android/key.properties`를 만들고 업로드 키스토어 설정
+- iOS 배포 전 Apple Developer Team, bundle identifier, capability, privacy manifest/앱 개인정보 항목 확인
+- 장애 대응을 위해 프록시 로그, latency, 4xx/5xx, OpenAI quota/rate-limit 모니터링 구성
+- 사용자 프로필/식단의 앱 로컬 상태와 Supabase 원격 저장소 간 동기화 정책을 앱 로그인 플로우와 함께 확정

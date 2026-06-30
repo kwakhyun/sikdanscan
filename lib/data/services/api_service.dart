@@ -139,9 +139,11 @@ class RetryInterceptor extends Interceptor {
 
     if (shouldRetry) {
       final delay = ApiConstants.retryDelayMs * (1 << retryCount);
-      debugPrint(
-        '🔄 API 재시도 ${retryCount + 1}/${ApiConstants.maxRetries} (${delay}ms 후)',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          'API 재시도 ${retryCount + 1}/${ApiConstants.maxRetries} (${delay}ms 후)',
+        );
+      }
       await Future.delayed(Duration(milliseconds: delay));
 
       err.requestOptions.extra['retryCount'] = retryCount + 1;

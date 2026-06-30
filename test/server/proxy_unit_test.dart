@@ -4,12 +4,14 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../server/lib/src/auth_service.dart';
 import '../../server/lib/src/client_auth.dart';
 import '../../server/lib/src/food_parsers.dart';
 import '../../server/lib/src/json_helpers.dart';
 import '../../server/lib/src/proxy_env_loader.dart';
 import '../../server/lib/src/proxy_exceptions.dart';
 import '../../server/lib/src/rate_limiter.dart';
+import '../../server/lib/src/server_database.dart';
 import '../../server/lib/src/upstream_client.dart';
 
 void main() {
@@ -72,6 +74,68 @@ void main() {
         List.generate(100, (_) => limiter.allow('127.0.0.1')),
         everyElement(isTrue),
       );
+    });
+  });
+
+  group('server auth infrastructure', () {
+    test('hashes and verifies passwords with PBKDF2', () {
+      final hasher = PasswordHasher(iterations: 2);
+      final encoded = hasher.hash('correct-password');
+
+      expect(encoded, startsWith(r'pbkdf2_sha256$2$'));
+      expect(hasher.verify('correct-password', encoded), isTrue);
+      expect(hasher.verify('wrong-password', encoded), isFalse);
+    });
+
+    test('creates and verifies signed access tokens', () {
+      final now = DateTime.utc(2026, 1, 1);
+      final user = StoredUser(
+        id: 'user-1',
+        email: 'user@example.com',
+        passwordHash: 'hash',
+        createdAt: now,
+      );
+      final service = AccessTokenService(
+        secret: '12345678901234567890123456789012',
+        ttl: const Duration(minutes: 30),
+        clock: () => now,
+      );
+
+      final token = service.create(user);
+      final claims = service.verify(token);
+
+      expect(claims?.subject, 'user-1');
+      expect(claims?.expiresAt, now.add(const Duration(minutes: 30)));
+      expect(service.verify('$token.tampered'), isNull);
+    });
+
+    test('persists users and meal records to the server database', () async {
+      final directory = Directory.systemTemp.createTempSync(
+        'sikdanscan_db_unit_test_',
+      );
+      try {
+        final path = '${directory.path}/db.json';
+        final database = FileServerDatabase(path);
+        await database.open();
+
+        final user = await database.createUser(
+          email: 'USER@example.com',
+          passwordHash: 'hash',
+          displayName: 'Tester',
+        );
+        await database.addMealRecord(user.id, {'name': '김밥', 'kcal': 420});
+
+        final reopened = FileServerDatabase(path);
+        await reopened.open();
+
+        expect(
+          (await reopened.findUserByEmail('user@example.com'))?.id,
+          user.id,
+        );
+        expect(await reopened.listMealRecords(user.id), hasLength(1));
+      } finally {
+        directory.deleteSync(recursive: true);
+      }
     });
   });
 

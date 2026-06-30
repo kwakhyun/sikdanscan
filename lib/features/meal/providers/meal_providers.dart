@@ -8,13 +8,33 @@ import '../../../providers/service_providers.dart';
 final mealRecordsProvider =
     StateNotifierProvider<MealRecordsNotifier, List<MealRecord>>((ref) {
       final storage = ref.read(localStorageServiceProvider);
-      return MealRecordsNotifier(storage);
+      return MealRecordsNotifier(
+        storage,
+        remoteUpsert: (meal) async {
+          final service = ref.read(supabaseBackendServiceProvider);
+          if (!service.isConfigured || service.currentUser == null) return;
+          await service.upsertMealRecord(meal);
+        },
+        remoteDelete: (id) async {
+          final service = ref.read(supabaseBackendServiceProvider);
+          if (!service.isConfigured || service.currentUser == null) return;
+          await service.deleteMealRecord(id);
+        },
+      );
     });
 
 class MealRecordsNotifier extends StateNotifier<List<MealRecord>> {
-  MealRecordsNotifier(this._storage) : super(_loadRecords(_storage));
+  MealRecordsNotifier(
+    this._storage, {
+    Future<void> Function(MealRecord)? remoteUpsert,
+    Future<void> Function(String)? remoteDelete,
+  }) : _remoteUpsert = remoteUpsert,
+       _remoteDelete = remoteDelete,
+       super(_loadRecords(_storage));
 
   final LocalStorageService _storage;
+  final Future<void> Function(MealRecord)? _remoteUpsert;
+  final Future<void> Function(String)? _remoteDelete;
 
   static List<MealRecord> _loadRecords(LocalStorageService storage) {
     final data = storage.getMealRecords();
@@ -26,13 +46,25 @@ class MealRecordsNotifier extends StateNotifier<List<MealRecord>> {
 
   Future<void> addMeal(MealRecord meal) async {
     await _commit([...state, meal]);
+    await _tryRemoteUpsert(meal);
   }
 
   Future<void> removeMeal(String id) async {
     await _commit(state.where((m) => m.id != id).toList());
+    await _tryRemoteDelete(id);
   }
 
   Future<void> clearDay(DateTime date) async {
+    final removingIds = state
+        .where(
+          (m) =>
+              m.date.year == date.year &&
+              m.date.month == date.month &&
+              m.date.day == date.day,
+        )
+        .map((meal) => meal.id)
+        .toList(growable: false);
+
     await _commit(
       state
           .where(
@@ -43,6 +75,14 @@ class MealRecordsNotifier extends StateNotifier<List<MealRecord>> {
           )
           .toList(),
     );
+
+    for (final id in removingIds) {
+      await _tryRemoteDelete(id);
+    }
+  }
+
+  Future<void> replaceAll(List<MealRecord> meals) async {
+    await _commit(meals);
   }
 
   Future<void> _commit(List<MealRecord> nextState) async {
@@ -54,6 +94,28 @@ class MealRecordsNotifier extends StateNotifier<List<MealRecord>> {
     } catch (_) {
       state = previousState;
       rethrow;
+    }
+  }
+
+  Future<void> _tryRemoteUpsert(MealRecord meal) async {
+    final remoteUpsert = _remoteUpsert;
+    if (remoteUpsert == null) return;
+
+    try {
+      await remoteUpsert(meal);
+    } catch (_) {
+      // Remote sync is best-effort; local records remain available offline.
+    }
+  }
+
+  Future<void> _tryRemoteDelete(String id) async {
+    final remoteDelete = _remoteDelete;
+    if (remoteDelete == null) return;
+
+    try {
+      await remoteDelete(id);
+    } catch (_) {
+      // Remote sync is best-effort; local records remain available offline.
     }
   }
 }
