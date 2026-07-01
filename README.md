@@ -19,7 +19,7 @@
   <img src="https://img.shields.io/badge/Platform-iOS%20%7C%20Android-2DD4A8?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Tests-168%20passed-brightgreen?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Dart%20Files-101-blue?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Dart%20Lines-23.8k-blue?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Dart%20Lines-24.2k-blue?style=for-the-badge" />
 </p>
 
 ---
@@ -30,10 +30,11 @@
 - [주요 기능](#-주요-기능)
 - [기술 스택](#-기술-스택)
 - [프로젝트 구조](#-프로젝트-구조)
-- [시작하기](#-시작하기)
-- [환경 설정](#-환경-설정)
+- [로컬 실행](#-로컬-실행)
+- [환경 변수 설정](#-환경-변수-설정)
 - [아키텍처](#-아키텍처)
-- [테스트](#-테스트)
+- [테스트 및 빌드](#-테스트-및-빌드)
+- [운영 배포 체크리스트](#-운영-배포-체크리스트)
 
 ---
 
@@ -106,7 +107,7 @@
 | **Networking**       | Dio (RetryInterceptor, 지수 백오프 자동 재시도)           |
 | **Local Storage**    | Hive (NoSQL, 데이터 영속화)                               |
 | **Remote Backend**   | Supabase Auth/Postgres/Storage — 선택형 원격 계정·식단 동기화 인프라 |
-| **Backend Proxy**    | Dart HTTP server — AI/API key 격리, Cloud Run AI gateway, `/ready`, `/metrics`, 구조화 로그 |
+| **Backend Proxy**    | Dart HTTP server — AI/API key 격리, Cloud Run API gateway, `/ready`, `/metrics`, 구조화 로그 |
 | **AI / ML**          | OpenAI GPT-5.4-mini (서버 프록시 경유 챗봇 + 음식 텍스트/이미지 영양 분석) |
 | **외부 API**         | 식단스캔 API Proxy, 식약처 식품영양성분DB정보, Open Food Facts |
 | **환경 설정**        | flutter_dotenv (.env 기반 프록시 URL 관리)                |
@@ -116,7 +117,7 @@
 | **Localization**     | Flutter gen-l10n — 한국어/영어, 시스템 언어/수동 선택 지원 |
 | **Code Generation**  | Freezed, json_serializable, build_runner                  |
 | **Testing**          | flutter_test — 168개 단위·위젯·서버 테스트                 |
-| **CI/CD**            | GitHub Actions — build_runner, format, analyze, test      |
+| **CI/CD**            | GitHub Actions — build_runner, format, analyze, test, Android release APK |
 | **Architecture**     | Feature-first + Service Layer + Typed Model Layer         |
 
 ---
@@ -124,7 +125,7 @@
 ## 📁 프로젝트 구조
 
 ```
-lib/                                    # 70개 Dart 파일
+lib/                                    # 앱 소스 70개 Dart 파일
 ├── main.dart                           # 앱 진입점 (Hive/dotenv/splash 초기화)
 │
 ├── core/
@@ -240,24 +241,24 @@ supabase/
     └── 20260701001000_grant_authenticated_data_api_access.sql # Data API authenticated grant
 
 .github/workflows/
-└── flutter-ci.yml                      # pub get, build_runner, format, analyze, test
+└── flutter-ci.yml                      # pub get, build_runner, format, analyze, test, Android release APK
 ```
 
 ---
 
-## 🚀 시작하기
+## 🚀 로컬 실행
 
 ### 사전 요구사항
 
-- Flutter SDK 3.41 이상
-- Dart SDK 3.11 이상
+- Flutter SDK 3.41.1 이상 권장 (CI 검증 기준)
+- Dart SDK 3.8 이상 (`pubspec.yaml` 기준, 현재 검증 환경 3.11)
 - iOS: Xcode 16+ / Android: SDK 21+
 
-### 설치 및 실행
+### 실행 순서
 
 ```bash
 # 1. 저장소 클론
-git clone https://github.com/your-username/sikdanscan.git
+git clone https://github.com/kwakhyun/fitmate.git sikdanscan
 cd sikdanscan
 
 # 2. 의존성 설치
@@ -265,8 +266,9 @@ flutter pub get
 
 # 3. 환경 변수 설정 (선택사항 — 없어도 앱 동작)
 cp .env.example .env
-# .env 파일에 SIKDANSCAN_PROXY_BASE_URL 입력
+# 필요하면 .env 파일에 SIKDANSCAN_PROXY_BASE_URL 입력
 # 프록시에 PROXY_CLIENT_TOKEN을 설정했다면 SIKDANSCAN_PROXY_CLIENT_TOKEN도 입력
+# 실제 운영 도메인과 토큰 값은 공개 README에 기록하지 않습니다.
 # release 빌드에서는 HTTPS 프록시 URL만 사용됩니다.
 
 # 4. 로컬 프록시 실행 (선택사항)
@@ -289,7 +291,9 @@ dart run build_runner build
 
 ---
 
-## 🔑 환경 설정
+## 🔑 환경 변수 설정
+
+> 공개 저장소에는 변수명과 예시 placeholder만 문서화합니다. 실제 `.env`, `.env.proxy`, Android signing key, Supabase service role key, OAuth provider secret, OpenAI/Data.go.kr API key, 운영 프록시 토큰은 커밋하지 않습니다. Supabase publishable key는 공개 클라이언트 키지만, 실제 보호 경계는 RLS policy와 서버 측 secret 분리입니다.
 
 ```bash
 # Flutter 앱 .env 파일 예시 (개발용)
@@ -302,9 +306,11 @@ FOOD_API_KEY=your_data_go_kr_api_key_here
 PROXY_CLIENT_TOKEN=replace_with_non_secret_client_token
 PORT=8080
 OPENAI_MODEL=gpt-5.4-mini
-AUTH_TOKEN_SECRET=replace_with_at_least_32_random_bytes
-AUTH_TOKEN_TTL_MINUTES=43200
-DATABASE_PATH=.sikdanscan_proxy_db.json
+# Optional local/demo-only /v1/auth/* and /v1/me/* endpoints.
+# Cloud Run 배포에서는 ENABLE_LOCAL_DEMO_AUTH=true일 때만 AUTH_TOKEN_SECRET을 주입합니다.
+# AUTH_TOKEN_SECRET=replace_with_at_least_32_random_bytes
+# AUTH_TOKEN_TTL_MINUTES=43200
+# DATABASE_PATH=.sikdanscan_proxy_db.json
 
 # Supabase 앱 공개 설정 예시
 SUPABASE_URL=https://your-project-ref.supabase.co
@@ -325,7 +331,7 @@ SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
 
 > 💡 **프록시 없이도 앱은 동작합니다.** 내장 DB(80+ 음식)와 로컬 폴백 응답이 제공되며, 프록시 연결 시 AI/공공데이터 검색이 활성화됩니다.
 
-> 🔒 Flutter 앱 `.env`에는 프록시 URL과 선택적 클라이언트 토큰만 둡니다. OpenAI 및 공공 API 키는 로컬 `.env.proxy` 또는 배포 플랫폼의 Secret Manager에만 보관합니다. 운영 앱은 `--dart-define=SIKDANSCAN_PROXY_BASE_URL=https://...` 방식으로 주입하는 것을 권장합니다. `server/bin/sikdanscan_proxy.dart`는 로컬 실행 시 `.env.proxy`를 우선 읽고, 없으면 `.env`를 fallback으로 읽습니다.
+> 🔒 Flutter 앱 `.env`에는 프록시 URL과 선택적 클라이언트 토큰만 둡니다. OpenAI 및 공공 API 키는 로컬 `.env.proxy` 또는 배포 플랫폼의 Secret Manager에만 보관합니다. 운영 앱은 `--dart-define=SIKDANSCAN_PROXY_BASE_URL=https://...` 방식으로 주입하는 것을 권장합니다. `server/bin/sikdanscan_proxy.dart`는 로컬 실행 시 `.env.proxy`를 우선 읽고, 없으면 `.env`를 fallback으로 읽습니다. 실제 값이 들어간 `.env`/`.env.proxy`는 `.gitignore`로 제외됩니다.
 
 > 🚫 Release 빌드는 `http://` 프록시 URL을 무시합니다. 운영 환경에서는 반드시 TLS가 적용된 HTTPS 프록시를 사용하세요.
 
@@ -431,11 +437,12 @@ SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
 
 ---
 
-## 🧪 테스트
+## 🧪 테스트 및 빌드
 
 ```bash
 flutter test        # 전체 168개 테스트 실행
-dart analyze        # 정적 분석 (0 issues)
+dart analyze        # 앱 정적 분석 (0 issues)
+dart analyze server # 서버 정적 분석 (0 issues)
 dart run build_runner build
 flutter build apk --release
 flutter build appbundle --release
@@ -456,7 +463,7 @@ flutter build ios --release --no-codesign
 - 프록시 서버를 HTTPS 도메인 뒤에 배포하고 `SIKDANSCAN_PROXY_BASE_URL`을 HTTPS로 주입
 - Cloud Run 배포는 루트 `Dockerfile`과 `scripts/deploy_cloud_run.sh`를 사용하고, secret은 Secret Manager에서 주입
 - OpenAI/Data.go.kr 키는 서버 Secret Manager에만 저장
-- `AUTH_TOKEN_SECRET`은 32바이트 이상 난수로 설정하고 Secret Manager에서 로테이션
+- 로컬/데모용 `/v1/auth/*`, `/v1/me/*` API를 Cloud Run에서도 예외적으로 켤 때만 `AUTH_TOKEN_SECRET`을 32바이트 이상 난수로 설정하고 Secret Manager에서 로테이션. 기본 운영 배포에서는 주입하지 않음
 - Cloud Run은 AI/API gateway로 운영하고, 사용자 영구 데이터는 Supabase Postgres/RLS를 기준으로 운영. 데모용 파일 DB auth는 `ENABLE_LOCAL_DEMO_AUTH=true`일 때만 활성화
 - `/ready`를 배포 health check에 연결하고, `/metrics`를 Prometheus/Grafana 또는 호스팅 플랫폼 메트릭 수집기에 연결
 - `PROXY_CLIENT_TOKEN`은 upstream 보호용 최소 장치로만 사용하고, 운영에는 App Check/DeviceCheck, WAF/rate limit 추가
