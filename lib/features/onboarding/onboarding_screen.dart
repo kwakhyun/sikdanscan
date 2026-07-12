@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,7 +18,8 @@ class OnboardingScreen extends ConsumerStatefulWidget {
   ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
+    with WidgetsBindingObserver {
   final _pageController = PageController();
   final _nameController = TextEditingController();
   final _ageController = TextEditingController();
@@ -28,11 +31,39 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   WellnessGoal _goal = WellnessGoal.skinHealth;
   ActivityLevel _activityLevel = ActivityLevel.moderate;
   bool _saving = false;
+  bool _oauthInProgress = false;
+  String? _lastMergedOAuthUserId;
+  Timer? _oauthResumeTimer;
 
   static const _stepCount = 4;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !_oauthInProgress) return;
+
+    // Coming back from the external OAuth flow: give the deep-link session a
+    // moment to arrive, then re-enable the social buttons if it never did
+    // (e.g. the user cancelled in the browser).
+    _oauthResumeTimer?.cancel();
+    _oauthResumeTimer = Timer(const Duration(seconds: 5), () {
+      if (!mounted || !_oauthInProgress) return;
+      final user = ref.read(supabaseUserProvider).valueOrNull;
+      if (user == null) {
+        setState(() => _oauthInProgress = false);
+      }
+    });
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _oauthResumeTimer?.cancel();
     _pageController.dispose();
     _nameController.dispose();
     _ageController.dispose();
@@ -43,6 +74,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(supabaseUserProvider, (previous, next) {
+      final user = next.valueOrNull;
+      if (!_oauthInProgress ||
+          user == null ||
+          user.id == _lastMergedOAuthUserId) {
+        return;
+      }
+
+      _oauthInProgress = false;
+      _lastMergedOAuthUserId = user.id;
+      unawaited(_completeOAuthSignIn());
+    });
+
     return Scaffold(
       backgroundColor: context.colorBackground,
       body: SafeArea(
@@ -73,11 +117,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Widget _buildWelcomeStep() {
+    final configured = ref.watch(supabaseConfiguredProvider);
+    final authState = ref.watch(supabaseAuthControllerProvider);
+    final socialLoginDisabled =
+        authState.isLoading || _saving || _oauthInProgress;
+
     return _StepPadding(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: ListView(
+        padding: EdgeInsets.zero,
         children: [
-          const Spacer(),
+          const SizedBox(height: 12),
           Container(
             width: 76,
             height: 76,
@@ -91,7 +140,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               size: 38,
             ),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 26),
           Text(
             context.l10n.onboardingStartTitle,
             style: TextStyle(
@@ -111,7 +160,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               color: context.colorTextSecondary,
             ),
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 20),
+          _OnboardingSocialLoginRow(
+            disabled: socialLoginDisabled,
+            onOAuthPressed: configured
+                ? _submitOAuth
+                : (_) =>
+                      _showMessage(context.l10n.authCloudNotConfiguredSubtitle),
+          ),
+          const SizedBox(height: 24),
           _BenefitRow(
             icon: Icons.flash_on_rounded,
             title: context.l10n.onboardingBenefitQuickTitle,
@@ -129,7 +186,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             title: context.l10n.onboardingBenefitCoachTitle,
             description: context.l10n.onboardingBenefitCoachDescription,
           ),
-          const Spacer(),
+          const SizedBox(height: 24),
         ],
       ),
     );
@@ -280,8 +337,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final waterGoal = draft?.recommendedWaterGoalMl ?? 0;
 
     return _StepPadding(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: ListView(
+        padding: EdgeInsets.zero,
         children: [
           _StepTitle(
             title: context.l10n.onboardingReviewTitle,
@@ -295,7 +352,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 ? '$calorieGoal kcal'
                 : context.l10n.onboardingNeedsCalculation,
             description: draft != null
-                ? _calorieGoalBasisSummary(draft)
+                ? draft.calorieGoalBasisSummaryOf(context.l10n)
                 : context.l10n.onboardingCheckInputs,
             color: AppColors.secondary,
           ),
@@ -348,6 +405,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 24),
         ],
       ),
     );
@@ -430,6 +488,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   Future<void> _next() async {
     if (_step == 2 && !_validateBodyMetrics()) return;
+    FocusScope.of(context).unfocus();
     if (_step == _stepCount - 1) {
       await _completeOnboarding();
       return;
@@ -524,20 +583,48 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 
-  String _calorieGoalBasisSummary(UserProfile profile) {
-    if (!profile.hasBodyMetrics || profile.maintenanceCalorieEstimate <= 0) {
-      return context.l10n.onboardingCheckInputs;
+  Future<void> _submitOAuth(SocialLoginProvider provider) async {
+    setState(() => _oauthInProgress = true);
+    try {
+      final launched = await ref
+          .read(supabaseAuthControllerProvider.notifier)
+          .signInWithOAuth(provider);
+      if (!mounted) return;
+      if (!launched) {
+        setState(() => _oauthInProgress = false);
+        _showMessage(context.l10n.authFailed);
+        return;
+      }
+      _showMessage(context.l10n.authOAuthStarted);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _oauthInProgress = false);
+      _showMessage(context.l10n.authFailed);
     }
-
-    final adjustment = profile.goalCalorieAdjustment;
-    final isEnglish = Localizations.localeOf(context).languageCode == 'en';
-    final adjustmentText = adjustment == 0
-        ? (isEnglish ? 'no goal adjustment' : '목표 보정 없음')
-        : '${adjustment > 0 ? '+' : ''}$adjustment kcal ${isEnglish ? 'goal adjustment' : '목표 보정'}';
-    return 'BMR ${profile.basalMetabolicRate.round()} kcal × ${profile.activityLevel.labelOf(context.l10n)} ${profile.activityLevel.factor.toStringAsFixed(2)} · $adjustmentText';
   }
 
-  void _showError(String message) {
+  Future<void> _completeOAuthSignIn() async {
+    try {
+      await ref
+          .read(supabaseAuthControllerProvider.notifier)
+          .mergeAfterSignIn();
+      if (!mounted) return;
+
+      final profile = ref.read(userProfileProvider);
+      if (profile.onboardingCompleted) {
+        context.go('/dashboard');
+        return;
+      }
+
+      setState(() {});
+      _showMessage(context.l10n.authOAuthDone);
+    } catch (_) {
+      if (!mounted) return;
+      _showMessage(context.l10n.authFailed);
+    }
+  }
+
+  void _showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -546,6 +633,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       ),
     );
   }
+
+  void _showError(String message) => _showMessage(message);
 }
 
 class AppStartGate extends ConsumerWidget {
@@ -940,6 +1029,125 @@ class _SegmentButton extends StatelessWidget {
             fontSize: 14,
             fontWeight: FontWeight.w800,
             color: selected ? Colors.white : context.colorTextSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OnboardingSocialLoginRow extends StatelessWidget {
+  const _OnboardingSocialLoginRow({
+    required this.disabled,
+    required this.onOAuthPressed,
+  });
+
+  final bool disabled;
+  final ValueChanged<SocialLoginProvider> onOAuthPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionLabel(
+          icon: Icons.verified_user_outlined,
+          label: context.l10n.authSignInOrSignUp,
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _OnboardingSocialButton(
+                label: 'Kakao',
+                icon: Icons.chat_bubble_rounded,
+                backgroundColor: const Color(0xFFFEE500),
+                foregroundColor: const Color(0xFF191919),
+                disabled: disabled,
+                onPressed: () => onOAuthPressed(SocialLoginProvider.kakao),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _OnboardingSocialButton(
+                label: 'Google',
+                icon: Icons.g_mobiledata_rounded,
+                backgroundColor: Colors.white,
+                foregroundColor: context.colorTextPrimary,
+                borderColor: context.colorBorder,
+                disabled: disabled,
+                onPressed: () => onOAuthPressed(SocialLoginProvider.google),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _OnboardingSocialButton(
+                label: 'Apple',
+                icon: Icons.apple,
+                backgroundColor: Colors.black,
+                foregroundColor: Colors.white,
+                disabled: disabled,
+                onPressed: () => onOAuthPressed(SocialLoginProvider.apple),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _OnboardingSocialButton extends StatelessWidget {
+  const _OnboardingSocialButton({
+    required this.label,
+    required this.icon,
+    required this.backgroundColor,
+    required this.foregroundColor,
+    required this.disabled,
+    required this.onPressed,
+    this.borderColor,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color backgroundColor;
+  final Color foregroundColor;
+  final Color? borderColor;
+  final bool disabled;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 46,
+      child: OutlinedButton(
+        onPressed: disabled ? null : onPressed,
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          backgroundColor: backgroundColor,
+          foregroundColor: foregroundColor,
+          disabledForegroundColor: foregroundColor.withValues(alpha: 0.45),
+          side: BorderSide(color: borderColor ?? backgroundColor),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+        ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                maxLines: 1,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
           ),
         ),
       ),

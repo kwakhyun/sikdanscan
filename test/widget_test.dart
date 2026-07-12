@@ -3,8 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:sikdanscan/data/models/meal_record.dart';
 import 'package:sikdanscan/data/models/user_profile.dart';
 import 'package:sikdanscan/data/services/local_storage_service.dart';
+import 'package:sikdanscan/features/meal/meal_screen.dart';
+import 'package:sikdanscan/features/meal/widgets/meal_record_sheet.dart';
 import 'package:sikdanscan/features/chat/widgets/suggestion_chips.dart';
 import 'package:sikdanscan/features/dashboard/dashboard_screen.dart';
 import 'package:sikdanscan/features/onboarding/onboarding_screen.dart';
@@ -26,7 +29,44 @@ void main() {
 
     expect(find.text('식단스캔 시작하기'), findsOneWidget);
     expect(find.text('간편 가입하고 시작'), findsOneWidget);
+    expect(find.text('Kakao'), findsOneWidget);
+    expect(find.text('Google'), findsOneWidget);
+    expect(find.text('Apple'), findsOneWidget);
     expect(find.text('음식 촬영하기'), findsNothing);
+  });
+
+  testWidgets('Onboarding review step remains scrollable on compact screens', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 560));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: _LocalizedMaterialApp(home: OnboardingScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('간편 가입하고 시작'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('다음'));
+    await tester.pumpAndSettle();
+
+    final fields = find.byType(TextField);
+    expect(fields, findsNWidgets(4));
+
+    await tester.enterText(fields.at(0), '토리나나');
+    await tester.enterText(fields.at(1), '30');
+    await tester.enterText(fields.at(2), '189');
+    await tester.enterText(fields.at(3), '70');
+    await tester.tap(find.text('다음'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('이 기준으로 시작합니다'), findsOneWidget);
+    expect(find.text('일일 목표 칼로리'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('SikdanScan app smoke test - dashboard loads after onboarding', (
@@ -85,6 +125,111 @@ void main() {
     expect(find.text('수분 섭취 팁'), findsOneWidget);
     expect(find.text('체중 변화 분석'), findsOneWidget);
     expect(find.text('건강한 간식 추천'), findsOneWidget);
+  });
+
+  testWidgets('Meal record sheet updates meal type and portion', (
+    WidgetTester tester,
+  ) async {
+    final meal = _sheetTestMeal();
+    final notifier = MealRecordsNotifier(_InMemoryMealStorage([meal.toJson()]));
+
+    await _pumpMealSheetHost(tester, notifier: notifier, meal: meal);
+
+    expect(find.text('김치찌개'), findsOneWidget);
+
+    await tester.tap(find.text('저녁'));
+    await tester.pump();
+    await tester.tap(find.text('0.5×'));
+    await tester.pump();
+
+    expect(find.text('300'), findsOneWidget);
+
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+
+    final updated = notifier.state.single;
+    expect(updated.mealType, MealType.dinner);
+    expect(updated.calories, 300);
+    expect(updated.carbs, 20);
+    expect(updated.protein, 15);
+    expect(updated.fat, 10);
+  });
+
+  testWidgets('Meal record sheet deletes a record after confirmation', (
+    WidgetTester tester,
+  ) async {
+    final meal = _sheetTestMeal();
+    final notifier = MealRecordsNotifier(_InMemoryMealStorage([meal.toJson()]));
+
+    await _pumpMealSheetHost(tester, notifier: notifier, meal: meal);
+
+    await tester.tap(find.byIcon(Icons.delete_outline_rounded));
+    await tester.pumpAndSettle();
+
+    expect(find.text('기록 삭제'), findsOneWidget);
+
+    await tester.tap(find.text('삭제'));
+    await tester.pumpAndSettle();
+
+    expect(notifier.state, isEmpty);
+  });
+
+  testWidgets('Weekly report shows meal type breakdown with shares', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(420, 1800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final today = DateTime.now();
+    final meals = [
+      MealRecord(
+        id: 'wk_breakfast',
+        date: DateTime(today.year, today.month, today.day, 8),
+        mealType: MealType.breakfast,
+        name: '오트밀',
+        calories: 300,
+        carbs: 50,
+        protein: 10,
+        fat: 5,
+      ),
+      MealRecord(
+        id: 'wk_lunch',
+        date: DateTime(today.year, today.month, today.day, 12, 30),
+        mealType: MealType.lunch,
+        name: '비빔밥',
+        calories: 700,
+        carbs: 90,
+        protein: 25,
+        fat: 18,
+      ),
+    ];
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          userProfileProvider.overrideWith(
+            (ref) => UserProfileNotifier(_ProfileStorage(_onboardedProfile())),
+          ),
+          mealRecordsProvider.overrideWith(
+            (ref) => MealRecordsNotifier(
+              _InMemoryMealStorage(meals.map((m) => m.toJson()).toList()),
+            ),
+          ),
+        ],
+        child: const _LocalizedMaterialApp(home: MealScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('식사 유형별 비중'), findsNothing);
+
+    await tester.tap(find.text('주간'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('식사 유형별 비중'), findsOneWidget);
+    expect(find.text('30%'), findsOneWidget);
+    expect(find.text('70%'), findsOneWidget);
+    expect(find.textContaining('1건'), findsNWidgets(2));
   });
 
   testWidgets('Profile language setting opens bottom sheet with selection', (
@@ -183,6 +328,60 @@ Future<void> _pumpDashboardApp(WidgetTester tester, {Locale? locale}) async {
   );
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 350));
+}
+
+Future<void> _pumpMealSheetHost(
+  WidgetTester tester, {
+  required MealRecordsNotifier notifier,
+  required MealRecord meal,
+}) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [mealRecordsProvider.overrideWith((ref) => notifier)],
+      child: _LocalizedMaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => Center(
+              child: TextButton(
+                onPressed: () => showMealRecordSheet(context, meal),
+                child: const Text('기록 열기'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  await tester.tap(find.text('기록 열기'));
+  await tester.pumpAndSettle();
+}
+
+MealRecord _sheetTestMeal() {
+  return MealRecord(
+    id: 'sheet_meal',
+    date: DateTime(2026, 7, 13, 12, 30),
+    mealType: MealType.lunch,
+    name: '김치찌개',
+    calories: 600,
+    carbs: 40,
+    protein: 30,
+    fat: 20,
+  );
+}
+
+class _InMemoryMealStorage extends LocalStorageService {
+  _InMemoryMealStorage(this._records);
+
+  List<Map<String, dynamic>> _records;
+
+  @override
+  List<Map<String, dynamic>> getMealRecords() => _records;
+
+  @override
+  Future<void> saveMealRecords(List<Map<String, dynamic>> records) async {
+    _records = records;
+  }
 }
 
 class _LocalizedMaterialApp extends StatelessWidget {
