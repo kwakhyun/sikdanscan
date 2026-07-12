@@ -744,4 +744,154 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get activityActive => 'Active';
+
+  @override
+  String addMealRecognizedCount(int count) {
+    return 'Recognized $count food item(s) and added them to your selection';
+  }
+
+  @override
+  String get addMealAiHint =>
+      'Foods not in the DB get AI-estimated nutrition automatically';
+
+  @override
+  String get addMealAiAnalyzing => 'AI is analyzing nutrition info...';
+
+  @override
+  String get addMealSourceAiResults => 'AI nutrition analysis';
+
+  @override
+  String get addMealAiTag => 'AI analysis';
+
+  @override
+  String get mealTypeBreakfast => 'Breakfast';
+
+  @override
+  String get mealTypeLunch => 'Lunch';
+
+  @override
+  String get mealTypeDinner => 'Dinner';
+
+  @override
+  String get mealTypeSnack => 'Snack';
+
+  @override
+  String get mealDetailTitle => 'Record details';
+
+  @override
+  String get mealDetailMealType => 'Meal type';
+
+  @override
+  String get mealDetailPortion => 'Adjust portion';
+
+  @override
+  String get mealDetailPortionHint =>
+      'Recalculates calories and macros to match what you actually ate';
+
+  @override
+  String get mealDetailDeleteTitle => 'Delete record';
+
+  @override
+  String get mealDetailDeleteMessage =>
+      'Delete this meal record? This cannot be undone.';
+
+  @override
+  String get mealDetailDeleted => 'Record deleted';
+
+  @override
+  String get mealDetailUpdated => 'Record updated';
+
+  @override
+  String get commonError => 'Something went wrong. Please try again';
+
+  @override
+  String get reportMealTypeTitle => 'Meal type breakdown';
+
+  @override
+  String reportMealTypeRecords(int count) {
+    return '$count records';
+  }
+
+  @override
+  String get dailyStatusNone => 'Not logged';
+
+  @override
+  String get dailyStatusRoom => 'Under goal';
+
+  @override
+  String get dailyStatusOnTrack => 'On track';
+
+  @override
+  String get dailyStatusCaution => 'Caution';
+
+  @override
+  String get dailyStatusOver => 'Over';
+
+  @override
+  String get bmiUnknown => 'Unknown';
+
+  @override
+  String get bmiUnderweight => 'Underweight';
+
+  @override
+  String get bmiNormal => 'Normal';
+
+  @override
+  String get bmiOverweight => 'Overweight';
+
+  @override
+  String get bmiObese => 'Obese';
+
+  @override
+  String get bmiSeverelyObese => 'Severely obese';
+
+  @override
+  String profileBasisRecommended(int kcal) {
+    return 'Goal $kcal kcal';
+  }
+
+  @override
+  String profileBasisCurrent(int kcal) {
+    return 'Current $kcal kcal';
+  }
+
+  @override
+  String profileBasisWater(int ml) {
+    return 'Water $ml ml';
+  }
+
+  @override
+  String get calorieBasisNoAdjustment => 'no goal adjustment';
+
+  @override
+  String calorieBasisAdjustment(String amount) {
+    return '$amount kcal goal adjustment';
+  }
+
+  @override
+  String get startupErrorTitle => 'Unable to start the app';
+
+  @override
+  String get proxyStatusNotConfigured => 'The proxy URL is not configured.';
+
+  @override
+  String get proxyStatusConnected => 'The proxy responded normally.';
+
+  @override
+  String get proxyStatusUnexpectedResponse =>
+      'The proxy returned an unexpected response.';
+
+  @override
+  String get proxyStatusInvalidToken => 'Check the proxy auth token.';
+
+  @override
+  String get proxyStatusHealthMissing =>
+      'The proxy health check endpoint was not found.';
+
+  @override
+  String get proxyStatusServerError =>
+      'The proxy server is not responding normally.';
+
+  @override
+  String get proxyStatusUnreachable => 'Cannot reach the proxy.';
 }

@@ -45,18 +45,27 @@ class FoodImageRecognitionService {
       );
     }
 
+    final english = _isEnglish(locale);
     if (bytes.isEmpty) {
-      throw const FoodImageRecognitionException('Image is empty.');
+      throw FoodImageRecognitionException(
+        english ? 'The image is empty.' : '이미지가 비어 있습니다.',
+      );
     }
 
     if (bytes.length > _maxImageBytes) {
-      throw const FoodImageRecognitionException('Image is too large.');
+      throw FoodImageRecognitionException(
+        english
+            ? 'The image is too large. Please try another photo.'
+            : '이미지 용량이 너무 큽니다. 다른 사진으로 다시 시도해주세요.',
+      );
     }
 
     final normalizedMimeType = _normalizeMimeType(mimeType);
     if (normalizedMimeType == null) {
-      throw const FoodImageRecognitionException(
-        '현재 HEIC/HEIF 이미지는 분석할 수 없습니다. JPG 또는 PNG 사진으로 다시 선택해주세요.',
+      throw FoodImageRecognitionException(
+        english
+            ? 'HEIC/HEIF images are not supported yet. Please choose a JPG or PNG photo.'
+            : '현재 HEIC/HEIF 이미지는 분석할 수 없습니다. JPG 또는 PNG 사진으로 다시 선택해주세요.',
       );
     }
 
@@ -150,71 +159,123 @@ class FoodImageRecognitionService {
         },
       );
     } on DioException catch (error) {
-      throw FoodImageRecognitionException(_friendlyRecognitionError(error));
+      throw FoodImageRecognitionException(
+        _friendlyRecognitionError(error, english: _isEnglish(locale)),
+      );
     }
   }
 
-  String _normalizeLocale(String locale) {
-    return locale.toLowerCase().startsWith('en') ? 'en' : 'ko';
-  }
+  String _normalizeLocale(String locale) => _isEnglish(locale) ? 'en' : 'ko';
 
-  String _friendlyRecognitionError(DioException error) {
+  bool _isEnglish(String locale) => locale.toLowerCase().startsWith('en');
+
+  String _friendlyRecognitionError(
+    DioException error, {
+    required bool english,
+  }) {
     final statusCode = error.response?.statusCode;
     final proxyMessage = _proxyErrorMessage(error.response?.data);
     final apiError = error.error;
     if (apiError is ApiError) {
       return switch (apiError.code) {
-        'NO_CONNECTION' => '식단스캔 API 프록시에 연결할 수 없습니다. 로컬 프록시 실행 상태를 확인해주세요.',
-        'TIMEOUT' => '사진 인식 요청 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.',
-        'UNAUTHORIZED' => '식단스캔 API 프록시 인증 토큰을 확인해주세요.',
-        'RATE_LIMIT' => apiError.message,
+        'NO_CONNECTION' =>
+          english
+              ? 'Cannot reach the SikdanScan API proxy. Check your connection and the proxy status.'
+              : '식단스캔 API 프록시에 연결할 수 없습니다. 로컬 프록시 실행 상태를 확인해주세요.',
+        'TIMEOUT' =>
+          english
+              ? 'Photo recognition timed out. Please try again shortly.'
+              : '사진 인식 요청 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.',
+        'UNAUTHORIZED' =>
+          english
+              ? 'Check the SikdanScan API proxy auth token.'
+              : '식단스캔 API 프록시 인증 토큰을 확인해주세요.',
+        'RATE_LIMIT' =>
+          english
+              ? 'Too many requests. Please try again in a moment.'
+              : '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
         _ =>
-          _serverStatusErrorMessage(statusCode, proxyMessage) ??
+          _serverStatusErrorMessage(
+                statusCode,
+                proxyMessage,
+                english: english,
+              ) ??
               proxyMessage ??
-              apiError.message,
+              (english
+                  ? 'An error occurred during photo recognition.'
+                  : '사진 인식 중 오류가 발생했습니다.'),
       };
     }
 
-    return _serverStatusErrorMessage(statusCode, proxyMessage) ??
+    return _serverStatusErrorMessage(
+          statusCode,
+          proxyMessage,
+          english: english,
+        ) ??
         proxyMessage ??
-        '사진 인식 중 오류가 발생했습니다.';
+        (english
+            ? 'An error occurred during photo recognition.'
+            : '사진 인식 중 오류가 발생했습니다.');
   }
 
-  String? _serverStatusErrorMessage(int? statusCode, String? proxyMessage) {
+  String? _serverStatusErrorMessage(
+    int? statusCode,
+    String? proxyMessage, {
+    required bool english,
+  }) {
     if (statusCode == 401 || statusCode == 403) {
-      return '식단스캔 API 프록시 인증 토큰을 확인해주세요.';
+      return english
+          ? 'Check the SikdanScan API proxy auth token.'
+          : '식단스캔 API 프록시 인증 토큰을 확인해주세요.';
     }
     if (statusCode == 400 || statusCode == 422) {
-      return _imageRequestErrorMessage(proxyMessage);
+      return _imageRequestErrorMessage(proxyMessage, english: english);
     }
     if (statusCode == 413) {
-      return '이미지 용량이 너무 큽니다. 다른 사진으로 다시 시도해주세요.';
+      return english
+          ? 'The image is too large. Please try another photo.'
+          : '이미지 용량이 너무 큽니다. 다른 사진으로 다시 시도해주세요.';
     }
     if (statusCode == 503) {
-      return '프록시 서버에 OPENAI_API_KEY가 설정되어 있지 않습니다.';
+      return english
+          ? 'OPENAI_API_KEY is not configured on the proxy server.'
+          : '프록시 서버에 OPENAI_API_KEY가 설정되어 있지 않습니다.';
     }
     if (statusCode == 502) {
-      return 'AI 이미지 분석 서버가 정상 응답하지 않습니다. 잠시 후 다시 시도해주세요.';
+      return english
+          ? 'The AI image analysis server is not responding. Please try again shortly.'
+          : 'AI 이미지 분석 서버가 정상 응답하지 않습니다. 잠시 후 다시 시도해주세요.';
     }
     if (statusCode == 504) {
-      return '사진 인식 요청 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.';
+      return english
+          ? 'Photo recognition timed out. Please try again shortly.'
+          : '사진 인식 요청 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.';
     }
     return null;
   }
 
-  String _imageRequestErrorMessage(String? proxyMessage) {
+  String _imageRequestErrorMessage(
+    String? proxyMessage, {
+    required bool english,
+  }) {
     final lower = proxyMessage?.toLowerCase() ?? '';
     if (lower.contains('unsupported image') ||
         lower.contains('invalid image') ||
         lower.contains('image format') ||
         lower.contains('heic') ||
         lower.contains('heif')) {
-      return '지원하지 않는 이미지 형식입니다. JPG 또는 PNG 사진으로 다시 선택해주세요.';
+      return english
+          ? 'Unsupported image format. Please choose a JPG or PNG photo.'
+          : '지원하지 않는 이미지 형식입니다. JPG 또는 PNG 사진으로 다시 선택해주세요.';
     }
     if (lower.contains('model') || lower.contains('vision')) {
-      return 'AI 이미지 분석 모델 설정을 확인해주세요.';
+      return english
+          ? 'Check the AI image analysis model configuration.'
+          : 'AI 이미지 분석 모델 설정을 확인해주세요.';
     }
-    return '사진을 분석할 수 없습니다. 음식이 잘 보이는 JPG/PNG 사진으로 다시 시도해주세요.';
+    return english
+        ? 'Could not analyze the photo. Try a clear JPG/PNG photo of the food.'
+        : '사진을 분석할 수 없습니다. 음식이 잘 보이는 JPG/PNG 사진으로 다시 시도해주세요.';
   }
 
   String? _proxyErrorMessage(Object? data) {

@@ -409,7 +409,7 @@ class SettingsSection extends ConsumerWidget {
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
-            '${status.message}\n${context.l10n.apiSecurityNote}',
+            '${_proxyStatusMessage(context, status)}\n${context.l10n.apiSecurityNote}',
             style: TextStyle(
               fontSize: 12,
               height: 1.5,
@@ -420,6 +420,23 @@ class SettingsSection extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  String _proxyStatusMessage(
+    BuildContext context,
+    ProxyConnectionStatus status,
+  ) {
+    final l10n = context.l10n;
+    return switch (status.detail) {
+      ProxyStatusDetail.notConfigured => l10n.proxyStatusNotConfigured,
+      ProxyStatusDetail.connected => l10n.proxyStatusConnected,
+      ProxyStatusDetail.unexpectedResponse =>
+        l10n.proxyStatusUnexpectedResponse,
+      ProxyStatusDetail.invalidToken => l10n.proxyStatusInvalidToken,
+      ProxyStatusDetail.healthEndpointMissing => l10n.proxyStatusHealthMissing,
+      ProxyStatusDetail.serverError => l10n.proxyStatusServerError,
+      ProxyStatusDetail.unreachable => l10n.proxyStatusUnreachable,
+    };
   }
 
   String _proxyStatusLabel(

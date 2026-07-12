@@ -6,9 +6,22 @@ import 'proxy_client_config.dart';
 
 enum ProxyConnectionState { notConfigured, connected, unavailable }
 
+/// Fine-grained reason for the current proxy status, so the UI can map the
+/// status to a localized message instead of relying on [ProxyConnectionStatus.message].
+enum ProxyStatusDetail {
+  notConfigured,
+  connected,
+  unexpectedResponse,
+  invalidToken,
+  healthEndpointMissing,
+  serverError,
+  unreachable,
+}
+
 class ProxyConnectionStatus {
   const ProxyConnectionStatus._({
     required this.state,
+    required this.detail,
     required this.message,
     this.statusCode,
   });
@@ -16,6 +29,7 @@ class ProxyConnectionStatus {
   factory ProxyConnectionStatus.notConfigured() {
     return const ProxyConnectionStatus._(
       state: ProxyConnectionState.notConfigured,
+      detail: ProxyStatusDetail.notConfigured,
       message: '프록시 URL이 설정되지 않았습니다.',
     );
   }
@@ -23,22 +37,26 @@ class ProxyConnectionStatus {
   factory ProxyConnectionStatus.connected() {
     return const ProxyConnectionStatus._(
       state: ProxyConnectionState.connected,
+      detail: ProxyStatusDetail.connected,
       message: '프록시가 정상 응답했습니다.',
     );
   }
 
   factory ProxyConnectionStatus.unavailable({
     required String message,
+    ProxyStatusDetail detail = ProxyStatusDetail.unreachable,
     int? statusCode,
   }) {
     return ProxyConnectionStatus._(
       state: ProxyConnectionState.unavailable,
+      detail: detail,
       message: message,
       statusCode: statusCode,
     );
   }
 
   final ProxyConnectionState state;
+  final ProxyStatusDetail detail;
   final String message;
   final int? statusCode;
 
@@ -73,11 +91,14 @@ class ProxyStatusService {
 
       return ProxyConnectionStatus.unavailable(
         message: '프록시가 예상과 다른 응답을 반환했습니다.',
+        detail: ProxyStatusDetail.unexpectedResponse,
         statusCode: response.statusCode,
       );
     } on DioException catch (error) {
+      final detail = _dioDetail(error);
       return ProxyConnectionStatus.unavailable(
-        message: _friendlyDioMessage(error),
+        message: _friendlyDioMessage(error, detail),
+        detail: detail,
         statusCode: error.response?.statusCode,
       );
     } catch (_) {
@@ -85,24 +106,33 @@ class ProxyStatusService {
     }
   }
 
-  String _friendlyDioMessage(DioException error) {
+  ProxyStatusDetail _dioDetail(DioException error) {
     final statusCode = error.response?.statusCode;
     if (statusCode == 401 || statusCode == 403) {
-      return '프록시 인증 토큰을 확인해주세요.';
+      return ProxyStatusDetail.invalidToken;
     }
-
-    final apiError = error.error;
-    if (apiError is ApiError) {
-      return apiError.message;
-    }
-
     if (statusCode == 404) {
-      return '프록시 헬스체크 엔드포인트를 찾을 수 없습니다.';
+      return ProxyStatusDetail.healthEndpointMissing;
     }
     if (statusCode != null && statusCode >= 500) {
-      return '프록시 서버가 정상 응답하지 않습니다.';
+      return ProxyStatusDetail.serverError;
     }
-    return '프록시에 연결할 수 없습니다.';
+    return ProxyStatusDetail.unreachable;
+  }
+
+  String _friendlyDioMessage(DioException error, ProxyStatusDetail detail) {
+    switch (detail) {
+      case ProxyStatusDetail.invalidToken:
+        return '프록시 인증 토큰을 확인해주세요.';
+      case ProxyStatusDetail.healthEndpointMissing:
+        return '프록시 헬스체크 엔드포인트를 찾을 수 없습니다.';
+      case ProxyStatusDetail.serverError:
+        return '프록시 서버가 정상 응답하지 않습니다.';
+      default:
+        final apiError = error.error;
+        if (apiError is ApiError) return apiError.message;
+        return '프록시에 연결할 수 없습니다.';
+    }
   }
 }
 

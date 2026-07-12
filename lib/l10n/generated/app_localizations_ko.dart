@@ -711,4 +711,148 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get activityActive => '활동적';
+
+  @override
+  String addMealRecognizedCount(int count) {
+    return '$count개 음식을 인식해 선택 목록에 추가했습니다';
+  }
+
+  @override
+  String get addMealAiHint => 'DB에 없는 음식은 AI가 자동으로 영양 정보를 분석합니다';
+
+  @override
+  String get addMealAiAnalyzing => 'AI가 영양 정보를 분석하고 있어요...';
+
+  @override
+  String get addMealSourceAiResults => 'AI 영양 분석 결과';
+
+  @override
+  String get addMealAiTag => 'AI 분석';
+
+  @override
+  String get mealTypeBreakfast => '아침';
+
+  @override
+  String get mealTypeLunch => '점심';
+
+  @override
+  String get mealTypeDinner => '저녁';
+
+  @override
+  String get mealTypeSnack => '간식';
+
+  @override
+  String get mealDetailTitle => '기록 상세';
+
+  @override
+  String get mealDetailMealType => '식사 유형';
+
+  @override
+  String get mealDetailPortion => '분량 조절';
+
+  @override
+  String get mealDetailPortionHint => '실제 먹은 양에 맞춰 칼로리와 영양소를 다시 계산합니다';
+
+  @override
+  String get mealDetailDeleteTitle => '기록 삭제';
+
+  @override
+  String get mealDetailDeleteMessage => '이 식사 기록을 삭제할까요? 되돌릴 수 없습니다.';
+
+  @override
+  String get mealDetailDeleted => '기록을 삭제했습니다';
+
+  @override
+  String get mealDetailUpdated => '기록을 수정했습니다';
+
+  @override
+  String get commonError => '오류가 발생했습니다. 다시 시도해주세요';
+
+  @override
+  String get reportMealTypeTitle => '식사 유형별 비중';
+
+  @override
+  String reportMealTypeRecords(int count) {
+    return '$count건';
+  }
+
+  @override
+  String get dailyStatusNone => '기록 전';
+
+  @override
+  String get dailyStatusRoom => '여유';
+
+  @override
+  String get dailyStatusOnTrack => '적정';
+
+  @override
+  String get dailyStatusCaution => '주의';
+
+  @override
+  String get dailyStatusOver => '초과';
+
+  @override
+  String get bmiUnknown => '알 수 없음';
+
+  @override
+  String get bmiUnderweight => '저체중';
+
+  @override
+  String get bmiNormal => '정상';
+
+  @override
+  String get bmiOverweight => '과체중';
+
+  @override
+  String get bmiObese => '비만';
+
+  @override
+  String get bmiSeverelyObese => '고도비만';
+
+  @override
+  String profileBasisRecommended(int kcal) {
+    return '권장 $kcal kcal';
+  }
+
+  @override
+  String profileBasisCurrent(int kcal) {
+    return '현재 $kcal kcal';
+  }
+
+  @override
+  String profileBasisWater(int ml) {
+    return '수분 $ml ml';
+  }
+
+  @override
+  String get calorieBasisNoAdjustment => '목표 보정 없음';
+
+  @override
+  String calorieBasisAdjustment(String amount) {
+    return '$amount kcal 목표 보정';
+  }
+
+  @override
+  String get startupErrorTitle => '앱을 시작할 수 없습니다';
+
+  @override
+  String get proxyStatusNotConfigured => '프록시 URL이 설정되지 않았습니다.';
+
+  @override
+  String get proxyStatusConnected => '프록시가 정상 응답했습니다.';
+
+  @override
+  String get proxyStatusUnexpectedResponse => '프록시가 예상과 다른 응답을 반환했습니다.';
+
+  @override
+  String get proxyStatusInvalidToken => '프록시 인증 토큰을 확인해주세요.';
+
+  @override
+  String get proxyStatusHealthMissing => '프록시 헬스체크 엔드포인트를 찾을 수 없습니다.';
+
+  @override
+  String get proxyStatusServerError => '프록시 서버가 정상 응답하지 않습니다.';
+
+  @override
+  String get proxyStatusUnreachable => '프록시에 연결할 수 없습니다.';
 }

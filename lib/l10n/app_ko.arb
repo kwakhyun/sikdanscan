@@ -229,5 +229,91 @@
   "goalGlucose": "혈당 안정",
   "activityLight": "가벼운 활동",
   "activityModerate": "보통 활동",
-  "activityActive": "활동적"
+  "activityActive": "활동적",
+  "addMealRecognizedCount": "{count}개 음식을 인식해 선택 목록에 추가했습니다",
+  "@addMealRecognizedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "addMealAiHint": "DB에 없는 음식은 AI가 자동으로 영양 정보를 분석합니다",
+  "addMealAiAnalyzing": "AI가 영양 정보를 분석하고 있어요...",
+  "addMealSourceAiResults": "AI 영양 분석 결과",
+  "addMealAiTag": "AI 분석",
+  "mealTypeBreakfast": "아침",
+  "mealTypeLunch": "점심",
+  "mealTypeDinner": "저녁",
+  "mealTypeSnack": "간식",
+  "mealDetailTitle": "기록 상세",
+  "mealDetailMealType": "식사 유형",
+  "mealDetailPortion": "분량 조절",
+  "mealDetailPortionHint": "실제 먹은 양에 맞춰 칼로리와 영양소를 다시 계산합니다",
+  "mealDetailDeleteTitle": "기록 삭제",
+  "mealDetailDeleteMessage": "이 식사 기록을 삭제할까요? 되돌릴 수 없습니다.",
+  "mealDetailDeleted": "기록을 삭제했습니다",
+  "mealDetailUpdated": "기록을 수정했습니다",
+  "commonError": "오류가 발생했습니다. 다시 시도해주세요",
+  "reportMealTypeTitle": "식사 유형별 비중",
+  "reportMealTypeRecords": "{count}건",
+  "@reportMealTypeRecords": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dailyStatusNone": "기록 전",
+  "dailyStatusRoom": "여유",
+  "dailyStatusOnTrack": "적정",
+  "dailyStatusCaution": "주의",
+  "dailyStatusOver": "초과",
+  "bmiUnknown": "알 수 없음",
+  "bmiUnderweight": "저체중",
+  "bmiNormal": "정상",
+  "bmiOverweight": "과체중",
+  "bmiObese": "비만",
+  "bmiSeverelyObese": "고도비만",
+  "profileBasisRecommended": "권장 {kcal} kcal",
+  "@profileBasisRecommended": {
+    "placeholders": {
+      "kcal": {
+        "type": "int"
+      }
+    }
+  },
+  "profileBasisCurrent": "현재 {kcal} kcal",
+  "@profileBasisCurrent": {
+    "placeholders": {
+      "kcal": {
+        "type": "int"
+      }
+    }
+  },
+  "profileBasisWater": "수분 {ml} ml",
+  "@profileBasisWater": {
+    "placeholders": {
+      "ml": {
+        "type": "int"
+      }
+    }
+  },
+  "calorieBasisNoAdjustment": "목표 보정 없음",
+  "calorieBasisAdjustment": "{amount} kcal 목표 보정",
+  "@calorieBasisAdjustment": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "startupErrorTitle": "앱을 시작할 수 없습니다",
+  "proxyStatusNotConfigured": "프록시 URL이 설정되지 않았습니다.",
+  "proxyStatusConnected": "프록시가 정상 응답했습니다.",
+  "proxyStatusUnexpectedResponse": "프록시가 예상과 다른 응답을 반환했습니다.",
+  "proxyStatusInvalidToken": "프록시 인증 토큰을 확인해주세요.",
+  "proxyStatusHealthMissing": "프록시 헬스체크 엔드포인트를 찾을 수 없습니다.",
+  "proxyStatusServerError": "프록시 서버가 정상 응답하지 않습니다.",
+  "proxyStatusUnreachable": "프록시에 연결할 수 없습니다."
 }

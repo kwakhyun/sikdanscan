@@ -25,7 +25,7 @@ class _SupabaseAuthSheetState extends ConsumerState<SupabaseAuthSheet> {
   @override
   void initState() {
     super.initState();
-    _displayNameController.text = ref.read(userProfileProvider).displayName;
+    _displayNameController.text = ref.read(userProfileProvider).name.trim();
   }
 
   @override

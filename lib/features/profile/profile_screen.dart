@@ -27,7 +27,9 @@ class ProfileScreen extends ConsumerWidget {
         ? profile.copyWith(currentWeight: currentWeight).bmi
         : 0.0;
     final bmiCategory = profile.currentWeight > 0
-        ? profile.copyWith(currentWeight: currentWeight).bmiCategory
+        ? profile
+              .copyWith(currentWeight: currentWeight)
+              .bmiCategoryOf(context.l10n)
         : context.l10n.profileFallbackNeedsSetup;
     final l10n = context.l10n;
 
@@ -181,7 +183,9 @@ class _ProfileHero extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    profile.displayName,
+                    profile.name.trim().isEmpty
+                        ? l10n.defaultUserName
+                        : profile.displayName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -356,7 +360,7 @@ class _CalorieGoalBasisCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            profile.calorieGoalBasisSummary,
+            profile.calorieGoalBasisSummaryOf(context.l10n),
             style: TextStyle(
               fontSize: 13,
               height: 1.48,
@@ -369,11 +373,19 @@ class _CalorieGoalBasisCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _BasisPill(label: '권장 $recommended kcal'),
                 _BasisPill(
-                  label: '현재 ${current > 0 ? current : recommended} kcal',
+                  label: context.l10n.profileBasisRecommended(recommended),
                 ),
-                _BasisPill(label: '수분 ${profile.dailyWaterGoalMl} ml'),
+                _BasisPill(
+                  label: context.l10n.profileBasisCurrent(
+                    current > 0 ? current : recommended,
+                  ),
+                ),
+                _BasisPill(
+                  label: context.l10n.profileBasisWater(
+                    profile.dailyWaterGoalMl,
+                  ),
+                ),
               ],
             ),
           ],

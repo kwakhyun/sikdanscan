@@ -128,23 +128,28 @@ class SikdanScanStartupErrorApp extends StatelessWidget {
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.error_outline_rounded,
-                  size: 48,
-                  color: Colors.redAccent,
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  '앱을 시작할 수 없습니다',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 8),
-                Text(error.toString(), style: const TextStyle(fontSize: 14)),
-              ],
+            child: Builder(
+              builder: (context) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    size: 48,
+                    color: Colors.redAccent,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    AppLocalizations.of(context).startupErrorTitle,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(error.toString(), style: const TextStyle(fontSize: 14)),
+                ],
+              ),
             ),
           ),
         ),

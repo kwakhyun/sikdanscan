@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../data/models/meal_record.dart';
 import '../data/models/user_profile.dart';
 import 'generated/app_localizations.dart';
 
@@ -29,6 +30,42 @@ extension WellnessGoalLocalizations on WellnessGoal {
       WellnessGoal.energy => l10n.goalEnergyDescription,
       WellnessGoal.muscle => l10n.goalMuscleDescription,
       WellnessGoal.glucose => l10n.goalGlucoseDescription,
+    };
+  }
+}
+
+extension UserProfileLocalizations on UserProfile {
+  String bmiCategoryOf(AppLocalizations l10n) {
+    if (bmi <= 0) return l10n.bmiUnknown;
+    if (bmi < 18.5) return l10n.bmiUnderweight;
+    if (bmi < 23) return l10n.bmiNormal;
+    if (bmi < 25) return l10n.bmiOverweight;
+    if (bmi < 30) return l10n.bmiObese;
+    return l10n.bmiSeverelyObese;
+  }
+
+  String calorieGoalBasisSummaryOf(AppLocalizations l10n) {
+    if (!hasBodyMetrics || maintenanceCalorieEstimate <= 0) {
+      return l10n.onboardingCheckInputs;
+    }
+
+    final adjustment = goalCalorieAdjustment;
+    final adjustmentText = adjustment == 0
+        ? l10n.calorieBasisNoAdjustment
+        : l10n.calorieBasisAdjustment(
+            '${adjustment > 0 ? '+' : ''}$adjustment',
+          );
+    return 'BMR ${basalMetabolicRate.round()} kcal × ${activityLevel.labelOf(l10n)} ${activityLevel.factor.toStringAsFixed(2)} · $adjustmentText';
+  }
+}
+
+extension MealTypeLocalizations on MealType {
+  String labelOf(AppLocalizations l10n) {
+    return switch (this) {
+      MealType.breakfast => l10n.mealTypeBreakfast,
+      MealType.lunch => l10n.mealTypeLunch,
+      MealType.dinner => l10n.mealTypeDinner,
+      MealType.snack => l10n.mealTypeSnack,
     };
   }
 }

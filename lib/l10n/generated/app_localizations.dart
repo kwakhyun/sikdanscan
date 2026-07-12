@@ -1477,6 +1477,270 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'활동적'**
   String get activityActive;
+
+  /// No description provided for @addMealRecognizedCount.
+  ///
+  /// In ko, this message translates to:
+  /// **'{count}개 음식을 인식해 선택 목록에 추가했습니다'**
+  String addMealRecognizedCount(int count);
+
+  /// No description provided for @addMealAiHint.
+  ///
+  /// In ko, this message translates to:
+  /// **'DB에 없는 음식은 AI가 자동으로 영양 정보를 분석합니다'**
+  String get addMealAiHint;
+
+  /// No description provided for @addMealAiAnalyzing.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI가 영양 정보를 분석하고 있어요...'**
+  String get addMealAiAnalyzing;
+
+  /// No description provided for @addMealSourceAiResults.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 영양 분석 결과'**
+  String get addMealSourceAiResults;
+
+  /// No description provided for @addMealAiTag.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 분석'**
+  String get addMealAiTag;
+
+  /// No description provided for @mealTypeBreakfast.
+  ///
+  /// In ko, this message translates to:
+  /// **'아침'**
+  String get mealTypeBreakfast;
+
+  /// No description provided for @mealTypeLunch.
+  ///
+  /// In ko, this message translates to:
+  /// **'점심'**
+  String get mealTypeLunch;
+
+  /// No description provided for @mealTypeDinner.
+  ///
+  /// In ko, this message translates to:
+  /// **'저녁'**
+  String get mealTypeDinner;
+
+  /// No description provided for @mealTypeSnack.
+  ///
+  /// In ko, this message translates to:
+  /// **'간식'**
+  String get mealTypeSnack;
+
+  /// No description provided for @mealDetailTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'기록 상세'**
+  String get mealDetailTitle;
+
+  /// No description provided for @mealDetailMealType.
+  ///
+  /// In ko, this message translates to:
+  /// **'식사 유형'**
+  String get mealDetailMealType;
+
+  /// No description provided for @mealDetailPortion.
+  ///
+  /// In ko, this message translates to:
+  /// **'분량 조절'**
+  String get mealDetailPortion;
+
+  /// No description provided for @mealDetailPortionHint.
+  ///
+  /// In ko, this message translates to:
+  /// **'실제 먹은 양에 맞춰 칼로리와 영양소를 다시 계산합니다'**
+  String get mealDetailPortionHint;
+
+  /// No description provided for @mealDetailDeleteTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'기록 삭제'**
+  String get mealDetailDeleteTitle;
+
+  /// No description provided for @mealDetailDeleteMessage.
+  ///
+  /// In ko, this message translates to:
+  /// **'이 식사 기록을 삭제할까요? 되돌릴 수 없습니다.'**
+  String get mealDetailDeleteMessage;
+
+  /// No description provided for @mealDetailDeleted.
+  ///
+  /// In ko, this message translates to:
+  /// **'기록을 삭제했습니다'**
+  String get mealDetailDeleted;
+
+  /// No description provided for @mealDetailUpdated.
+  ///
+  /// In ko, this message translates to:
+  /// **'기록을 수정했습니다'**
+  String get mealDetailUpdated;
+
+  /// No description provided for @commonError.
+  ///
+  /// In ko, this message translates to:
+  /// **'오류가 발생했습니다. 다시 시도해주세요'**
+  String get commonError;
+
+  /// No description provided for @reportMealTypeTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'식사 유형별 비중'**
+  String get reportMealTypeTitle;
+
+  /// No description provided for @reportMealTypeRecords.
+  ///
+  /// In ko, this message translates to:
+  /// **'{count}건'**
+  String reportMealTypeRecords(int count);
+
+  /// No description provided for @dailyStatusNone.
+  ///
+  /// In ko, this message translates to:
+  /// **'기록 전'**
+  String get dailyStatusNone;
+
+  /// No description provided for @dailyStatusRoom.
+  ///
+  /// In ko, this message translates to:
+  /// **'여유'**
+  String get dailyStatusRoom;
+
+  /// No description provided for @dailyStatusOnTrack.
+  ///
+  /// In ko, this message translates to:
+  /// **'적정'**
+  String get dailyStatusOnTrack;
+
+  /// No description provided for @dailyStatusCaution.
+  ///
+  /// In ko, this message translates to:
+  /// **'주의'**
+  String get dailyStatusCaution;
+
+  /// No description provided for @dailyStatusOver.
+  ///
+  /// In ko, this message translates to:
+  /// **'초과'**
+  String get dailyStatusOver;
+
+  /// No description provided for @bmiUnknown.
+  ///
+  /// In ko, this message translates to:
+  /// **'알 수 없음'**
+  String get bmiUnknown;
+
+  /// No description provided for @bmiUnderweight.
+  ///
+  /// In ko, this message translates to:
+  /// **'저체중'**
+  String get bmiUnderweight;
+
+  /// No description provided for @bmiNormal.
+  ///
+  /// In ko, this message translates to:
+  /// **'정상'**
+  String get bmiNormal;
+
+  /// No description provided for @bmiOverweight.
+  ///
+  /// In ko, this message translates to:
+  /// **'과체중'**
+  String get bmiOverweight;
+
+  /// No description provided for @bmiObese.
+  ///
+  /// In ko, this message translates to:
+  /// **'비만'**
+  String get bmiObese;
+
+  /// No description provided for @bmiSeverelyObese.
+  ///
+  /// In ko, this message translates to:
+  /// **'고도비만'**
+  String get bmiSeverelyObese;
+
+  /// No description provided for @profileBasisRecommended.
+  ///
+  /// In ko, this message translates to:
+  /// **'권장 {kcal} kcal'**
+  String profileBasisRecommended(int kcal);
+
+  /// No description provided for @profileBasisCurrent.
+  ///
+  /// In ko, this message translates to:
+  /// **'현재 {kcal} kcal'**
+  String profileBasisCurrent(int kcal);
+
+  /// No description provided for @profileBasisWater.
+  ///
+  /// In ko, this message translates to:
+  /// **'수분 {ml} ml'**
+  String profileBasisWater(int ml);
+
+  /// No description provided for @calorieBasisNoAdjustment.
+  ///
+  /// In ko, this message translates to:
+  /// **'목표 보정 없음'**
+  String get calorieBasisNoAdjustment;
+
+  /// No description provided for @calorieBasisAdjustment.
+  ///
+  /// In ko, this message translates to:
+  /// **'{amount} kcal 목표 보정'**
+  String calorieBasisAdjustment(String amount);
+
+  /// No description provided for @startupErrorTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'앱을 시작할 수 없습니다'**
+  String get startupErrorTitle;
+
+  /// No description provided for @proxyStatusNotConfigured.
+  ///
+  /// In ko, this message translates to:
+  /// **'프록시 URL이 설정되지 않았습니다.'**
+  String get proxyStatusNotConfigured;
+
+  /// No description provided for @proxyStatusConnected.
+  ///
+  /// In ko, this message translates to:
+  /// **'프록시가 정상 응답했습니다.'**
+  String get proxyStatusConnected;
+
+  /// No description provided for @proxyStatusUnexpectedResponse.
+  ///
+  /// In ko, this message translates to:
+  /// **'프록시가 예상과 다른 응답을 반환했습니다.'**
+  String get proxyStatusUnexpectedResponse;
+
+  /// No description provided for @proxyStatusInvalidToken.
+  ///
+  /// In ko, this message translates to:
+  /// **'프록시 인증 토큰을 확인해주세요.'**
+  String get proxyStatusInvalidToken;
+
+  /// No description provided for @proxyStatusHealthMissing.
+  ///
+  /// In ko, this message translates to:
+  /// **'프록시 헬스체크 엔드포인트를 찾을 수 없습니다.'**
+  String get proxyStatusHealthMissing;
+
+  /// No description provided for @proxyStatusServerError.
+  ///
+  /// In ko, this message translates to:
+  /// **'프록시 서버가 정상 응답하지 않습니다.'**
+  String get proxyStatusServerError;
+
+  /// No description provided for @proxyStatusUnreachable.
+  ///
+  /// In ko, this message translates to:
+  /// **'프록시에 연결할 수 없습니다.'**
+  String get proxyStatusUnreachable;
 }
 
 class _AppLocalizationsDelegate

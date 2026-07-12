@@ -476,16 +476,7 @@ class _GoalSettingsSheetState extends ConsumerState<GoalSettingsSheet> {
   }
 
   String _calorieGoalBasisSummary(UserProfile profile) {
-    if (!profile.hasBodyMetrics || profile.maintenanceCalorieEstimate <= 0) {
-      return context.l10n.onboardingCheckInputs;
-    }
-
-    final adjustment = profile.goalCalorieAdjustment;
-    final isEnglish = Localizations.localeOf(context).languageCode == 'en';
-    final adjustmentText = adjustment == 0
-        ? (isEnglish ? 'no goal adjustment' : '목표 보정 없음')
-        : '${adjustment > 0 ? '+' : ''}$adjustment kcal ${isEnglish ? 'goal adjustment' : '목표 보정'}';
-    return 'BMR ${profile.basalMetabolicRate.round()} kcal × ${profile.activityLevel.labelOf(context.l10n)} ${profile.activityLevel.factor.toStringAsFixed(2)} · $adjustmentText';
+    return profile.calorieGoalBasisSummaryOf(context.l10n);
   }
 
   Future<void> _pickDate() async {

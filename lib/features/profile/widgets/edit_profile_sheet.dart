@@ -141,7 +141,9 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
                     l10n.profileAge,
                     _ageController,
                     TextInputType.number,
-                    suffix: '세',
+                    suffix: Localizations.localeOf(context).languageCode == 'en'
+                        ? 'y'
+                        : '세',
                   ),
                 ),
                 const SizedBox(width: 12),

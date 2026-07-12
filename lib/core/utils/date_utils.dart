@@ -1,8 +1,6 @@
 import 'package:intl/intl.dart';
 
 extension DateTimeExtensions on DateTime {
-  String toKoreanDate() => DateFormat('yyyy년 M월 d일').format(this);
-
   String toShortDate() => DateFormat('M/d').format(this);
 
   bool get isToday {
