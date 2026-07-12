@@ -5,6 +5,7 @@ import '../../core/theme/app_colors.dart';
 import '../../data/models/meal_record.dart';
 import '../../l10n/app_localizations_context.dart';
 import '../../providers/app_providers.dart';
+import 'widgets/meal_record_sheet.dart';
 
 class MealScreen extends ConsumerStatefulWidget {
   const MealScreen({super.key});
@@ -50,6 +51,10 @@ class _MealScreenState extends ConsumerState<MealScreen> {
                   _PeriodSummaryCard(summary: summary),
                   const SizedBox(height: 16),
                   _TrendCard(period: period, meals: meals),
+                  if (_range != _ReportRange.day) ...[
+                    const SizedBox(height: 16),
+                    _MealTypeBreakdownCard(meals: meals),
+                  ],
                   const SizedBox(height: 16),
                   _RecordedFoodPanel(meals: meals, period: period),
                   const SizedBox(height: 32),
@@ -736,6 +741,185 @@ class _TrendBar extends StatelessWidget {
   }
 }
 
+class _MealTypeBreakdownCard extends StatelessWidget {
+  const _MealTypeBreakdownCard({required this.meals});
+
+  final List<MealRecord> meals;
+
+  static const _typeColors = {
+    MealType.breakfast: AppColors.info,
+    MealType.lunch: AppColors.primary,
+    MealType.dinner: AppColors.accent,
+    MealType.snack: AppColors.warning,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final totalCalories = meals.fold(0, (sum, meal) => sum + meal.calories);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: context.colorSurface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: context.colorBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            context.l10n.reportMealTypeTitle,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: context.colorTextPrimary,
+            ),
+          ),
+          const SizedBox(height: 14),
+          if (totalCalories <= 0)
+            _EmptyReportState(
+              message: Localizations.localeOf(context).languageCode == 'en'
+                  ? 'No records to display'
+                  : '표시할 기록이 없습니다',
+            )
+          else ...[
+            _MealTypeStackedBar(
+              meals: meals,
+              totalCalories: totalCalories,
+              typeColors: _typeColors,
+            ),
+            const SizedBox(height: 16),
+            ...MealType.values.map((type) {
+              final typeMeals = meals
+                  .where((meal) => meal.mealType == type)
+                  .toList();
+              final calories = typeMeals.fold(
+                0,
+                (sum, meal) => sum + meal.calories,
+              );
+              return _MealTypeBreakdownRow(
+                type: type,
+                color: _typeColors[type]!,
+                calories: calories,
+                count: typeMeals.length,
+                share: totalCalories <= 0 ? 0 : calories / totalCalories,
+              );
+            }),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MealTypeStackedBar extends StatelessWidget {
+  const _MealTypeStackedBar({
+    required this.meals,
+    required this.totalCalories,
+    required this.typeColors,
+  });
+
+  final List<MealRecord> meals;
+  final int totalCalories;
+  final Map<MealType, Color> typeColors;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(999),
+      child: SizedBox(
+        height: 12,
+        child: Row(
+          children: MealType.values.map((type) {
+            final calories = meals
+                .where((meal) => meal.mealType == type)
+                .fold(0, (sum, meal) => sum + meal.calories);
+            if (calories <= 0) return const SizedBox.shrink();
+            return Expanded(
+              flex: calories,
+              child: Container(color: typeColors[type]),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+}
+
+class _MealTypeBreakdownRow extends StatelessWidget {
+  const _MealTypeBreakdownRow({
+    required this.type,
+    required this.color,
+    required this.calories,
+    required this.count,
+    required this.share,
+  });
+
+  final MealType type;
+  final Color color;
+  final int calories;
+  final int count;
+  final double share;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasRecords = count > 0;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: hasRecords ? color : context.colorSurfaceVariant,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 64,
+            child: Text(
+              type.labelOf(context.l10n),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: hasRecords
+                    ? context.colorTextPrimary
+                    : context.colorTextTertiary,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              hasRecords
+                  ? '${_formatInt(calories)} kcal · ${context.l10n.reportMealTypeRecords(count)}'
+                  : '-',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: context.colorTextSecondary,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            hasRecords ? '${(share * 100).round()}%' : '0%',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+              color: hasRecords ? color : context.colorTextTertiary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _RecordedFoodPanel extends StatelessWidget {
   const _RecordedFoodPanel({required this.meals, required this.period});
 
@@ -825,62 +1009,72 @@ class _FoodReportRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: context.colorPrimarySurface,
-              borderRadius: BorderRadius.circular(12),
+    return InkWell(
+      onTap: () => showMealRecordSheet(context, meal),
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: context.colorPrimarySurface,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.restaurant_rounded,
+                color: AppColors.primary,
+                size: 19,
+              ),
             ),
-            child: const Icon(
-              Icons.restaurant_rounded,
-              color: AppColors.primary,
-              size: 19,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  meal.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: context.colorTextPrimary,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    meal.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: context.colorTextPrimary,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  _recordMeta(context, meal, showDate: showDate),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: context.colorTextTertiary,
+                  const SizedBox(height: 2),
+                  Text(
+                    _recordMeta(context, meal, showDate: showDate),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: context.colorTextTertiary,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            '${meal.calories} kcal',
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-              color: AppColors.primary,
+            const SizedBox(width: 10),
+            Text(
+              '${meal.calories} kcal',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: AppColors.primary,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: 2),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: context.colorTextTertiary,
+            ),
+          ],
+        ),
       ),
     );
   }

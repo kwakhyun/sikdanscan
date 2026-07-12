@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/meal_record.dart';
 import '../../../l10n/app_localizations_context.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../../providers/app_providers.dart';
+import '../../meal/widgets/meal_record_sheet.dart';
 
 class DailyIntakeOverviewCard extends ConsumerWidget {
   const DailyIntakeOverviewCard({super.key});
@@ -25,6 +27,7 @@ class DailyIntakeOverviewCard extends ConsumerWidget {
     final status = _IntakeStatus.from(
       progress: progress,
       hasMeals: meals.isNotEmpty,
+      l10n: context.l10n,
     );
 
     final carbs = macros['carbs'] ?? 0;
@@ -90,7 +93,7 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final today = _formatKoreanDate(DateTime.now());
+    final today = _formatHeaderDate(context, DateTime.now());
 
     return Row(
       children: [
@@ -378,72 +381,82 @@ class _FoodLogRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasImage = _hasUsableImage(meal.imageUrl);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          _MealImageThumb(meal: meal, hasImage: hasImage),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    if (meal.isAiRecognized) ...[
-                      _AiBadge(confidence: meal.recognitionConfidence),
-                      const SizedBox(width: 6),
-                    ],
-                    Expanded(
-                      child: Text(
-                        meal.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: context.colorTextPrimary,
+    return InkWell(
+      onTap: () => showMealRecordSheet(context, meal),
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _MealImageThumb(meal: meal, hasImage: hasImage),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      if (meal.isAiRecognized) ...[
+                        _AiBadge(confidence: meal.recognitionConfidence),
+                        const SizedBox(width: 6),
+                      ],
+                      Expanded(
+                        child: Text(
+                          meal.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: context.colorTextPrimary,
+                          ),
                         ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    _mealMeta(meal),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: context.colorTextTertiary,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  _mealMeta(meal),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: context.colorTextTertiary,
                   ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  Localizations.localeOf(context).languageCode == 'en'
-                      ? 'C ${meal.carbs.toStringAsFixed(0)}g · P ${meal.protein.toStringAsFixed(0)}g · F ${meal.fat.toStringAsFixed(0)}g'
-                      : '탄 ${meal.carbs.toStringAsFixed(0)}g · 단 ${meal.protein.toStringAsFixed(0)}g · 지 ${meal.fat.toStringAsFixed(0)}g',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: context.colorTextTertiary,
+                  const SizedBox(height: 3),
+                  Text(
+                    Localizations.localeOf(context).languageCode == 'en'
+                        ? 'C ${meal.carbs.toStringAsFixed(0)}g · P ${meal.protein.toStringAsFixed(0)}g · F ${meal.fat.toStringAsFixed(0)}g'
+                        : '탄 ${meal.carbs.toStringAsFixed(0)}g · 단 ${meal.protein.toStringAsFixed(0)}g · 지 ${meal.fat.toStringAsFixed(0)}g',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: context.colorTextTertiary,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            '${meal.calories} kcal',
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-              color: AppColors.primary,
+            const SizedBox(width: 10),
+            Text(
+              '${meal.calories} kcal',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: AppColors.primary,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: 2),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: context.colorTextTertiary,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -552,37 +565,38 @@ class _IntakeStatus {
   factory _IntakeStatus.from({
     required double progress,
     required bool hasMeals,
+    required AppLocalizations l10n,
   }) {
     if (!hasMeals) {
-      return const _IntakeStatus(
-        label: '기록 전',
+      return _IntakeStatus(
+        label: l10n.dailyStatusNone,
         color: AppColors.textTertiary,
         icon: Icons.camera_alt_outlined,
       );
     }
     if (progress <= 0.8) {
-      return const _IntakeStatus(
-        label: '여유',
+      return _IntakeStatus(
+        label: l10n.dailyStatusRoom,
         color: AppColors.info,
         icon: Icons.trending_flat_rounded,
       );
     }
     if (progress <= 1.0) {
-      return const _IntakeStatus(
-        label: '적정',
+      return _IntakeStatus(
+        label: l10n.dailyStatusOnTrack,
         color: AppColors.success,
         icon: Icons.check_circle_rounded,
       );
     }
     if (progress <= 1.15) {
-      return const _IntakeStatus(
-        label: '주의',
+      return _IntakeStatus(
+        label: l10n.dailyStatusCaution,
         color: AppColors.warning,
         icon: Icons.error_rounded,
       );
     }
-    return const _IntakeStatus(
-      label: '초과',
+    return _IntakeStatus(
+      label: l10n.dailyStatusOver,
       color: AppColors.error,
       icon: Icons.warning_rounded,
     );
@@ -601,7 +615,33 @@ String _formatInt(int value) {
   return value < 0 ? '-$buffer' : buffer.toString();
 }
 
-String _formatKoreanDate(DateTime date) {
+String _formatHeaderDate(BuildContext context, DateTime date) {
+  if (Localizations.localeOf(context).languageCode == 'en') {
+    const weekdays = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    return '${months[date.month - 1]} ${date.day}, ${weekdays[date.weekday - 1]}';
+  }
   const weekdays = ['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일'];
   return '${date.month}월 ${date.day}일 ${weekdays[date.weekday - 1]}';
 }

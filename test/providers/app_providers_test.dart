@@ -222,6 +222,53 @@ void main() {
       expect(container.read(mealRecordsProvider).length, lengthBefore - 1);
     });
 
+    test('can update a meal in place', () async {
+      final meal = MealRecord(
+        id: 'meal_update',
+        date: DateTime(2026, 7, 13, 12, 30),
+        mealType: MealType.lunch,
+        name: '수정할 식사',
+        calories: 600,
+        carbs: 80,
+        protein: 30,
+        fat: 20,
+      );
+      final notifier = container.read(mealRecordsProvider.notifier);
+      await notifier.addMeal(meal);
+      final lengthBefore = container.read(mealRecordsProvider).length;
+
+      await notifier.updateMeal(
+        meal.copyWith(mealType: MealType.dinner, calories: 300, carbs: 40),
+      );
+
+      final records = container.read(mealRecordsProvider);
+      final updated = records.singleWhere((m) => m.id == 'meal_update');
+      expect(records.length, lengthBefore);
+      expect(updated.mealType, MealType.dinner);
+      expect(updated.calories, 300);
+      expect(updated.carbs, 40);
+      expect(updated.protein, 30);
+    });
+
+    test('updateMeal ignores records that no longer exist', () async {
+      final lengthBefore = container.read(mealRecordsProvider).length;
+      await container
+          .read(mealRecordsProvider.notifier)
+          .updateMeal(
+            MealRecord(
+              id: 'meal_missing',
+              date: DateTime(2026, 7, 13),
+              mealType: MealType.snack,
+              name: '없는 식사',
+              calories: 100,
+              carbs: 10,
+              protein: 5,
+              fat: 3,
+            ),
+          );
+      expect(container.read(mealRecordsProvider).length, lengthBefore);
+    });
+
     test('drops invalid persisted meal records', () async {
       final valid = MealRecord(
         id: 'valid_meal',
@@ -291,6 +338,18 @@ void main() {
           fat: 12,
         ),
       );
+      await notifier.updateMeal(
+        MealRecord(
+          id: "remote_meal",
+          date: date,
+          mealType: MealType.dinner,
+          name: "원격 식사",
+          calories: 200,
+          carbs: 20,
+          protein: 12,
+          fat: 6,
+        ),
+      );
       await notifier.removeMeal("remote_meal");
       await notifier.addMeal(
         MealRecord(
@@ -306,7 +365,7 @@ void main() {
       );
       await notifier.clearDay(date);
 
-      expect(upserts, ["remote_meal", "clear_meal"]);
+      expect(upserts, ["remote_meal", "remote_meal", "clear_meal"]);
       expect(deletes, ["remote_meal", "clear_meal"]);
     });
 

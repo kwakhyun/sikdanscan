@@ -12,6 +12,14 @@ enum MealType {
   final String label;
   final String iconAsset;
   const MealType(this.label, this.iconAsset);
+
+  static MealType fromTime(DateTime time) {
+    final hour = time.hour;
+    if (hour >= 4 && hour < 11) return MealType.breakfast;
+    if (hour >= 11 && hour < 16) return MealType.lunch;
+    if (hour >= 16 && hour < 22) return MealType.dinner;
+    return MealType.snack;
+  }
 }
 
 @freezed

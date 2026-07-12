@@ -37,6 +37,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   String? _recognitionSummary;
   String? _recognitionWarning;
   double? _recognitionConfidence;
+  MealType? _selectedMealType;
   Timer? _debounce;
   int _searchRequestId = 0;
 
@@ -185,7 +186,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       if (result.needsReview) {
         _showMessage(context.l10n.addMealRecognitionAdded);
       } else {
-        _showMessage('${foods.length}개 음식을 인식해 선택 목록에 추가했습니다');
+        _showMessage(context.l10n.addMealRecognizedCount(foods.length));
       }
     } on FoodImageRecognitionException catch (e) {
       if (!mounted) return;
@@ -308,6 +309,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     final selectedDate = ref.read(selectedDateProvider);
     final now = DateTime.now();
 
+    final mealType = _selectedMealType ?? MealType.fromTime(now);
     final notifier = ref.read(mealRecordsProvider.notifier);
     for (final food in _selectedFoods) {
       await notifier.addMeal(
@@ -320,7 +322,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
             now.hour,
             now.minute,
           ),
-          mealType: MealType.lunch,
+          mealType: mealType,
         ),
       );
     }
@@ -572,7 +574,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
               const SizedBox(width: 5),
               Expanded(
                 child: Text(
-                  'DB에 없는 음식은 AI가 자동으로 영양 정보를 분석합니다',
+                  context.l10n.addMealAiHint,
                   style: TextStyle(
                     fontSize: 11,
                     color: context.colorTextTertiary,
@@ -606,10 +608,10 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Text(
-              'AI가 영양 정보를 분석하고 있어요...',
-              style: TextStyle(
+              context.l10n.addMealAiAnalyzing,
+              style: const TextStyle(
                 fontSize: 13,
                 color: AppColors.secondary,
                 fontWeight: FontWeight.w500,
@@ -656,7 +658,59 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(
+                    Icons.schedule_rounded,
+                    size: 14,
+                    color: context.colorTextSecondary,
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    context.l10n.mealDetailMealType,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: context.colorTextSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                children: MealType.values.map((type) {
+                  final selected =
+                      type ==
+                      (_selectedMealType ?? MealType.fromTime(DateTime.now()));
+                  return ChoiceChip(
+                    label: Text(type.labelOf(context.l10n)),
+                    selected: selected,
+                    onSelected: (_) => setState(() => _selectedMealType = type),
+                    selectedColor: AppColors.primary,
+                    labelStyle: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: selected
+                          ? Colors.white
+                          : context.colorTextSecondary,
+                    ),
+                    showCheckmark: false,
+                    visualDensity: VisualDensity.compact,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      side: BorderSide(
+                        color: selected
+                            ? AppColors.primary
+                            : context.colorBorder,
+                      ),
+                    ),
+                    backgroundColor: context.colorSurface,
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 10),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -789,7 +843,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
             const SizedBox(height: 16),
             _buildSectionHeader(
               icon: Icons.auto_awesome,
-              title: 'AI 영양 분석 결과',
+              title: context.l10n.addMealSourceAiResults,
               count: aiFoods.length,
               iconAsset: 'assets/icons/app/source_ai.svg',
               isAi: true,
@@ -845,7 +899,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
-                tagText ?? 'GPT 분석',
+                tagText ?? context.l10n.addMealAiTag,
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w600,

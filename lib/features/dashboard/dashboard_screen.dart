@@ -146,7 +146,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           food.toMealRecord(
             id: uuid.v4(),
             date: DateTime(now.year, now.month, now.day, now.hour, now.minute),
-            mealType: MealType.lunch,
+            mealType: MealType.fromTime(now),
           ),
         );
       }

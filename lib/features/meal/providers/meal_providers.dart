@@ -54,6 +54,15 @@ class MealRecordsNotifier extends StateNotifier<List<MealRecord>> {
     await _tryRemoteDelete(id);
   }
 
+  Future<void> updateMeal(MealRecord meal) async {
+    if (!state.any((m) => m.id == meal.id)) return;
+    await _commit([
+      for (final m in state)
+        if (m.id == meal.id) meal else m,
+    ]);
+    await _tryRemoteUpsert(meal);
+  }
+
   Future<void> clearDay(DateTime date) async {
     final removingIds = state
         .where(

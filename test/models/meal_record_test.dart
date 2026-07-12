@@ -17,6 +17,17 @@ void main() {
       expect(MealType.snack.iconAsset, 'assets/icons/app/meal_snack.svg');
     });
 
+    test('MealType.fromTime maps hours to meal slots', () {
+      expect(MealType.fromTime(DateTime(2026, 2, 12, 7)), MealType.breakfast);
+      expect(MealType.fromTime(DateTime(2026, 2, 12, 10)), MealType.breakfast);
+      expect(MealType.fromTime(DateTime(2026, 2, 12, 12)), MealType.lunch);
+      expect(MealType.fromTime(DateTime(2026, 2, 12, 15)), MealType.lunch);
+      expect(MealType.fromTime(DateTime(2026, 2, 12, 19)), MealType.dinner);
+      expect(MealType.fromTime(DateTime(2026, 2, 12, 21)), MealType.dinner);
+      expect(MealType.fromTime(DateTime(2026, 2, 12, 23)), MealType.snack);
+      expect(MealType.fromTime(DateTime(2026, 2, 12, 2)), MealType.snack);
+    });
+
     test('creates MealRecord with required fields', () {
       final meal = MealRecord(
         id: 'test_1',
