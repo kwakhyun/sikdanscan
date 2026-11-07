@@ -24,6 +24,8 @@ enum MealType {
 
 @freezed
 abstract class MealRecord with _$MealRecord {
+  const MealRecord._();
+
   const factory MealRecord({
     required String id,
     required DateTime date,
@@ -38,8 +40,34 @@ abstract class MealRecord with _$MealRecord {
     @Default(false) bool isAiRecognized,
     double? recognitionConfidence,
     String? memo,
+
+    /// Portion multiplier the stored nutrition values already include.
+    /// Editing the portion rescales from the 1× base instead of compounding.
+    @Default(1.0) double portion,
+
+    /// Last local modification, used to resolve local/remote merge conflicts.
+    DateTime? updatedAt,
+
+    /// Supabase Storage object path once the photo has been uploaded.
+    String? imageStoragePath,
   }) = _MealRecord;
 
   factory MealRecord.fromJson(Map<String, dynamic> json) =>
       _$MealRecordFromJson(json);
+
+  double get effectivePortion => portion > 0 ? portion : 1.0;
+
+  /// Returns a copy whose nutrition is rescaled to [nextPortion] of the base
+  /// (1×) amount.
+  MealRecord withPortion(double nextPortion) {
+    final safePortion = nextPortion > 0 ? nextPortion : 1.0;
+    final factor = safePortion / effectivePortion;
+    return copyWith(
+      portion: safePortion,
+      calories: (calories * factor).round(),
+      carbs: carbs * factor,
+      protein: protein * factor,
+      fat: fat * factor,
+    );
+  }
 }

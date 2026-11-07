@@ -30,4 +30,6 @@ const _$ChatMessageTypeEnumMap = {
   ChatMessageType.suggestion: 'suggestion',
   ChatMessageType.mealAnalysis: 'mealAnalysis',
   ChatMessageType.encouragement: 'encouragement',
+  ChatMessageType.offline: 'offline',
+  ChatMessageType.error: 'error',
 };

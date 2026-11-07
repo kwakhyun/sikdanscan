@@ -1,10 +1,11 @@
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/food_recognition_result.dart';
 import '../models/meal_record.dart';
 import '../models/user_profile.dart';
+import 'meal_image_store.dart';
 import 'supabase_config.dart';
 
 class SupabaseBackendService {
@@ -58,6 +59,50 @@ class SupabaseBackendService {
 
   Future<void> signOut() {
     return _requireClient().auth.signOut();
+  }
+
+  /// Permanently deletes the signed-in account and its cloud data.
+  ///
+  /// Storage objects are removed through the Storage API first (Supabase does
+  /// not allow deleting them with SQL), then the `delete_my_account` RPC
+  /// removes the auth user; table rows cascade from `auth.users`.
+  Future<void> deleteAccount() async {
+    final client = _requireClient();
+    final userId = _requireUserId();
+
+    for (final bucket in const ['meal-images', 'avatars']) {
+      await _removeUserFolder(client, bucket, userId);
+    }
+
+    await client.rpc('delete_my_account');
+    try {
+      await client.auth.signOut(scope: SignOutScope.local);
+    } catch (_) {
+      // The session is already invalid once the user row is gone.
+    }
+  }
+
+  Future<void> _removeUserFolder(
+    SupabaseClient client,
+    String bucket,
+    String userId,
+  ) async {
+    const pageSize = 100;
+    while (true) {
+      final files = await client.storage
+          .from(bucket)
+          .list(
+            path: userId,
+            searchOptions: const SearchOptions(limit: pageSize),
+          );
+      final paths = files
+          .where((file) => file.name.isNotEmpty)
+          .map((file) => '$userId/${file.name}')
+          .toList(growable: false);
+      if (paths.isEmpty) return;
+      await client.storage.from(bucket).remove(paths);
+      if (paths.length < pageSize) return;
+    }
   }
 
   Future<void> upsertProfile(UserProfile profile) async {
@@ -150,6 +195,11 @@ class SupabaseBackendService {
     );
   }
 
+  Future<void> deleteMealImage(String storagePath) async {
+    _requireUserId();
+    await _requireClient().storage.from('meal-images').remove([storagePath]);
+  }
+
   Future<String> uploadAvatarImage({
     required Uint8List bytes,
     String extension = 'jpg',
@@ -210,6 +260,16 @@ class SupabaseBackendService {
     }
     return userId;
   }
+
+  @visibleForTesting
+  static Map<String, dynamic> mealRecordToRowForTest(
+    String userId,
+    MealRecord record,
+  ) => _mealRecordToRow(userId, record);
+
+  @visibleForTesting
+  static MealRecord mealRecordFromRowForTest(Map<String, dynamic> row) =>
+      _mealRecordFromRow(row);
 
   static Map<String, dynamic> _profileToRow(
     String userId,
@@ -272,19 +332,27 @@ class SupabaseBackendService {
       'carbs': record.carbs,
       'protein': record.protein,
       'fat': record.fat,
-      'image_url': record.imageUrl,
+      // Only the device-relative path is stored; other devices load the photo
+      // through `image_storage_path`.
+      'image_url': record.imageUrl == null
+          ? null
+          : MealImageStore.normalizeForStorage(record.imageUrl),
+      'image_storage_path': record.imageStoragePath,
       'serving_size': record.servingSize,
       'is_ai_recognized': record.isAiRecognized,
       'recognition_confidence': record.recognitionConfidence,
       'memo': record.memo,
-      'updated_at': DateTime.now().toUtc().toIso8601String(),
+      'portion': record.effectivePortion,
+      'updated_at': (record.updatedAt ?? DateTime.now())
+          .toUtc()
+          .toIso8601String(),
     };
   }
 
   static MealRecord _mealRecordFromRow(Map<String, dynamic> row) {
     return MealRecord(
       id: _readString(row['id']),
-      date: _readDateTime(row['date']) ?? DateTime.now(),
+      date: _readDateTime(row['date'])?.toLocal() ?? DateTime.now(),
       mealType: _mealTypeFromName(row['meal_type'] as String?),
       name: _readString(row['name']),
       calories: _readInt(row['calories']),
@@ -296,6 +364,9 @@ class SupabaseBackendService {
       isAiRecognized: row['is_ai_recognized'] == true,
       recognitionConfidence: _readNullableDouble(row['recognition_confidence']),
       memo: row['memo'] as String?,
+      portion: _readNullableDouble(row['portion']) ?? 1.0,
+      updatedAt: _readDateTime(row['updated_at'])?.toLocal(),
+      imageStoragePath: row['image_storage_path'] as String?,
     );
   }
 

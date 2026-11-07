@@ -432,6 +432,7 @@ Future<void> _handleChat(HttpRequest request, ProxyConfig config) async {
 
   final context = asStringMap(body['context']);
   final locale = _normalizeLocale(readString(body['locale']));
+  final history = parseChatHistory(body['history']);
   final response = await postOpenAiChat(config, {
     'model': config.openAiModel,
     'messages': [
@@ -439,9 +440,10 @@ Future<void> _handleChat(HttpRequest request, ProxyConfig config) async {
         'role': 'system',
         'content': buildAiCoachPrompt(context, locale: locale),
       },
+      ...history,
       {'role': 'user', 'content': message},
     ],
-    'max_completion_tokens': 500,
+    'max_completion_tokens': 800,
   });
 
   final content = extractOpenAiContent(response);
@@ -553,4 +555,31 @@ Future<void> serveRequests(HttpServer server, ProxyConfig config) async {
   } finally {
     config.close();
   }
+}
+
+/// Maximum prior turns forwarded to the model for multi-turn coaching.
+const maxChatHistoryTurns = 12;
+const _maxChatHistoryTurnLength = 1500;
+
+/// Validates client-supplied history: only `user`/`assistant` roles, non-empty
+/// string content, capped in count and length. Anything else is dropped so a
+/// client cannot inject `system` messages.
+List<Map<String, String>> parseChatHistory(Object? raw) {
+  final items = raw is List ? raw : const [];
+  final turns = <Map<String, String>>[];
+  for (final item in items) {
+    final map = asStringMap(item);
+    if (map == null) continue;
+    final role = readString(map['role']);
+    final content = readString(map['content']);
+    if (content == null || (role != 'user' && role != 'assistant')) continue;
+    turns.add({
+      'role': role!,
+      'content': content.length > _maxChatHistoryTurnLength
+          ? content.substring(0, _maxChatHistoryTurnLength)
+          : content,
+    });
+  }
+  if (turns.length <= maxChatHistoryTurns) return turns;
+  return turns.sublist(turns.length - maxChatHistoryTurns);
 }

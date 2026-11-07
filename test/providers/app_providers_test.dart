@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -456,36 +457,55 @@ void main() {
   });
 
   group('SettingsBoolNotifier', () {
-    test('notifications default to true', () {
-      expect(container.read(notificationsEnabledProvider), true);
-    });
-
-    test('toggle changes value', () async {
-      await container.read(notificationsEnabledProvider.notifier).toggle();
-      expect(container.read(notificationsEnabledProvider), false);
-      await container.read(notificationsEnabledProvider.notifier).toggle();
-      expect(container.read(notificationsEnabledProvider), true);
-    });
-
-    test('dark mode defaults to false', () {
-      expect(container.read(darkModeProvider), false);
-    });
-
-    test('setValue sets value directly', () async {
-      await container.read(darkModeProvider.notifier).setValue(true);
-      expect(container.read(darkModeProvider), true);
+    test('uses the default value and toggles', () async {
+      final notifier = SettingsBoolNotifier(
+        LocalStorageService(),
+        'flag',
+        true,
+      );
+      expect(notifier.state, true);
+      await notifier.toggle();
+      expect(notifier.state, false);
+      await notifier.setValue(true);
+      expect(notifier.state, true);
     });
 
     test('rolls back setting state when persistence fails', () async {
       final notifier = SettingsBoolNotifier(
         _ThrowingSettingsStorage(),
-        'dark_mode',
+        'flag',
         false,
       );
 
       await expectLater(notifier.setValue(true), throwsA(isA<StateError>()));
 
       expect(notifier.state, false);
+    });
+  });
+
+  group('ThemePreferenceNotifier', () {
+    test('defaults to following the system', () {
+      expect(container.read(themePreferenceProvider), ThemePreference.system);
+      expect(
+        container.read(themePreferenceProvider).themeMode,
+        ThemeMode.system,
+      );
+    });
+
+    test('persists the chosen preference', () async {
+      await container
+          .read(themePreferenceProvider.notifier)
+          .setPreference(ThemePreference.dark);
+      container.dispose();
+      container = ProviderContainer();
+      expect(container.read(themePreferenceProvider), ThemePreference.dark);
+    });
+
+    test('migrates the legacy dark mode switch', () async {
+      await Hive.box<String>('settings').put('dark_mode', 'true');
+      container.dispose();
+      container = ProviderContainer();
+      expect(container.read(themePreferenceProvider), ThemePreference.dark);
     });
   });
 

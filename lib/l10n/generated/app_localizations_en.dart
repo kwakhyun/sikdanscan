@@ -42,18 +42,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonDelete => 'Delete';
 
   @override
-  String get commonEdit => 'Edit';
-
-  @override
-  String get commonOnline => 'Online';
-
-  @override
-  String get commonLoading => 'Loading';
-
-  @override
-  String get commonAnalyzing => 'Analyzing';
-
-  @override
   String get authCloudNotConfiguredTitle => 'Cloud sync is not configured';
 
   @override
@@ -162,16 +150,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsGoal => 'Goal settings';
 
   @override
-  String get settingsNotifications => 'Notifications';
-
-  @override
-  String get settingsDarkMode => 'Dark mode';
-
-  @override
   String get settingsLanguage => 'Language';
-
-  @override
-  String get settingsApiStatus => 'API status';
 
   @override
   String get settingsExportData => 'Export data';
@@ -198,9 +177,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get languageEnglish => 'English';
 
   @override
-  String get languageChanged => 'Language setting changed';
-
-  @override
   String get exportSubject => 'SikdanScan data export';
 
   @override
@@ -214,34 +190,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'AI-powered meal analysis and goal-based strategy coaching\n\nRecord meals with photos and design your next meal around\ngoals like skin health, weight management, and digestion.';
 
   @override
-  String get apiChecking => 'Checking proxy status.';
-
-  @override
-  String get apiCheckFailed => 'An error occurred while checking proxy status.';
-
-  @override
   String get apiRefresh => 'Refresh';
 
   @override
   String get apiOk => 'OK';
-
-  @override
-  String get apiConnected => 'Connected';
-
-  @override
-  String get apiProxyRequired => 'Proxy required';
-
-  @override
-  String get apiCheckingShort => 'Checking';
-
-  @override
-  String get apiNotConfigured => 'Not set';
-
-  @override
-  String get apiOffline => 'Offline';
-
-  @override
-  String get apiBuiltInDb => 'Built-in DB (80+ foods)';
 
   @override
   String get apiProxy => 'SikdanScan API proxy';
@@ -253,18 +205,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get apiOpenAi => 'OpenAI GPT analysis';
 
   @override
-  String get apiBarcode => 'Barcode search (Open Food Facts)';
-
-  @override
-  String get apiSecurityNote =>
-      'Keep only the proxy URL and optional client token in the app .env. Store external API keys on the server.';
-
-  @override
   String get resetTitle => 'Reset data';
 
   @override
   String get resetMessage =>
-      'All data will be deleted.\nThis action cannot be undone.\n\nDo you want to reset?';
+      'This deletes the profile, meal, weight and water logs, and AI coach conversation on this device. If you are signed in you will be signed out; data backed up to your account stays there.\n\nReset anyway?';
 
   @override
   String get resetAction => 'Reset';
@@ -352,23 +297,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileUpdated => 'Profile updated';
 
   @override
-  String get dashboardCapture => 'Capture';
-
-  @override
-  String get dashboardCaptureNow => 'Take photo';
-
-  @override
-  String get dashboardCaptureNowSubtitle =>
-      'Take a meal photo and analyze it instantly';
-
-  @override
-  String get dashboardPickPhoto => 'Choose photo';
-
-  @override
-  String get dashboardPickPhotoSubtitle =>
-      'Analyze a meal photo from your library';
-
-  @override
   String get dashboardProxyRequired =>
       'Food recognition is available after connecting the SikdanScan API proxy';
 
@@ -389,42 +317,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'Could not load the photo. Check camera/photo permissions.';
 
   @override
-  String get dashboardAddedEstimated =>
-      'Estimated results were added to today\'s log';
-
-  @override
-  String get dashboardAddedAnalyzed =>
-      'Analysis results were added to today\'s log';
-
-  @override
   String get addMealTitle => 'Add meal';
 
   @override
   String get addMealSearchError => 'An error occurred while searching';
 
   @override
-  String get addMealRecognitionAdded =>
-      'Recognition results were added to the selection. Review before saving.';
-
-  @override
-  String get addMealRecognitionTitle => 'Auto-recognize from photo';
-
-  @override
-  String get addMealRecognitionSubtitle =>
-      'Take a food photo and estimate nutrition into the selected list';
-
-  @override
-  String get addMealAnalyzingPhoto => 'Analyzing photo';
-
-  @override
-  String get addMealRecognitionResult => 'Photo recognition result';
-
-  @override
   String get addMealSearchHint =>
       'Search food (e.g. kimchi stew, acai bowl, salmon poke)';
-
-  @override
-  String get addMealSelectedFoods => 'Selected foods';
 
   @override
   String get addMealRetry => 'Retry';
@@ -463,11 +363,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dailyNoRecords => 'No food has been recorded yet';
 
   @override
-  String get strategyEmptyTitle => 'Scan your first meal to start a strategy';
+  String get strategyEmptyTitle =>
+      'Scan or log your first meal to start a strategy';
 
   @override
   String get strategyEmptyPrimary =>
-      'Goal-based coaching is generated after you capture a meal photo.';
+      'Capture a meal photo or search a food to generate goal-based coaching.';
 
   @override
   String get reportTitle => 'Intake report';
@@ -480,12 +381,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reportMonth => 'Monthly';
-
-  @override
-  String get reportDailySubtitle => 'One-day intake status';
-
-  @override
-  String get reportWeeklySubtitle => '7-day intake trend';
 
   @override
   String get chatTitle => 'SikdanScan AI Coach';
@@ -564,11 +459,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onboardingStartFlow => 'Start personalized flow';
 
   @override
-  String get onboardingBenefitQuickTitle => 'Quick signup in 30 seconds';
+  String get onboardingBenefitQuickTitle => 'Start in 30 seconds';
 
   @override
   String get onboardingBenefitQuickDescription =>
-      'Start right away with only your name and baseline details.';
+      'Enter your goal and basics, then start logging right away.';
 
   @override
   String get onboardingBenefitCalorieTitle => 'Automatic calorie baseline';
@@ -578,7 +473,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Calculated from current weight, height, age, and activity level.';
 
   @override
-  String get onboardingBenefitCoachTitle => 'Goal-based AI coaching';
+  String get onboardingBenefitCoachTitle => 'Goal strategy and AI coaching';
 
   @override
   String get onboardingBenefitCoachDescription =>
@@ -645,12 +540,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get goalWaterTarget => 'Hydration goal';
-
-  @override
-  String get goalStepTarget => 'Step goal';
-
-  @override
-  String get goalStepSuffix => 'steps';
 
   @override
   String get goalSettingsDone => 'Save goal settings';
@@ -746,11 +635,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get activityActive => 'Active';
 
   @override
-  String addMealRecognizedCount(int count) {
-    return 'Recognized $count food item(s) and added them to your selection';
-  }
-
-  @override
   String get addMealAiHint =>
       'Foods not in the DB get AI-estimated nutrition automatically';
 
@@ -776,9 +660,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mealTypeSnack => 'Snack';
 
   @override
-  String get mealDetailTitle => 'Record details';
-
-  @override
   String get mealDetailMealType => 'Meal type';
 
   @override
@@ -786,14 +667,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mealDetailPortionHint =>
-      'Recalculates calories and macros to match what you actually ate';
+      'Recalculates calories and nutrients from the original single portion';
 
   @override
   String get mealDetailDeleteTitle => 'Delete record';
-
-  @override
-  String get mealDetailDeleteMessage =>
-      'Delete this meal record? This cannot be undone.';
 
   @override
   String get mealDetailDeleted => 'Record deleted';
@@ -894,4 +771,773 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get proxyStatusUnreachable => 'Cannot reach the proxy.';
+
+  @override
+  String strategyMetaLabel(int count) {
+    return 'Goal strategy · $count logs reflected';
+  }
+
+  @override
+  String strategyEmptySummary(String goal) {
+    return 'We will summarize today’s strengths and gaps for your $goal goal.';
+  }
+
+  @override
+  String get strategyTipPhotoAngle =>
+      'Take the photo from above with food clearly visible';
+
+  @override
+  String get strategyTipReviewBeforeSave =>
+      'Review food names and portions before saving';
+
+  @override
+  String get strategyWeightLossOverTitle => 'Keep the rest of today lighter';
+
+  @override
+  String get strategyWeightLossOnTrackTitle =>
+      'Your weight-loss pace is on track';
+
+  @override
+  String get strategyWeightLossOverSummary =>
+      'You are above today’s calorie target. Make the next meal protein and vegetables first.';
+
+  @override
+  String get strategyWeightLossOnTrackSummary =>
+      'Intake is within your target. Filling protein now lowers late-night cravings.';
+
+  @override
+  String get strategyWeightLossAddProtein =>
+      'Add chicken breast, eggs, or tofu to your next meal.';
+
+  @override
+  String get strategyWeightLossVeggiesFirst =>
+      'Add vegetables and water before adding more carbs.';
+
+  @override
+  String get strategyActionSkipFriedSauce =>
+      'Skip fried food and heavy sauces next meal';
+
+  @override
+  String get strategyActionLightProteinMeal =>
+      'Keep remaining meals to a ~400 kcal protein plate';
+
+  @override
+  String get strategyActionWalkAppetite =>
+      'Walk 10 minutes after eating to steady glucose and appetite';
+
+  @override
+  String get strategySkinFixTitle => 'Your skin goal needs a correction';
+
+  @override
+  String get strategySkinGoodTitle => 'Skin-friendly balance is on track';
+
+  @override
+  String get strategySkinHighCarbSummary =>
+      'Carbs are high today. Choose a next meal that reduces glucose spikes.';
+
+  @override
+  String get strategySkinBalancedSummary =>
+      'Today’s intake is not skewed. Add antioxidant-rich foods if you can.';
+
+  @override
+  String get strategySkinPrimary =>
+      'Prioritize fish, tofu, or eggs with leafy greens next.';
+
+  @override
+  String get strategyActionNoCreamy =>
+      'Skip oily dishes and cream sauces for the rest of today';
+
+  @override
+  String get strategyActionNoSugarDrinks =>
+      'Choose water or unsweetened tea instead of dessert drinks';
+
+  @override
+  String get strategyActionVitaminC =>
+      'Add a small portion of vitamin C-rich fruit';
+
+  @override
+  String get strategyDigestionHeavyTitle => 'Ease the load on digestion';
+
+  @override
+  String get strategyDigestionGoodTitle => 'Keep your gut-health routine going';
+
+  @override
+  String get strategyDigestionHeavySummary =>
+      'A high fat share can cause bloating. Keep the next meal light.';
+
+  @override
+  String get strategyDigestionGoodSummary =>
+      'A good moment to add water and fiber today.';
+
+  @override
+  String get strategyDigestionPrimary =>
+      'Fill half the next plate with vegetables and drink 500ml of water around it.';
+
+  @override
+  String get strategyActionSolidsOverBroth => 'Favor solids over broth';
+
+  @override
+  String get strategyActionFermented =>
+      'Add yogurt, kimchi, or seasoned greens';
+
+  @override
+  String get strategyActionSkipFattyMeat =>
+      'Skip fried food and fatty meat next meal';
+
+  @override
+  String get strategyEnergyCarbTitle => 'Smooth out afternoon energy dips';
+
+  @override
+  String get strategyEnergyGoodTitle => 'A good balance for steady energy';
+
+  @override
+  String get strategyEnergyLowSummary =>
+      'Intake is low, which can lower focus later today.';
+
+  @override
+  String get strategyEnergyGoodSummary =>
+      'Balanced meals reduce fatigue and snack cravings.';
+
+  @override
+  String get strategyEnergyAddProtein => 'Add a protein snack, eggs, or tofu.';
+
+  @override
+  String get strategyEnergyPairCarbs =>
+      'Pair carbs with protein at the next meal.';
+
+  @override
+  String get strategyActionWaterOverSweet =>
+      'Choose water or black coffee over sweet drinks';
+
+  @override
+  String get strategyActionSmartSnack => 'Snack on a few nuts or Greek yogurt';
+
+  @override
+  String get strategyActionStretch =>
+      'Stretch 5 minutes after eating to beat drowsiness';
+
+  @override
+  String get strategyMuscleLowTitle => 'Protein needs attention';
+
+  @override
+  String get strategyMuscleCloseTitle =>
+      'You are getting close to your protein goal';
+
+  @override
+  String strategyMuscleSummary(String protein, String goal) {
+    return 'Protein today is ${protein}g. Your goal is ${goal}g.';
+  }
+
+  @override
+  String strategyMuscleAddProtein(String gap) {
+    return 'Aim to add ${gap}g of protein at the next meal.';
+  }
+
+  @override
+  String get strategyMuscleRecovery =>
+      'After exercise, add water and a small amount of carbs.';
+
+  @override
+  String get strategyActionLeanProtein =>
+      'Choose chicken breast, fish, tofu, or Greek yogurt';
+
+  @override
+  String get strategyActionPreWorkoutSnack =>
+      'Intake is low — add a snack around workouts';
+
+  @override
+  String get strategyActionSpreadProtein =>
+      'Spread protein across meals instead of all at once';
+
+  @override
+  String get strategyGlucoseCarbTitle => 'Slow down the carbs';
+
+  @override
+  String get strategyGlucoseGoodTitle => 'Glucose-friendly balance';
+
+  @override
+  String get strategyGlucoseCarbSummary =>
+      'Carb share is high. Meal order and extra protein matter at the next meal.';
+
+  @override
+  String get strategyGlucoseGoodSummary =>
+      'Your current ratio helps avoid sharp spikes.';
+
+  @override
+  String get strategyGlucosePrimary =>
+      'Eat vegetables, then protein, then carbs at the next meal.';
+
+  @override
+  String get strategyActionAddProteinSide =>
+      'Avoid rice or noodles alone — add a protein side';
+
+  @override
+  String get strategyActionWalk10 => 'Walk 10 minutes after eating';
+
+  @override
+  String get strategyActionNoDessert => 'Skip sweet drinks and dessert today';
+
+  @override
+  String get strategyBalancedGoodTitle => 'A well-balanced day';
+
+  @override
+  String get strategyBalancedFixTitle => 'Rebalance the macros that are off';
+
+  @override
+  String get strategyBalancedGoodSummary => 'Calories and macros are steady.';
+
+  @override
+  String get strategyBalancedFixSummary =>
+      'Filling the missing macro at the next meal will balance the day.';
+
+  @override
+  String get strategyBalancedPrimary =>
+      'Build the next plate with protein, vegetables, and carbs together.';
+
+  @override
+  String get strategyActionLogWater => 'Log your water too';
+
+  @override
+  String get strategyActionReviewRecords => 'Review today’s records once';
+
+  @override
+  String get strategyFactorCalories => 'Calorie range';
+
+  @override
+  String get strategyFactorProtein => 'Protein';
+
+  @override
+  String get strategyFactorFat => 'Fat share';
+
+  @override
+  String get strategyFactorCarbs => 'Carb share';
+
+  @override
+  String get strategyFactorBalance => 'Macro balance';
+
+  @override
+  String get strategyFactorVolume => 'Meal volume';
+
+  @override
+  String get strategyFactorConsistency => 'Consistent logging';
+
+  @override
+  String get strategyDetailTitle => 'Today’s goal strategy';
+
+  @override
+  String get strategyRuleBasedNote =>
+      'Calculated by comparing today’s logged calories and macro ratios with your goal. This is not medical advice.';
+
+  @override
+  String get strategyScoreTitle => 'How the score works';
+
+  @override
+  String strategyScoreSemantics(int score) {
+    return 'Goal score $score out of 100';
+  }
+
+  @override
+  String get strategyNextMeal => 'Next meal';
+
+  @override
+  String get strategyTips => 'Tips';
+
+  @override
+  String get strategyAskCoach => 'Ask the AI coach';
+
+  @override
+  String get strategyAskCoachPrompt =>
+      'Based on today’s log, what should I eat next?';
+
+  @override
+  String get strategyOpenDetail => 'View strategy details';
+
+  @override
+  String get commonClose => 'Close';
+
+  @override
+  String get commonClear => 'Clear';
+
+  @override
+  String get commonUndo => 'Undo';
+
+  @override
+  String commonItemCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items',
+      one: '1 item',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String macroShort(String carbs, String protein, String fat) {
+    return 'C ${carbs}g · P ${protein}g · F ${fat}g';
+  }
+
+  @override
+  String get entrySheetTitle => 'Log a meal';
+
+  @override
+  String entrySheetTitleForDate(String date) {
+    return 'Add to $date';
+  }
+
+  @override
+  String get entryCamera => 'Take a photo';
+
+  @override
+  String get entryCameraSubtitle =>
+      'AI estimates the food and nutrition; you review before saving';
+
+  @override
+  String get entryGallery => 'Choose from album';
+
+  @override
+  String get entryGallerySubtitle => 'Use a meal photo you already took';
+
+  @override
+  String get entrySearch => 'Search or enter manually';
+
+  @override
+  String get entrySearchSubtitle =>
+      'Find a food by name or type the nutrition yourself · works offline';
+
+  @override
+  String get entryPhotoUnavailable =>
+      'Photo recognition needs the AI server connection';
+
+  @override
+  String get dashboardLogMeal => 'Log meal';
+
+  @override
+  String get reviewTitle => 'Review meal';
+
+  @override
+  String get reviewAnalyzingTitle => 'Analyzing photo';
+
+  @override
+  String get reviewFailedTitle => 'Couldn’t recognize the food';
+
+  @override
+  String get reviewAnalyzingMessage => 'Estimating foods and nutrition';
+
+  @override
+  String get reviewAnalyzingHint =>
+      'This usually takes 5–15 seconds. You can switch to manual entry instead.';
+
+  @override
+  String get reviewSwitchToManual => 'Enter manually instead';
+
+  @override
+  String get reviewCancelAnalysis => 'Cancel analysis';
+
+  @override
+  String get reviewRetry => 'Analyze again';
+
+  @override
+  String get reviewSearchAdd => 'Add from search';
+
+  @override
+  String get reviewAddManual => 'Add manually';
+
+  @override
+  String get reviewNeedsReview =>
+      'These are AI estimates. Check food names and portions before saving.';
+
+  @override
+  String get reviewLowConfidence => 'Check this';
+
+  @override
+  String reviewConfidence(int percent) {
+    return 'AI confidence $percent%';
+  }
+
+  @override
+  String get reviewFoodsSection => 'Foods';
+
+  @override
+  String get reviewNoDrafts => 'No foods yet. Add one manually or search.';
+
+  @override
+  String get reviewNameHint => 'Food name';
+
+  @override
+  String get reviewCarbsLabel => 'Carbs (g)';
+
+  @override
+  String get reviewProteinLabel => 'Protein (g)';
+
+  @override
+  String get reviewFatLabel => 'Fat (g)';
+
+  @override
+  String get reviewPortion => 'Portion';
+
+  @override
+  String reviewPortionTotal(String kcal) {
+    return 'Saved as $kcal kcal';
+  }
+
+  @override
+  String get reviewDateTime => 'Date & time';
+
+  @override
+  String reviewDateSemantics(String date) {
+    return 'Log date $date';
+  }
+
+  @override
+  String reviewSave(int count, String kcal) {
+    return 'Save $count · $kcal kcal';
+  }
+
+  @override
+  String reviewSaved(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Logged $count foods',
+      one: 'Logged 1 food',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get reviewLeaveTitle => 'Discard this entry?';
+
+  @override
+  String get reviewLeaveMessage =>
+      'The analysis and anything you entered won’t be saved.';
+
+  @override
+  String get reviewLeaveConfirm => 'Discard';
+
+  @override
+  String get reviewLeaveStay => 'Keep editing';
+
+  @override
+  String get reviewRemoveItem => 'Remove item';
+
+  @override
+  String get reviewSelectItem => 'Include in save';
+
+  @override
+  String get reviewPhotoSemantics => 'Captured meal photo';
+
+  @override
+  String get addMealManualEntry => 'Enter manually';
+
+  @override
+  String get addMealOfflineHint =>
+      'Without the AI server you can use the built-in food list or enter food manually';
+
+  @override
+  String addMealSelectedSummary(int count, String kcal) {
+    return '$count selected · $kcal kcal';
+  }
+
+  @override
+  String addMealRemoveTooltip(String name) {
+    return 'Remove $name';
+  }
+
+  @override
+  String addMealAddTooltip(String name) {
+    return 'Add $name';
+  }
+
+  @override
+  String get addMealRecentTitle => 'Recently logged';
+
+  @override
+  String get addMealSuggestedTitle => 'Suggested foods';
+
+  @override
+  String get mealDetailAiRecognized => 'AI recognized';
+
+  @override
+  String mealDetailServing(String serving) {
+    return 'Serving $serving';
+  }
+
+  @override
+  String get mealDetailLogAgain => 'Log again';
+
+  @override
+  String get mealDetailLoggedAgain => 'Logged again for now';
+
+  @override
+  String dailyKcalLeft(String goal, String amount) {
+    return 'Goal $goal kcal · $amount kcal left';
+  }
+
+  @override
+  String dailyKcalOver(String goal, String amount) {
+    return 'Goal $goal kcal · $amount kcal over';
+  }
+
+  @override
+  String dailyIntakeSemantics(String kcal, String remaining, String status) {
+    return '$kcal kilocalories eaten today. $remaining. Status: $status';
+  }
+
+  @override
+  String dailyMacroSemantics(String label, String grams, int percent) {
+    return '$label $grams grams, $percent percent of calories';
+  }
+
+  @override
+  String get dailyLogFirstMeal => 'Log your first meal';
+
+  @override
+  String get waterTitle => 'Water';
+
+  @override
+  String waterSemantics(String amount, String goal) {
+    return 'Water $amount ml of $goal ml';
+  }
+
+  @override
+  String waterSemanticsNoGoal(String amount) {
+    return 'Water $amount ml';
+  }
+
+  @override
+  String get waterAddGlass => 'Add a glass (250 ml)';
+
+  @override
+  String get waterRemoveGlass => 'Remove a glass';
+
+  @override
+  String get reportPrevious => 'Previous period';
+
+  @override
+  String get reportNext => 'Next period';
+
+  @override
+  String get reportToday => 'Today';
+
+  @override
+  String get reportSummaryTitle => 'Summary';
+
+  @override
+  String reportLoggedDays(int recorded, int total) {
+    return '$recorded/$total days logged';
+  }
+
+  @override
+  String reportGoalOver(String goal, String amount) {
+    return 'Goal $goal kcal · $amount kcal over';
+  }
+
+  @override
+  String reportGoalLeft(String goal, String amount) {
+    return 'Goal $goal kcal · $amount kcal left';
+  }
+
+  @override
+  String reportGoalElapsedNote(int days) {
+    return 'The goal counts the $days days so far';
+  }
+
+  @override
+  String get reportDailyAverage => 'Avg per logged day';
+
+  @override
+  String get reportMealTypeDayTitle => 'By meal';
+
+  @override
+  String get reportDailyTrend => 'Daily trend';
+
+  @override
+  String reportGoalLine(String goal) {
+    return 'Goal $goal';
+  }
+
+  @override
+  String get reportTapDayHint => 'Tap a bar to open that day';
+
+  @override
+  String reportBarSemantics(String date, String kcal) {
+    return '$date, $kcal';
+  }
+
+  @override
+  String get reportNoRecordsToShow => 'No records to display';
+
+  @override
+  String get reportRecordedFoods => 'Recorded foods';
+
+  @override
+  String get reportNoRecordsForPeriod => 'No records in this period';
+
+  @override
+  String get reportAddForDay => 'Add a meal for this day';
+
+  @override
+  String get reportShowLess => 'Show less';
+
+  @override
+  String reportShowAll(int count) {
+    return 'Show all ($count)';
+  }
+
+  @override
+  String get chatRetry => 'Try again';
+
+  @override
+  String get chatOfflineAnswer => 'Offline answer';
+
+  @override
+  String get chatCopied => 'Copied';
+
+  @override
+  String get chatStatusOnline => 'AI connected';
+
+  @override
+  String get chatStatusOffline => 'Offline mode';
+
+  @override
+  String get chatOfflineBanner =>
+      'Not connected to the AI server, so answers are general tips. Personalized coaching works once connected.';
+
+  @override
+  String get chatSend => 'Send';
+
+  @override
+  String get unitYears => 'y';
+
+  @override
+  String get settingsTheme => 'Appearance';
+
+  @override
+  String get themeSubtitle => 'Choose how the app looks';
+
+  @override
+  String get themeSystem => 'Match system';
+
+  @override
+  String get themeLight => 'Light';
+
+  @override
+  String get themeDark => 'Dark';
+
+  @override
+  String get settingsAiStatus => 'AI features';
+
+  @override
+  String get aiStatusAvailable => 'Available';
+
+  @override
+  String get aiStatusUnavailable => 'Not connected';
+
+  @override
+  String get aiStatusChecking => 'Checking';
+
+  @override
+  String get aiStatusAvailableBody =>
+      'Photo recognition, AI nutrition analysis and the AI coach are available.';
+
+  @override
+  String get aiStatusUnavailableBody =>
+      'The AI server is not reachable right now. Built-in food search, manual entry and reports still work.';
+
+  @override
+  String get aiStatusDeveloperDetails => 'Developer details (debug build)';
+
+  @override
+  String get authDeleteAccount => 'Delete account';
+
+  @override
+  String get authDeleteAccountTitle => 'Delete your account?';
+
+  @override
+  String get authDeleteAccountMessage =>
+      'Your account and the profile, meal logs and photos stored in the cloud will be permanently deleted, and this device will be reset. This cannot be undone.';
+
+  @override
+  String get authDeleteAccountConfirm => 'Delete permanently';
+
+  @override
+  String get authDeleteAccountDone => 'Your account was deleted';
+
+  @override
+  String get authDeleteAccountFailed =>
+      'Could not delete the account. Check your connection and try again.';
+
+  @override
+  String get profileLatestLogBasis => 'Latest log';
+
+  @override
+  String get weightTitle => 'Weight log';
+
+  @override
+  String get weightLog => 'Log';
+
+  @override
+  String get weightLogTitle => 'Log today’s weight';
+
+  @override
+  String weightDeltaFromStart(String delta) {
+    return '$delta kg since start';
+  }
+
+  @override
+  String get weightNoRecords =>
+      'No weight logs yet. Log at the same time of day to see your trend.';
+
+  @override
+  String weightLastLogged(String date) {
+    return 'Last logged $date';
+  }
+
+  @override
+  String weightTrendSemantics(int count) {
+    return 'Weight trend of the last $count logs';
+  }
+
+  @override
+  String get weightHistoryTitle => 'Weight history';
+
+  @override
+  String get weightLogged => 'Weight logged';
+
+  @override
+  String get weightDeleted => 'Weight log deleted';
+
+  @override
+  String weightRecalculateSuggestion(String kcal) {
+    return 'Your recommended calories changed to $kcal kcal';
+  }
+
+  @override
+  String get weightRecalculateApply => 'Update goal';
+
+  @override
+  String get onboardingGetStarted => 'Get started';
+
+  @override
+  String get onboardingDecreaseCalories => 'Lower calorie goal by 50 kcal';
+
+  @override
+  String get onboardingIncreaseCalories => 'Raise calorie goal by 50 kcal';
+
+  @override
+  String onboardingResetRecommended(String kcal) {
+    return 'Reset to recommended $kcal kcal';
+  }
+
+  @override
+  String onboardingTargetWeightDescription(String date) {
+    return 'Starts at about 5% below your current weight, targeted for $date. You can adjust it.';
+  }
+
+  @override
+  String get onboardingDecreaseTarget => 'Lower target by 0.5 kg';
+
+  @override
+  String get onboardingIncreaseTarget => 'Raise target by 0.5 kg';
 }

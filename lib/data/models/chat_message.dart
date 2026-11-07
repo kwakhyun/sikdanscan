@@ -17,4 +17,15 @@ abstract class ChatMessage with _$ChatMessage {
       _$ChatMessageFromJson(json);
 }
 
-enum ChatMessageType { text, suggestion, mealAnalysis, encouragement }
+enum ChatMessageType {
+  text,
+  suggestion,
+  mealAnalysis,
+  encouragement,
+
+  /// Canned local answer shown when the AI server is unavailable.
+  offline,
+
+  /// Failed request; the UI offers a retry for the preceding user message.
+  error,
+}

@@ -27,17 +27,24 @@ class FoodImageRecognitionService {
   Future<FoodRecognitionResult> recognizeImageFile(
     String imagePath, {
     String locale = 'ko',
+    CancelToken? cancelToken,
   }) async {
     final file = File(imagePath);
     final bytes = await file.readAsBytes();
     final mimeType = _mimeTypeFromBytes(bytes) ?? _mimeTypeFromPath(imagePath);
-    return recognizeImageBytes(bytes, mimeType: mimeType, locale: locale);
+    return recognizeImageBytes(
+      bytes,
+      mimeType: mimeType,
+      locale: locale,
+      cancelToken: cancelToken,
+    );
   }
 
   Future<FoodRecognitionResult> recognizeImageBytes(
     Uint8List bytes, {
     String mimeType = 'image/jpeg',
     String locale = 'ko',
+    CancelToken? cancelToken,
   }) async {
     if (!_proxyConfig.isConfigured) {
       throw const FoodImageRecognitionException(
@@ -73,6 +80,7 @@ class FoodImageRecognitionService {
       bytes,
       normalizedMimeType,
       locale,
+      cancelToken,
     );
 
     final data = response.data;
@@ -146,12 +154,17 @@ class FoodImageRecognitionService {
     Uint8List bytes,
     String mimeType,
     String locale,
+    CancelToken? cancelToken,
   ) async {
     try {
       return await _apiService.post<Object?>(
         _proxyConfig.baseUrl,
         ApiConstants.proxyFoodRecognizeEndpoint,
         headers: _proxyConfig.authHeaders,
+        cancelToken: cancelToken,
+        // Vision calls are slow and billed per request: retry at most once so
+        // a failing upstream cannot keep the user waiting for minutes.
+        maxRetries: 1,
         data: {
           'imageBase64': base64Encode(bytes),
           'mimeType': _normalizeMimeType(mimeType),
@@ -159,6 +172,9 @@ class FoodImageRecognitionService {
         },
       );
     } on DioException catch (error) {
+      if (error.type == DioExceptionType.cancel) {
+        throw const FoodImageRecognitionCancelled();
+      }
       throw FoodImageRecognitionException(
         _friendlyRecognitionError(error, english: _isEnglish(locale)),
       );
@@ -285,6 +301,10 @@ class FoodImageRecognitionService {
     }
     return null;
   }
+}
+
+class FoodImageRecognitionCancelled implements Exception {
+  const FoodImageRecognitionCancelled();
 }
 
 class FoodImageRecognitionException implements Exception {

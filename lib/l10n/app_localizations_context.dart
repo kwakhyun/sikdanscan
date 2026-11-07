@@ -6,6 +6,9 @@ import 'generated/app_localizations.dart';
 
 extension AppLocalizationsContext on BuildContext {
   AppLocalizations get l10n => AppLocalizations.of(this);
+
+  /// Locale tag for `intl` formatters (`ko` / `en`).
+  String get localeTag => Localizations.localeOf(this).languageCode;
 }
 
 extension WellnessGoalLocalizations on WellnessGoal {

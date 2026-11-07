@@ -129,6 +129,57 @@ void main() {
         expect(response, contains('운동'));
       },
     );
+
+    test('English fallback matches whole words only', () async {
+      final response = await service.generateResponse(
+        userMessage: 'Is this healthy?',
+        locale: 'en',
+      );
+
+      expect(response, isNot(startsWith('Hi.')));
+    });
+
+    test('reply marks local answers as fallback', () async {
+      final reply = await service.reply(userMessage: '운동 추천해줘');
+
+      expect(reply.isFallback, isTrue);
+      expect(reply.content, contains('운동'));
+    });
+
+    test('reply sends trimmed conversation history to the proxy', () async {
+      final fakeApi = FakeApiService(postData: {'content': '좋아요'});
+      final service = AiChatService(
+        proxyBaseUrl: 'https://proxy.example.com',
+        apiService: fakeApi,
+      );
+      final history = [
+        for (var i = 0; i < 14; i++)
+          AiChatTurn(isUser: i.isEven, content: 'turn $i'),
+      ];
+
+      final reply = await service.reply(
+        userMessage: '그럼 저녁은?',
+        history: history,
+      );
+
+      expect(reply.isFallback, isFalse);
+      final sent = (fakeApi.lastData as Map)['history'] as List;
+      expect(sent, hasLength(AiChatService.maxHistoryTurns));
+      expect(sent.first, {'role': 'user', 'content': 'turn 4'});
+      expect(sent.last, {'role': 'assistant', 'content': 'turn 13'});
+    });
+
+    test('reply throws on server errors so the UI can offer retry', () async {
+      final service = AiChatService(
+        proxyBaseUrl: 'https://proxy.example.com',
+        apiService: FakeApiService(postData: {'content': ''}),
+      );
+
+      await expectLater(
+        service.reply(userMessage: 'hi'),
+        throwsA(isA<AiChatException>()),
+      );
+    });
   });
 }
 
@@ -163,6 +214,8 @@ class FakeApiService implements ApiService {
     String path, {
     dynamic data,
     Map<String, dynamic>? headers,
+    CancelToken? cancelToken,
+    int? maxRetries,
   }) async {
     lastBaseUrl = baseUrl;
     lastPath = path;

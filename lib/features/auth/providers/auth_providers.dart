@@ -52,7 +52,7 @@ class SupabaseAuthController extends StateNotifier<AsyncValue<void>> {
         password: password,
         displayName: displayName,
       );
-      await syncLocalToRemote();
+      await _syncBothWays();
     });
   }
 
@@ -76,10 +76,28 @@ class SupabaseAuthController extends StateNotifier<AsyncValue<void>> {
   }
 
   Future<void> signOut() async {
-    await _run(_service.signOut);
+    await _run(() async {
+      await _service.signOut();
+      // Retry operations belong to the signed-out account.
+      await _ref.read(mealRecordsProvider.notifier).clearPendingSync();
+    });
   }
 
+  /// Deletes the account and all cloud data. Local data is reset by the
+  /// caller afterwards.
+  Future<void> deleteAccount() async {
+    await _run(() async {
+      await _service.deleteAccount();
+      await _ref.read(mealRecordsProvider.notifier).clearPendingSync();
+    });
+  }
+
+  /// Manual "sync now": retries failed uploads, then merges both ways.
   Future<void> syncLocalToRemote() async {
+    await _run(_syncBothWays);
+  }
+
+  Future<void> _syncBothWays() async {
     final service = _service;
     if (!service.isConfigured || service.currentUser == null) return;
 
@@ -87,11 +105,7 @@ class SupabaseAuthController extends StateNotifier<AsyncValue<void>> {
     if (profile.onboardingCompleted) {
       await service.upsertProfile(profile);
     }
-
-    final meals = _ref.read(mealRecordsProvider);
-    for (final meal in meals) {
-      await service.upsertMealRecord(meal);
-    }
+    await _mergeMeals();
   }
 
   Future<void> _mergeAfterSignIn() async {
@@ -99,18 +113,27 @@ class SupabaseAuthController extends StateNotifier<AsyncValue<void>> {
     if (!service.isConfigured || service.currentUser == null) return;
 
     final remoteProfile = await service.fetchProfile();
-    final remoteMeals = await service.fetchMealRecords();
-
-    if (remoteProfile != null) {
+    final localProfile = _ref.read(userProfileProvider);
+    if (remoteProfile != null && remoteProfile.onboardingCompleted) {
       await _ref
           .read(userProfileProvider.notifier)
           .updateProfile(remoteProfile);
+    } else if (localProfile.onboardingCompleted) {
+      await service.upsertProfile(localProfile);
     }
 
-    if (remoteMeals.isNotEmpty) {
-      await _ref.read(mealRecordsProvider.notifier).replaceAll(remoteMeals);
-    } else {
-      await syncLocalToRemote();
+    await _mergeMeals();
+  }
+
+  /// Merges by record id so meals logged before signing in are kept and
+  /// uploaded instead of being replaced by the account's records.
+  Future<void> _mergeMeals() async {
+    final meals = _ref.read(mealRecordsProvider.notifier);
+    await meals.flushPendingSync();
+    final remoteMeals = await _service.fetchMealRecords();
+    final result = await meals.mergeWithRemote(remoteMeals);
+    for (final meal in result.toUpload) {
+      await meals.syncRecord(meal);
     }
   }
 

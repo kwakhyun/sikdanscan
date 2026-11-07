@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 import '../../../data/models/user_profile.dart';
 import '../../../data/models/weight_record.dart';
@@ -92,7 +92,9 @@ class WeightRecordsNotifier extends StateNotifier<List<WeightRecord>> {
   }
 
   Future<void> addRecord(WeightRecord record) async {
-    await _commit([...state, record]);
+    final next = [...state.where((r) => r.id != record.id), record]
+      ..sort((a, b) => a.date.compareTo(b.date));
+    await _commit(next);
   }
 
   Future<void> removeRecord(String id) async {
@@ -114,18 +116,60 @@ class WeightRecordsNotifier extends StateNotifier<List<WeightRecord>> {
   }
 }
 
-final notificationsEnabledProvider =
-    StateNotifierProvider<SettingsBoolNotifier, bool>((ref) {
+/// Light / dark / follow-the-system appearance.
+enum ThemePreference {
+  system('system'),
+  light('light'),
+  dark('dark');
+
+  const ThemePreference(this.storageValue);
+
+  final String storageValue;
+
+  ThemeMode get themeMode => switch (this) {
+    ThemePreference.system => ThemeMode.system,
+    ThemePreference.light => ThemeMode.light,
+    ThemePreference.dark => ThemeMode.dark,
+  };
+}
+
+final themePreferenceProvider =
+    StateNotifierProvider<ThemePreferenceNotifier, ThemePreference>((ref) {
       final storage = ref.read(localStorageServiceProvider);
-      return SettingsBoolNotifier(storage, 'notifications_enabled', true);
+      return ThemePreferenceNotifier(storage);
     });
 
-final darkModeProvider = StateNotifierProvider<SettingsBoolNotifier, bool>((
-  ref,
-) {
-  final storage = ref.read(localStorageServiceProvider);
-  return SettingsBoolNotifier(storage, 'dark_mode', false);
-});
+class ThemePreferenceNotifier extends StateNotifier<ThemePreference> {
+  ThemePreferenceNotifier(this._storage) : super(_load(_storage));
+
+  static const storageKey = 'theme_preference';
+  static const legacyDarkModeKey = 'dark_mode';
+
+  final LocalStorageService _storage;
+
+  static ThemePreference _load(LocalStorageService storage) {
+    final stored = storage.getSetting<String>(storageKey);
+    for (final preference in ThemePreference.values) {
+      if (preference.storageValue == stored) return preference;
+    }
+    // Earlier versions stored an explicit on/off switch.
+    final legacy = storage.getSetting<bool>(legacyDarkModeKey);
+    if (legacy == true) return ThemePreference.dark;
+    if (legacy == false) return ThemePreference.light;
+    return ThemePreference.system;
+  }
+
+  Future<void> setPreference(ThemePreference preference) async {
+    final previousState = state;
+    state = preference;
+    try {
+      await _storage.saveSetting(storageKey, preference.storageValue);
+    } catch (_) {
+      state = previousState;
+      rethrow;
+    }
+  }
+}
 
 final languageProvider =
     StateNotifierProvider<LanguageNotifier, AppLocalePreference>((ref) {
@@ -150,13 +194,37 @@ enum AppLocalePreference {
     };
   }
 
+  /// Language actually shown in the UI. For [system] this follows the same
+  /// resolution as `MaterialApp`: the first preferred device language the app
+  /// supports, otherwise English.
   String get languageCode {
     return switch (this) {
-      AppLocalePreference.system =>
-        WidgetsBinding.instance.platformDispatcher.locale.languageCode,
+      AppLocalePreference.system => resolveSupportedLanguageCode(
+        _platformLocales(),
+      ),
       AppLocalePreference.korean => 'ko',
       AppLocalePreference.english => 'en',
     };
+  }
+
+  static const supportedLanguageCodes = ['ko', 'en'];
+  static const fallbackLanguageCode = 'en';
+
+  static String resolveSupportedLanguageCode(Iterable<Locale> preferred) {
+    for (final locale in preferred) {
+      if (supportedLanguageCodes.contains(locale.languageCode)) {
+        return locale.languageCode;
+      }
+    }
+    return fallbackLanguageCode;
+  }
+
+  static List<Locale> _platformLocales() {
+    try {
+      return WidgetsBinding.instance.platformDispatcher.locales;
+    } catch (_) {
+      return const [];
+    }
   }
 
   static AppLocalePreference fromStorage(String? value) {
@@ -216,3 +284,17 @@ class SettingsBoolNotifier extends StateNotifier<bool> {
     }
   }
 }
+
+/// Language code the UI is rendered in (`ko` or `en`). Providers that build
+/// user-facing text or call the AI server use this so content never mixes
+/// languages with the UI.
+final resolvedLanguageCodeProvider = Provider<String>((ref) {
+  return ref.watch(languageProvider).languageCode;
+});
+
+/// Latest logged body weight, falling back to the profile value.
+final currentWeightProvider = Provider<double>((ref) {
+  final records = ref.watch(weightRecordsProvider);
+  if (records.isNotEmpty) return records.last.weight;
+  return ref.watch(userProfileProvider).currentWeight;
+});

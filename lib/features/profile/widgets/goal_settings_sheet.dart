@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../data/models/user_profile.dart';
 import '../../../l10n/app_localizations_context.dart';
 import '../../../providers/app_providers.dart';
@@ -17,7 +18,6 @@ class _GoalSettingsSheetState extends ConsumerState<GoalSettingsSheet> {
   late TextEditingController _targetWeightController;
   late TextEditingController _calorieGoalController;
   late TextEditingController _waterGoalController;
-  late TextEditingController _stepGoalController;
   late WellnessGoal _wellnessGoal;
   late ActivityLevel _activityLevel;
   DateTime? _targetDate;
@@ -35,9 +35,6 @@ class _GoalSettingsSheetState extends ConsumerState<GoalSettingsSheet> {
     _waterGoalController = TextEditingController(
       text: profile.dailyWaterGoalMl.toString(),
     );
-    _stepGoalController = TextEditingController(
-      text: profile.dailyStepGoal.toString(),
-    );
     _wellnessGoal = profile.wellnessGoal;
     _activityLevel = profile.activityLevel;
     _targetDate = profile.targetDate;
@@ -48,7 +45,6 @@ class _GoalSettingsSheetState extends ConsumerState<GoalSettingsSheet> {
     _targetWeightController.dispose();
     _calorieGoalController.dispose();
     _waterGoalController.dispose();
-    _stepGoalController.dispose();
     super.dispose();
   }
 
@@ -135,7 +131,7 @@ class _GoalSettingsSheetState extends ConsumerState<GoalSettingsSheet> {
               const TextInputType.numberWithOptions(decimal: true),
               suffix: 'kg',
               icon: Icons.flag_outlined,
-              color: AppColors.primary,
+              color: AppColors.primaryStrong,
             ),
             const SizedBox(height: 16),
             _buildField(
@@ -144,35 +140,18 @@ class _GoalSettingsSheetState extends ConsumerState<GoalSettingsSheet> {
               TextInputType.number,
               suffix: 'kcal',
               icon: Icons.local_fire_department_rounded,
-              color: AppColors.secondary,
+              color: AppColors.secondaryStrong,
             ),
             const SizedBox(height: 10),
             _buildCalorieRecommendation(profile),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildField(
-                    context.l10n.goalWaterTarget,
-                    _waterGoalController,
-                    TextInputType.number,
-                    suffix: 'ml',
-                    icon: Icons.water_drop_rounded,
-                    color: AppColors.info,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildField(
-                    context.l10n.goalStepTarget,
-                    _stepGoalController,
-                    TextInputType.number,
-                    suffix: context.l10n.goalStepSuffix,
-                    icon: Icons.directions_walk_rounded,
-                    color: AppColors.accent,
-                  ),
-                ),
-              ],
+            _buildField(
+              context.l10n.goalWaterTarget,
+              _waterGoalController,
+              TextInputType.number,
+              suffix: 'ml',
+              icon: Icons.water_drop_rounded,
+              color: AppColors.infoText,
             ),
             const SizedBox(height: 16),
             _buildDatePicker(),
@@ -181,13 +160,6 @@ class _GoalSettingsSheetState extends ConsumerState<GoalSettingsSheet> {
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
                 onPressed: _save,
                 child: Text(
                   context.l10n.goalSettingsDone,
@@ -213,7 +185,7 @@ class _GoalSettingsSheetState extends ConsumerState<GoalSettingsSheet> {
             const Icon(
               Icons.directions_run_rounded,
               size: 16,
-              color: AppColors.primary,
+              color: AppColors.primaryStrong,
             ),
             const SizedBox(width: 6),
             Text(
@@ -269,19 +241,19 @@ class _GoalSettingsSheetState extends ConsumerState<GoalSettingsSheet> {
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.calculate_rounded,
                 size: 17,
-                color: AppColors.secondary,
+                color: context.colorSecondaryText,
               ),
               const SizedBox(width: 7),
               Expanded(
                 child: Text(
-                  '${context.l10n.goalRecommendation} $recommendation kcal',
-                  style: const TextStyle(
+                  '${context.l10n.goalRecommendation} ${AppFormat.kcal(recommendation, context.localeTag)}',
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.secondary,
+                    color: context.colorSecondaryText,
                   ),
                 ),
               ),
@@ -315,7 +287,7 @@ class _GoalSettingsSheetState extends ConsumerState<GoalSettingsSheet> {
             const Icon(
               Icons.auto_awesome_rounded,
               size: 16,
-              color: AppColors.primary,
+              color: AppColors.primaryStrong,
             ),
             const SizedBox(width: 6),
             Text(
@@ -345,7 +317,7 @@ class _GoalSettingsSheetState extends ConsumerState<GoalSettingsSheet> {
         const SizedBox(height: 8),
         Text(
           _wellnessGoal.descriptionOf(context.l10n),
-          style: TextStyle(fontSize: 12, color: context.colorTextTertiary),
+          style: TextStyle(fontSize: 12, color: context.colorTextSecondary),
         ),
       ],
     );
@@ -382,11 +354,6 @@ class _GoalSettingsSheetState extends ConsumerState<GoalSettingsSheet> {
           keyboardType: keyboardType,
           decoration: InputDecoration(
             suffixText: suffix,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: color, width: 2),
-            ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 14,
@@ -403,10 +370,10 @@ class _GoalSettingsSheetState extends ConsumerState<GoalSettingsSheet> {
       children: [
         Row(
           children: [
-            const Icon(
+            Icon(
               Icons.calendar_today_rounded,
               size: 16,
-              color: AppColors.accent,
+              color: context.colorAccentText,
             ),
             const SizedBox(width: 6),
             Text(
@@ -420,8 +387,9 @@ class _GoalSettingsSheetState extends ConsumerState<GoalSettingsSheet> {
           ],
         ),
         const SizedBox(height: 8),
-        GestureDetector(
+        InkWell(
           onTap: _pickDate,
+          borderRadius: BorderRadius.circular(12),
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -456,10 +424,10 @@ class _GoalSettingsSheetState extends ConsumerState<GoalSettingsSheet> {
           const SizedBox(height: 4),
           Text(
             'D-${_targetDate!.difference(DateTime.now()).inDays}',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: AppColors.accent,
+              color: context.colorAccentText,
             ),
           ),
         ],
@@ -468,11 +436,7 @@ class _GoalSettingsSheetState extends ConsumerState<GoalSettingsSheet> {
   }
 
   String _formatDate(DateTime date) {
-    final isEnglish = Localizations.localeOf(context).languageCode == 'en';
-    if (isEnglish) {
-      return '${date.month}/${date.day}/${date.year}';
-    }
-    return '${date.year}년 ${date.month}월 ${date.day}일';
+    return AppFormat.yearMonthDay(date, context.localeTag);
   }
 
   String _calorieGoalBasisSummary(UserProfile profile) {
@@ -486,16 +450,6 @@ class _GoalSettingsSheetState extends ConsumerState<GoalSettingsSheet> {
       initialDate: _targetDate ?? now.add(const Duration(days: 30)),
       firstDate: now,
       lastDate: now.add(const Duration(days: 365)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(
-              context,
-            ).colorScheme.copyWith(primary: AppColors.primary),
-          ),
-          child: child!,
-        );
-      },
     );
     if (picked != null) {
       setState(() => _targetDate = picked);
@@ -506,12 +460,16 @@ class _GoalSettingsSheetState extends ConsumerState<GoalSettingsSheet> {
     final targetWeight = double.tryParse(_targetWeightController.text);
     final calorieGoal = int.tryParse(_calorieGoalController.text);
     final waterGoal = int.tryParse(_waterGoalController.text);
-    final stepGoal = int.tryParse(_stepGoalController.text);
 
     if (targetWeight == null ||
+        targetWeight < 30 ||
+        targetWeight > 250 ||
         calorieGoal == null ||
+        calorieGoal < 800 ||
+        calorieGoal > 6000 ||
         waterGoal == null ||
-        stepGoal == null) {
+        waterGoal < 0 ||
+        waterGoal > 8000) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(context.l10n.profileValidationError)),
       );
@@ -527,7 +485,6 @@ class _GoalSettingsSheetState extends ConsumerState<GoalSettingsSheet> {
             dailyCalorieGoal: calorieGoal,
             activityLevel: _activityLevel,
             dailyWaterGoalMl: waterGoal,
-            dailyStepGoal: stepGoal,
             wellnessGoal: _wellnessGoal,
             targetDate: _targetDate,
           ),
@@ -562,7 +519,7 @@ class _WellnessGoalChip extends StatelessWidget {
       avatar: AppSvgIcon(
         goal.iconAsset,
         size: 16,
-        color: selected ? Colors.white : AppColors.primary,
+        color: selected ? Colors.white : AppColors.primaryStrong,
       ),
       label: Text(goal.labelOf(context.l10n)),
       labelStyle: TextStyle(
@@ -570,10 +527,10 @@ class _WellnessGoalChip extends StatelessWidget {
         fontWeight: FontWeight.w700,
         color: selected ? Colors.white : context.colorTextSecondary,
       ),
-      selectedColor: AppColors.primary,
+      selectedColor: AppColors.primaryStrong,
       backgroundColor: context.colorSurfaceVariant,
       side: BorderSide(
-        color: selected ? AppColors.primary : context.colorBorder,
+        color: selected ? AppColors.primaryStrong : context.colorBorder,
       ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
       showCheckmark: false,
@@ -603,14 +560,16 @@ class _ActivityLevelTile extends StatelessWidget {
           color: selected ? context.colorPrimarySurface : context.colorSurface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: selected ? AppColors.primary : context.colorBorder,
+            color: selected ? AppColors.primaryStrong : context.colorBorder,
           ),
         ),
         child: Row(
           children: [
             Icon(
               selected ? Icons.check_circle_rounded : Icons.circle_outlined,
-              color: selected ? AppColors.primary : context.colorTextTertiary,
+              color: selected
+                  ? AppColors.primaryStrong
+                  : context.colorTextTertiary,
               size: 20,
             ),
             const SizedBox(width: 10),

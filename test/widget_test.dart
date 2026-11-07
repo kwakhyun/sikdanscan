@@ -4,8 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:sikdanscan/data/models/meal_record.dart';
+import 'package:sikdanscan/data/services/food_api_service.dart';
+import 'package:sikdanscan/features/chat/chat_screen.dart';
+import 'package:sikdanscan/features/meal/meal_review_screen.dart';
 import 'package:sikdanscan/data/models/user_profile.dart';
 import 'package:sikdanscan/data/services/local_storage_service.dart';
+import 'package:sikdanscan/data/services/proxy_client_config.dart';
 import 'package:sikdanscan/features/meal/meal_screen.dart';
 import 'package:sikdanscan/features/meal/widgets/meal_record_sheet.dart';
 import 'package:sikdanscan/features/chat/widgets/suggestion_chips.dart';
@@ -17,7 +21,7 @@ import 'package:sikdanscan/providers/app_providers.dart';
 import 'package:sikdanscan/shared/widgets/main_scaffold.dart';
 
 void main() {
-  testWidgets('First launch shows quick onboarding before dashboard', (
+  testWidgets('First launch shows onboarding without unusable social login', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
@@ -28,12 +32,89 @@ void main() {
     await tester.pump();
 
     expect(find.text('식단스캔 시작하기'), findsOneWidget);
+    expect(find.text('시작하기'), findsOneWidget);
+    // Supabase is not configured in tests, so social buttons are hidden.
+    expect(find.text('Kakao'), findsNothing);
+    expect(find.text('Google'), findsNothing);
+  });
+
+  testWidgets('Onboarding offers social login when cloud sync is configured', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [supabaseConfiguredProvider.overrideWithValue(true)],
+        child: const _LocalizedMaterialApp(home: OnboardingScreen()),
+      ),
+    );
+    await tester.pump();
+
     expect(find.text('간편 가입하고 시작'), findsOneWidget);
     expect(find.text('Kakao'), findsOneWidget);
     expect(find.text('Google'), findsOneWidget);
     expect(find.text('Apple'), findsOneWidget);
-    expect(find.text('음식 촬영하기'), findsNothing);
   });
+
+  testWidgets('Onboarding shows validation errors inline on the fields', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: _LocalizedMaterialApp(home: OnboardingScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('시작하기'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('다음'));
+    await tester.pumpAndSettle();
+
+    final fields = find.byType(TextField);
+    await tester.enterText(fields.at(1), '5');
+    await tester.enterText(fields.at(2), '170');
+    await tester.enterText(fields.at(3), '60');
+    await tester.tap(find.text('다음'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('나이를 10~100 사이로 입력해주세요.'), findsOneWidget);
+    expect(find.text('이 기준으로 시작합니다'), findsNothing);
+  });
+
+  testWidgets(
+    'Typing a partial weight with the weight-loss goal does not crash',
+    (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: _LocalizedMaterialApp(home: OnboardingScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('시작하기'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('체중 감량'));
+      await tester.pump();
+      await tester.tap(find.text('다음'));
+      await tester.pumpAndSettle();
+
+      final fields = find.byType(TextField);
+      await tester.enterText(fields.at(1), '31');
+      await tester.enterText(fields.at(2), '164');
+      // Digit-by-digit entry passes through "6" before "63".
+      await tester.enterText(fields.at(3), '6');
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      await tester.enterText(fields.at(3), '63');
+      await tester.tap(find.text('다음'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('목표 체중'), findsOneWidget);
+    },
+  );
 
   testWidgets('Onboarding review step remains scrollable on compact screens', (
     WidgetTester tester,
@@ -48,7 +129,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('간편 가입하고 시작'));
+    await tester.tap(find.text('시작하기'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('다음'));
@@ -66,6 +147,7 @@ void main() {
 
     expect(find.text('이 기준으로 시작합니다'), findsOneWidget);
     expect(find.text('일일 목표 칼로리'), findsOneWidget);
+    expect(find.byTooltip('목표 칼로리 50 kcal 높이기'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -74,8 +156,9 @@ void main() {
   ) async {
     await _pumpDashboardApp(tester);
 
-    expect(find.text('촬영'), findsOneWidget);
+    expect(find.text('식사 기록'), findsOneWidget);
     expect(find.text('오늘 섭취 현황'), findsOneWidget);
+    expect(find.text('수분'), findsOneWidget);
     expect(find.textContaining('안녕하세요'), findsNothing);
   });
 
@@ -101,14 +184,31 @@ void main() {
     expect(find.text('Profile'), findsOneWidget);
   });
 
-  testWidgets('Dashboard prioritizes camera capture over calorie chart', (
+  testWidgets('Log meal sheet keeps search available without the AI server', (
     WidgetTester tester,
   ) async {
     await _pumpDashboardApp(tester);
 
-    expect(find.text('촬영'), findsOneWidget);
     expect(find.byType(FloatingActionButton), findsOneWidget);
-    expect(find.text('오늘의 칼로리'), findsNothing);
+    await tester.tap(find.text('식사 기록'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('식사 기록하기'), findsOneWidget);
+    expect(find.text('검색 · 직접 입력'), findsOneWidget);
+    expect(find.text('사진 인식은 AI 서버 연결 후 사용할 수 있어요'), findsNWidgets(2));
+
+    await tester.tap(find.text('검색 · 직접 입력'));
+    await tester.pumpAndSettle();
+    expect(find.text('식단 추가'), findsOneWidget);
+  });
+
+  testWidgets('Water card adds a glass', (WidgetTester tester) async {
+    await _pumpDashboardApp(tester);
+
+    expect(find.text('0 / 2,000 ml'), findsOneWidget);
+    await tester.tap(find.byTooltip('물 한 잔(250ml) 추가'));
+    await tester.pump();
+    expect(find.text('250 / 2,000 ml'), findsOneWidget);
   });
 
   testWidgets('SuggestionChips displays all suggestions', (
@@ -127,7 +227,7 @@ void main() {
     expect(find.text('건강한 간식 추천'), findsOneWidget);
   });
 
-  testWidgets('Meal record sheet updates meal type and portion', (
+  testWidgets('Meal record sheet edits name, meal type and portion', (
     WidgetTester tester,
   ) async {
     final meal = _sheetTestMeal();
@@ -137,6 +237,7 @@ void main() {
 
     expect(find.text('김치찌개'), findsOneWidget);
 
+    await tester.enterText(find.widgetWithText(TextField, '김치찌개'), '된장찌개');
     await tester.tap(find.text('저녁'));
     await tester.pump();
     await tester.tap(find.text('0.5×'));
@@ -148,16 +249,38 @@ void main() {
     await tester.pumpAndSettle();
 
     final updated = notifier.state.single;
+    expect(updated.name, '된장찌개');
     expect(updated.mealType, MealType.dinner);
     expect(updated.calories, 300);
     expect(updated.carbs, 20);
     expect(updated.protein, 15);
     expect(updated.fat, 10);
+    expect(updated.portion, 0.5);
   });
 
-  testWidgets('Meal record sheet deletes a record after confirmation', (
+  testWidgets('Portion edits do not compound across saves', (
     WidgetTester tester,
   ) async {
+    final meal = _sheetTestMeal().copyWith(
+      portion: 0.5,
+      calories: 300,
+      carbs: 20,
+      protein: 15,
+      fat: 10,
+    );
+    final notifier = MealRecordsNotifier(_InMemoryMealStorage([meal.toJson()]));
+
+    await _pumpMealSheetHost(tester, notifier: notifier, meal: meal);
+    await tester.tap(find.text('2×'));
+    await tester.pump();
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+
+    expect(notifier.state.single.calories, 1200);
+    expect(notifier.state.single.portion, 2.0);
+  });
+
+  testWidgets('Deleting a record can be undone', (WidgetTester tester) async {
     final meal = _sheetTestMeal();
     final notifier = MealRecordsNotifier(_InMemoryMealStorage([meal.toJson()]));
 
@@ -166,12 +289,76 @@ void main() {
     await tester.tap(find.byIcon(Icons.delete_outline_rounded));
     await tester.pumpAndSettle();
 
-    expect(find.text('기록 삭제'), findsOneWidget);
+    expect(notifier.state, isEmpty);
+    expect(find.text('기록을 삭제했습니다'), findsOneWidget);
 
-    await tester.tap(find.text('삭제'));
+    await tester.tap(find.text('되돌리기'));
     await tester.pumpAndSettle();
 
+    expect(notifier.state.single.id, meal.id);
+  });
+
+  testWidgets('Review screen saves only after confirmation', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(420, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final notifier = MealRecordsNotifier(_InMemoryMealStorage([]));
+    final container = ProviderContainer(
+      overrides: [mealRecordsProvider.overrideWith((ref) => notifier)],
+    );
+    addTearDown(container.dispose);
+    container
+        .read(mealCaptureProvider.notifier)
+        .startManual(
+          foods: [
+            FoodItem(
+              name: '비빔밥',
+              calories: 650,
+              carbs: 90,
+              protein: 20,
+              fat: 18,
+            ),
+          ],
+        );
+
+    final router = GoRouter(
+      initialLocation: '/meal-review',
+      routes: [
+        GoRoute(
+          path: '/dashboard',
+          builder: (context, state) => const _RouteStub(label: '데일리 화면'),
+        ),
+        GoRoute(
+          path: '/meal-review',
+          builder: (context, state) => const MealReviewScreen(),
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(
+          locale: const Locale('ko'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          routerConfig: router,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('기록 확인'), findsOneWidget);
     expect(notifier.state, isEmpty);
+
+    await tester.tap(find.text('1.5×'));
+    await tester.pump();
+    await tester.tap(find.textContaining('1개 저장'));
+    await tester.pumpAndSettle();
+
+    expect(notifier.state.single.name, '비빔밥');
+    expect(notifier.state.single.calories, 975);
+    expect(find.text('데일리 화면'), findsOneWidget);
   });
 
   testWidgets('Weekly report shows meal type breakdown with shares', (
@@ -222,6 +409,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('식사 유형별 비중'), findsNothing);
+    expect(find.text('끼니별 섭취'), findsOneWidget);
 
     await tester.tap(find.text('주간'));
     await tester.pumpAndSettle();
@@ -238,26 +426,21 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          notificationsEnabledProvider.overrideWith(
-            (ref) => SettingsBoolNotifier(
-              _SettingsStorage(),
-              'notifications_enabled',
-              true,
-            ),
-          ),
-          darkModeProvider.overrideWith(
-            (ref) =>
-                SettingsBoolNotifier(_SettingsStorage(), 'dark_mode', false),
+          themePreferenceProvider.overrideWith(
+            (ref) => ThemePreferenceNotifier(_SettingsStorage()),
           ),
           languageProvider.overrideWith(
             (ref) => LanguageNotifier(_SettingsStorage(language: 'en')),
           ),
         ],
         child: const _LocalizedMaterialApp(
-          home: Scaffold(body: SettingsSection()),
+          home: Scaffold(body: SingleChildScrollView(child: SettingsSection())),
         ),
       ),
     );
+
+    expect(find.text('알림 설정'), findsNothing);
+    expect(find.text('화면 테마'), findsOneWidget);
 
     await tester.tap(find.text('언어'));
     await tester.pumpAndSettle();
@@ -265,33 +448,54 @@ void main() {
     expect(find.text('시스템 언어'), findsOneWidget);
     expect(find.text('한국어'), findsOneWidget);
     expect(find.text('English'), findsWidgets);
-    expect(find.byIcon(Icons.radio_button_checked), findsOneWidget);
+    expect(find.byType(RadioListTile<AppLocalePreference>), findsNWidgets(3));
+  });
+
+  testWidgets('AI coach shows offline mode and hides chips after asking', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          proxyClientConfigProvider.overrideWithValue(ProxyClientConfig()),
+        ],
+        child: const _LocalizedMaterialApp(home: ChatScreen()),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('오프라인 모드'), findsOneWidget);
+    expect(find.text('운동 추천해줘'), findsOneWidget);
+
+    await tester.tap(find.text('운동 추천해줘'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('오프라인 기본 답변'), findsOneWidget);
+    expect(find.text('수분 섭취 팁'), findsNothing);
   });
 }
 
 Future<void> _pumpDashboardApp(WidgetTester tester, {Locale? locale}) async {
+  await tester.binding.setSurfaceSize(const Size(420, 1600));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+
+  StatefulShellBranch branch(String path, Widget child) {
+    return StatefulShellBranch(
+      routes: [GoRoute(path: path, builder: (context, state) => child)],
+    );
+  }
+
   final router = GoRouter(
     initialLocation: '/dashboard',
     routes: [
-      ShellRoute(
-        builder: (context, state, child) => MainScaffold(child: child),
-        routes: [
-          GoRoute(
-            path: '/dashboard',
-            builder: (context, state) => const DashboardScreen(),
-          ),
-          GoRoute(
-            path: '/meals',
-            builder: (context, state) => const _RouteStub(label: '리포트 화면'),
-          ),
-          GoRoute(
-            path: '/chat',
-            builder: (context, state) => const _RouteStub(label: 'AI 코치 화면'),
-          ),
-          GoRoute(
-            path: '/profile',
-            builder: (context, state) => const _RouteStub(label: '프로필 화면'),
-          ),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, shell) =>
+            MainScaffold(navigationShell: shell),
+        branches: [
+          branch('/dashboard', const DashboardScreen()),
+          branch('/meals', const _RouteStub(label: '리포트 화면')),
+          branch('/chat', const _RouteStub(label: 'AI 코치 화면')),
+          branch('/profile', const _RouteStub(label: '프로필 화면')),
         ],
       ),
       GoRoute(
@@ -316,6 +520,10 @@ Future<void> _pumpDashboardApp(WidgetTester tester, {Locale? locale}) async {
         ),
         languageProvider.overrideWith(
           (ref) => LanguageNotifier(_LanguageStorage(locale)),
+        ),
+        proxyClientConfigProvider.overrideWithValue(ProxyClientConfig()),
+        dailyHealthProvider.overrideWith(
+          (ref) => DailyHealthNotifier(_HealthStorage()),
         ),
       ],
       child: MaterialApp.router(
@@ -450,6 +658,14 @@ class _MealStorage extends LocalStorageService {
   Future<void> saveMealRecords(List<Map<String, dynamic>> records) async {}
 }
 
+class _HealthStorage extends LocalStorageService {
+  @override
+  Map<String, dynamic>? getDailyHealthFor(DateTime date) => null;
+
+  @override
+  Future<void> saveDailyHealth(Map<String, dynamic> health) async {}
+}
+
 class _LanguageStorage extends LocalStorageService {
   _LanguageStorage(this.locale);
 
@@ -474,8 +690,6 @@ class _SettingsStorage extends LocalStorageService {
   @override
   T? getSetting<T>(String key) {
     if (key == 'app_locale_preference') return language as T?;
-    if (key == 'notifications_enabled') return true as T;
-    if (key == 'dark_mode') return false as T;
     return null;
   }
 

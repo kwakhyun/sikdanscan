@@ -20,6 +20,11 @@ _MealRecord _$MealRecordFromJson(Map<String, dynamic> json) => _MealRecord(
   isAiRecognized: json['isAiRecognized'] as bool? ?? false,
   recognitionConfidence: (json['recognitionConfidence'] as num?)?.toDouble(),
   memo: json['memo'] as String?,
+  portion: (json['portion'] as num?)?.toDouble() ?? 1.0,
+  updatedAt: json['updatedAt'] == null
+      ? null
+      : DateTime.parse(json['updatedAt'] as String),
+  imageStoragePath: json['imageStoragePath'] as String?,
 );
 
 Map<String, dynamic> _$MealRecordToJson(_MealRecord instance) =>
@@ -37,6 +42,9 @@ Map<String, dynamic> _$MealRecordToJson(_MealRecord instance) =>
       'isAiRecognized': instance.isAiRecognized,
       'recognitionConfidence': instance.recognitionConfidence,
       'memo': instance.memo,
+      'portion': instance.portion,
+      'updatedAt': instance.updatedAt?.toIso8601String(),
+      'imageStoragePath': instance.imageStoragePath,
     };
 
 const _$MealTypeEnumMap = {

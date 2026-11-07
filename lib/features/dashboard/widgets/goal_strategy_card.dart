@@ -1,47 +1,50 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../l10n/app_localizations_context.dart';
+import '../../../providers/app_providers.dart';
+import '../../../shared/widgets/app_card.dart';
 import '../../../shared/widgets/app_svg_icon.dart';
-import '../../meal/providers/meal_providers.dart';
-import '../providers/meal_strategy_providers.dart';
+import '../../../shared/widgets/sheet_handle.dart';
 
+/// Today's rule-based goal strategy. Tap for the score breakdown, all tips
+/// and a shortcut to ask the AI coach.
 class GoalStrategyCard extends ConsumerWidget {
   const GoalStrategyCard({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final strategy = ref.watch(mealStrategyProvider);
-    final meals = ref.watch(selectedDateMealsProvider);
-    final accent = _colorFor(strategy.alertLevel);
-    final isEnglish = Localizations.localeOf(context).languageCode == 'en';
-    final strategyMeta = isEnglish
-        ? 'AI Strategy · ${meals.length} records reflected'
-        : 'AI 전략 · ${meals.length}개 기록 반영';
+    final meals = ref.watch(todayMealsProvider);
+    final l10n = context.l10n;
+    final colors = StrategyColors.of(context, strategy.alertLevel);
+    final hasScore = strategy.alertLevel != StrategyAlertLevel.empty;
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: context.colorSurface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: accent.withValues(alpha: 0.20)),
-      ),
+    return AppCard(
+      padding: const EdgeInsets.all(16),
+      borderColor: colors.fill.withValues(alpha: 0.35),
+      semanticLabel: l10n.strategyOpenDetail,
+      onTap: () => showStrategyDetailSheet(context, ref),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.12),
+                  color: colors.fill.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Center(
                   child: AppSvgIcon(
                     strategy.goal.iconAsset,
-                    color: accent,
+                    color: colors.text,
                     size: 20,
                   ),
                 ),
@@ -52,115 +55,320 @@ class GoalStrategyCard extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      strategyMeta,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
+                      l10n.strategyMetaLabel(meals.length),
+                      style: AppTextStyles.micro.copyWith(
                         color: context.colorTextSecondary,
                       ),
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      strategy.title,
-                      maxLines: 1,
+                      strategy.title(l10n),
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 15,
-                        height: 1.2,
-                        fontWeight: FontWeight.w900,
+                      style: AppTextStyles.section.copyWith(
                         color: context.colorTextPrimary,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ],
                 ),
               ),
-              if (strategy.alertLevel != StrategyAlertLevel.empty)
-                _ScoreBadge(score: strategy.score, color: accent),
+              if (hasScore) ...[
+                const SizedBox(width: 8),
+                ScoreBadge(score: strategy.score, colors: colors),
+              ],
             ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            strategy.summary(l10n),
+            style: AppTextStyles.caption.copyWith(
+              color: context.colorTextSecondary,
+            ),
           ),
           const SizedBox(height: 10),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
             decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.08),
+              color: colors.fill.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.auto_awesome_rounded, size: 16, color: accent),
+                Icon(
+                  Icons.restaurant_menu_rounded,
+                  size: 16,
+                  color: colors.text,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    strategy.primaryAction,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      height: 1.35,
-                      fontWeight: FontWeight.w800,
+                    strategy.primaryAction(l10n),
+                    style: AppTextStyles.label.copyWith(
                       color: context.colorTextPrimary,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          if (strategy.actions.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              strategy.actions.first,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11,
-                height: 1.3,
-                fontWeight: FontWeight.w700,
-                color: context.colorTextSecondary,
-              ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  l10n.strategyOpenDetail,
+                  style: AppTextStyles.micro.copyWith(
+                    color: context.colorPrimaryText,
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 16,
+                  color: context.colorPrimaryText,
+                ),
+              ],
             ),
-          ],
+          ),
         ],
       ),
     );
   }
+}
 
-  Color _colorFor(StrategyAlertLevel level) {
+class StrategyColors {
+  const StrategyColors({required this.fill, required this.text});
+
+  final Color fill;
+  final Color text;
+
+  static StrategyColors of(BuildContext context, StrategyAlertLevel level) {
     return switch (level) {
-      StrategyAlertLevel.empty => AppColors.primary,
-      StrategyAlertLevel.good => AppColors.success,
-      StrategyAlertLevel.watch => AppColors.warning,
-      StrategyAlertLevel.urgent => AppColors.error,
+      StrategyAlertLevel.empty => StrategyColors(
+        fill: AppColors.primary,
+        text: context.colorPrimaryText,
+      ),
+      StrategyAlertLevel.good => StrategyColors(
+        fill: AppColors.success,
+        text: context.colorSuccessText,
+      ),
+      StrategyAlertLevel.watch => StrategyColors(
+        fill: AppColors.warning,
+        text: context.colorWarningText,
+      ),
+      StrategyAlertLevel.urgent => StrategyColors(
+        fill: AppColors.error,
+        text: context.colorErrorText,
+      ),
     };
   }
 }
 
-class _ScoreBadge extends StatelessWidget {
-  const _ScoreBadge({required this.score, required this.color});
+class ScoreBadge extends StatelessWidget {
+  const ScoreBadge({super.key, required this.score, required this.colors});
 
   final int score;
-  final Color color;
+  final StrategyColors colors;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 42,
-      height: 42,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        shape: BoxShape.circle,
-      ),
-      child: Center(
-        child: Text(
-          '$score',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w900,
-            color: color,
+    return Semantics(
+      label: context.l10n.strategyScoreSemantics(score),
+      excludeSemantics: true,
+      child: Container(
+        width: 46,
+        height: 46,
+        decoration: BoxDecoration(
+          color: colors.fill.withValues(alpha: 0.14),
+          shape: BoxShape.circle,
+        ),
+        child: Center(
+          child: Text(
+            '$score',
+            style: AppTextStyles.metric.copyWith(color: colors.text),
           ),
         ),
       ),
+    );
+  }
+}
+
+Future<void> showStrategyDetailSheet(BuildContext context, WidgetRef ref) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useRootNavigator: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (sheetContext) => const _StrategyDetailSheet(),
+  );
+}
+
+class _StrategyDetailSheet extends ConsumerWidget {
+  const _StrategyDetailSheet();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final strategy = ref.watch(mealStrategyProvider);
+    final l10n = context.l10n;
+    final colors = StrategyColors.of(context, strategy.alertLevel);
+
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.72,
+      maxChildSize: 0.92,
+      minChildSize: 0.4,
+      builder: (context, scrollController) => ListView(
+        controller: scrollController,
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+        children: [
+          const SheetHandle(),
+          const SizedBox(height: 16),
+          Text(
+            l10n.strategyDetailTitle,
+            style: AppTextStyles.micro.copyWith(
+              color: context.colorTextSecondary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  strategy.title(l10n),
+                  style: AppTextStyles.title.copyWith(
+                    color: context.colorTextPrimary,
+                  ),
+                ),
+              ),
+              if (strategy.alertLevel != StrategyAlertLevel.empty)
+                ScoreBadge(score: strategy.score, colors: colors),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            strategy.summary(l10n),
+            style: AppTextStyles.body.copyWith(
+              color: context.colorTextSecondary,
+            ),
+          ),
+          const SizedBox(height: 18),
+          _Heading(label: l10n.strategyNextMeal),
+          const SizedBox(height: 6),
+          Text(
+            strategy.primaryAction(l10n),
+            style: AppTextStyles.bodyStrong.copyWith(
+              color: context.colorTextPrimary,
+            ),
+          ),
+          if (strategy.actions.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            _Heading(label: l10n.strategyTips),
+            const SizedBox(height: 6),
+            for (final action in strategy.actions)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.check_rounded,
+                      size: 18,
+                      color: context.colorPrimaryText,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        action(l10n),
+                        style: AppTextStyles.body.copyWith(
+                          color: context.colorTextPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+          if (strategy.factors.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            _Heading(label: l10n.strategyScoreTitle),
+            const SizedBox(height: 8),
+            for (final factor in strategy.factors)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 5),
+                child: Row(
+                  children: [
+                    Icon(
+                      factor.isMet
+                          ? Icons.check_circle_rounded
+                          : Icons.radio_button_unchecked_rounded,
+                      size: 18,
+                      color: factor.isMet
+                          ? context.colorSuccessText
+                          : context.colorWarningText,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        factor.label(l10n),
+                        style: AppTextStyles.label.copyWith(
+                          color: context.colorTextPrimary,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '${factor.earned} / ${factor.max}',
+                      style: AppTextStyles.label.copyWith(
+                        color: context.colorTextSecondary,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+          const SizedBox(height: 14),
+          Text(
+            l10n.strategyRuleBasedNote,
+            style: AppTextStyles.micro.copyWith(
+              color: context.colorTextTertiary,
+            ),
+          ),
+          const SizedBox(height: 18),
+          ElevatedButton.icon(
+            onPressed: () {
+              final prompt = l10n.strategyAskCoachPrompt;
+              final router = GoRouter.of(context);
+              final chat = ref.read(chatMessagesProvider.notifier);
+              Navigator.pop(context);
+              chat.send(prompt);
+              router.go(AppRoutes.chat);
+            },
+            icon: const Icon(Icons.smart_toy_rounded),
+            label: Text(l10n.strategyAskCoach),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Heading extends StatelessWidget {
+  const _Heading({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: AppTextStyles.label.copyWith(color: context.colorTextSecondary),
     );
   }
 }

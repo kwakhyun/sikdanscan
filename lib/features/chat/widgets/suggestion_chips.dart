@@ -43,39 +43,25 @@ class SuggestionChips extends StatelessWidget {
           children: suggestions.map((suggestion) {
             return Padding(
               padding: const EdgeInsets.only(right: 8),
-              child: GestureDetector(
-                onTap: () => onSuggestionTap(suggestion.label),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: context.colorPrimarySurface,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.2),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AppSvgIcon(
-                        suggestion.iconAsset,
-                        color: AppColors.primary,
-                        size: 15,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        suggestion.label,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ],
-                  ),
+              child: ActionChip(
+                onPressed: () => onSuggestionTap(suggestion.label),
+                avatar: AppSvgIcon(
+                  suggestion.iconAsset,
+                  color: context.colorPrimaryText,
+                  size: 15,
+                ),
+                label: Text(suggestion.label),
+                labelStyle: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: context.colorPrimaryText,
+                ),
+                backgroundColor: context.colorPrimarySurface,
+                side: BorderSide(
+                  color: context.colorPrimaryText.withValues(alpha: 0.25),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
                 ),
               ),
             );

@@ -199,6 +199,8 @@ class _FakeApiService implements ApiService {
     String path, {
     dynamic data,
     Map<String, dynamic>? headers,
+    CancelToken? cancelToken,
+    int? maxRetries,
   }) async {
     postCount += 1;
     lastPostBaseUrl = baseUrl;

@@ -1,17 +1,30 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:flutter/services.dart';
+
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../data/models/chat_message.dart';
+import '../../../l10n/app_localizations_context.dart';
 
 class ChatBubble extends StatelessWidget {
   final ChatMessage message;
   final bool showAvatar;
+  final VoidCallback? onRetry;
 
-  const ChatBubble({super.key, required this.message, this.showAvatar = false});
+  const ChatBubble({
+    super.key,
+    required this.message,
+    this.showAvatar = false,
+    this.onRetry,
+  });
 
   @override
   Widget build(BuildContext context) {
     final isUser = message.isUser;
+    final isError = message.type == ChatMessageType.error;
+    final l10n = context.l10n;
+    final content = isError ? l10n.chatTemporaryError : message.content;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -22,65 +35,129 @@ class ChatBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isUser && showAvatar) ...[
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.smart_toy_rounded,
-                color: Colors.white,
-                size: 18,
-              ),
-            ),
+            const CoachAvatar(),
             const SizedBox(width: 8),
           ] else if (!isUser) ...[
             const SizedBox(width: 40),
           ],
           Flexible(
-            child: Container(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.75,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: isUser ? AppColors.primary : context.colorSurface,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(20),
-                  topRight: const Radius.circular(20),
-                  bottomLeft: Radius.circular(isUser ? 20 : 4),
-                  bottomRight: Radius.circular(isUser ? 4 : 20),
+            child: GestureDetector(
+              onLongPress: isError ? null : () => _copy(context, content),
+              child: Container(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.sizeOf(context).width * 0.75,
                 ),
-                border: isUser ? null : Border.all(color: context.colorBorder),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: isUser
+                      ? AppColors.primaryStrong
+                      : isError
+                      ? AppColors.error.withValues(alpha: 0.08)
+                      : context.colorSurface,
+                  borderRadius: BorderRadius.only(
+                    topLeft: const Radius.circular(20),
+                    topRight: const Radius.circular(20),
+                    bottomLeft: Radius.circular(isUser ? 20 : 4),
+                    bottomRight: Radius.circular(isUser ? 4 : 20),
                   ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _ChatMessageText(content: message.content, isUser: isUser),
-                  const SizedBox(height: 4),
-                  Text(
-                    DateFormat('HH:mm').format(message.timestamp),
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: isUser
-                          ? Colors.white.withValues(alpha: 0.7)
-                          : context.colorTextTertiary,
+                  border: isUser
+                      ? null
+                      : Border.all(
+                          color: isError
+                              ? AppColors.error.withValues(alpha: 0.35)
+                              : context.colorBorder,
+                        ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _ChatMessageText(content: content, isUser: isUser),
+                    if (isError && onRetry != null) ...[
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: onRetry,
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
+                        label: Text(l10n.chatRetry),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (message.type == ChatMessageType.offline) ...[
+                          Icon(
+                            Icons.cloud_off_rounded,
+                            size: 12,
+                            color: context.colorTextSecondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            l10n.chatOfflineAnswer,
+                            style: AppTextStyles.micro.copyWith(
+                              color: context.colorTextSecondary,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        Text(
+                          AppFormat.time(message.timestamp),
+                          style: AppTextStyles.micro.copyWith(
+                            fontWeight: FontWeight.w500,
+                            color: isUser
+                                ? Colors.white.withValues(alpha: 0.85)
+                                : context.colorTextSecondary,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _copy(BuildContext context, String content) {
+    Clipboard.setData(ClipboardData(text: content));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(context.l10n.chatCopied),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+}
+
+class CoachAvatar extends StatelessWidget {
+  const CoachAvatar({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ExcludeSemantics(
+      child: Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          gradient: AppColors.primaryGradient,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Icon(
+          Icons.smart_toy_rounded,
+          color: Colors.white,
+          size: 18,
+        ),
       ),
     );
   }
@@ -140,9 +217,8 @@ List<TextSpan> _boldMarkdownSpans(String text) {
         ),
       );
     }
-
     cursor = end + 2;
   }
 
-  return spans.isEmpty ? [TextSpan(text: text)] : spans;
+  return spans;
 }

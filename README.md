@@ -17,9 +17,9 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-iOS%20%7C%20Android-2DD4A8?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Tests-168%20passed-brightgreen?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Dart%20Files-101-blue?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Dart%20Lines-24.2k-blue?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Tests-210%20passed-brightgreen?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Dart%20Files-115-blue?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Dart%20Lines-31.9k-blue?style=for-the-badge" />
 </p>
 
 ---
@@ -50,18 +50,19 @@
 
 ### 📅 데일리
 
-- 첫 화면에서 바로 음식 촬영 가능
-- 선택한 개선 목표에 맞는 오늘의 식사 전략 카드 제공
-- 오늘 섭취 kcal, 목표 대비 남은/초과 kcal, 탄수·단백질·지방 요약 표시
-- 촬영 이미지, AI 인식 음식명, 신뢰도, kcal, 탄수·단백질·지방을 한 화면에서 확인
-- 상단 인사/장식 요소와 복잡한 그래프를 제거한 심플한 홈 화면
+- `식사 기록` 버튼 하나로 **사진 촬영 / 앨범 / 검색·직접 입력** 중 선택 (AI 서버 없이도 검색·직접 입력으로 기록 가능)
+- 항상 *오늘* 기준으로 표시하고 자정·앱 복귀 시 날짜를 자동 갱신 (리포트에서 고른 날짜와 분리)
+- 선택한 개선 목표에 맞는 규칙 기반 **목표 전략 카드** — 탭하면 점수 기준, 실천 팁, AI 코치 질문 바로가기
+- 오늘 섭취 kcal, 목표 대비 남은/초과 kcal, 탄수·단백질·지방 g·비중 표시
+- 오늘 기록 전체 목록(사진 썸네일·AI 신뢰도 배지) — 탭하면 편집 시트
+- 수분 카드: 한 잔(250ml) 단위 기록, 프로필의 수분 목표 대비 진행률
 
 ### 📊 리포트 — 섭취 대시보드
 
 - 일일 / 주간 / 월간 단위 섭취량, 목표 달성률, 매크로 요약 제공
-- 일일은 시간대별 기록, 주간/월간은 일별 추이를 막대 그래프로 시각화
-- 선택 기간에 기록된 음식 목록 요약
-- 촬영 액션은 데일리 화면에 집중하고, 리포트는 분석/회고 화면으로 단순화
+- 기간 목표는 **지난 날짜만** 반영하고, 평균은 **기록한 날 기준**으로 계산 (미래·미기록 일이 수치를 낮추지 않음)
+- 일일은 끼니별 섭취 막대, 주간/월간은 목표선이 있는 일별 막대 그래프 — 막대를 누르면 해당 날짜로 이동
+- 기간 내 기록 전체를 날짜별로 그룹화해 표시 (긴 목록은 `모두 보기`), 지난 날짜에도 기록 추가 가능
 
 ### 📸 음식 기록 — 카메라 우선 자동 기록
 
@@ -71,29 +72,33 @@
 | 📦 **내장 DB**        | 80개 이상의 한국 음식 데이터, 즉시 응답   |
 | 🏛️ **공공데이터포털** | 식약처 식품영양성분DB정보 API 실시간 연동 |
 | 🤖 **AI 분석**        | OpenAI GPT-5.4-mini 자연어 기반 영양 분석  |
-| 📷 **바코드 검색**    | Open Food Facts API 연동                  |
+| 🕘 **최근 음식**      | 최근 기록한 음식을 1인분 기준으로 바로 재기록 |
+| ✍️ **직접 입력**      | 음식명·kcal·탄단지를 직접 입력 (오프라인 가능) |
 
-- 카메라 촬영 즉시 음식 후보를 인식하고 선택 목록에 자동 추가
-- 촬영 이미지는 앱 문서 디렉터리에 보관하고, 저장된 식단 기록과 연결
-- confidence/needsReview 기반으로 인식 결과 검토 필요 여부 표시
-- 영양소 자동 계산 및 선택 목록 기반 저장
+- 사진 인식·검색 결과는 바로 저장하지 않고 **기록 확인 화면**에서 음식명·kcal·탄단지·양(0.5~2×)·끼니·날짜/시간을 수정한 뒤 저장
+- 분석은 화면 밖 컨트롤러에서 진행되어 탭 이동으로 결과가 유실되지 않으며, 분석 중 취소/직접 입력 전환 가능 (이미지 인식 재시도는 최대 1회)
+- confidence/needsReview 기반으로 확인이 필요한 항목을 강조
+- 저장된 기록은 편집 시트에서 이름·영양소·양·끼니·시간 수정, `다시 기록`, 삭제 후 되돌리기 지원
+- 양 조절은 저장 시점의 1인분 기준으로 재계산되어 반복 수정해도 누적되지 않음
+- 촬영 이미지는 앱 문서 디렉터리에 **상대경로**로 보관 (iOS 컨테이너 경로 변경에도 유지), 로그인 시 Supabase Storage에 업로드
 
 ### 🤖 AI 코치 (챗봇)
 
-- OpenAI GPT 기반 실시간 식단 전략 코칭
-- 사용자 건강 데이터와 개선 목표 컨텍스트 자동 연동 (칼로리, 체중, 수분, 목표 방향 등)
-- 429/5xx 에러 시 자동 재시도 (Exponential Backoff, 최대 3회)
-- API 실패 시 로컬 폴백 응답 — 오프라인에서도 동작
-- 추천 질문 Suggestion Chips
+- OpenAI GPT 기반 **멀티턴** 코칭 — 최근 대화 10턴을 함께 전송, 서버에서 역할/길이 검증
+- 오늘 기록한 식사 목록, 칼로리·탄단지, 단백질·수분 목표를 컨텍스트로 전달
+- 대화 기록을 기기에 저장해 앱 재시작·언어 변경 후에도 유지
+- AI 서버 미연결 시 `오프라인 모드` 표시와 `오프라인 기본 답변` 라벨로 로컬 팁 제공, 서버 오류 시 다시 시도 버튼
+- 답변 길게 눌러 복사, 첫 질문 전에만 추천 질문 칩 표시
 
 ### 👤 프로필 & 설정
 
+- 체중 기록 — 최근 추이 그래프, 시작 대비 변화, 기록 내역/삭제(되돌리기), 체중 변화 시 권장 칼로리·수분 목표 갱신 제안
 - BMI 자동 계산 및 분류 (저체중/정상/과체중/비만)
 - 피부 개선, 체중 감량, 장 건강, 컨디션, 단백질 보강, 혈당 안정 등 개선 방향 설정
-- API 연결 상태 확인 대시보드
-- 언어 설정 — 시스템 언어 / 한국어 / English 지원
-- 데이터 내보내기 (JSON) / 전체 초기화
-- 다크 모드 / 알림 설정
+- AI 기능 상태 (사용자용 요약, 프록시 세부 정보는 디버그 빌드에서만)
+- 화면 테마 — 시스템 설정 따르기 / 라이트 / 다크, 언어 — 시스템 언어 / 한국어 / English
+- 계정 동기화: 로그인 시 기기 기록과 계정 기록을 id 기준 병합, 실패한 업로드는 재시도 큐에 보관
+- 앱 내 계정 삭제 (클라우드 데이터·사진 영구 삭제), 데이터 내보내기 (JSON), 기기 데이터 초기화
 
 ---
 
@@ -111,12 +116,12 @@
 | **AI / ML**          | OpenAI GPT-5.4-mini (서버 프록시 경유 챗봇 + 음식 텍스트/이미지 영양 분석) |
 | **외부 API**         | 식단스캔 API Proxy, 식약처 식품영양성분DB정보, Open Food Facts |
 | **환경 설정**        | flutter_dotenv (.env 기반 프록시 URL 관리)                |
-| **Charts**           | fl_chart (라인/링 차트)                                   |
-| **UI**               | Google Fonts, flutter_animate, flutter_svg, flutter_lucide |
+| **Charts**           | 커스텀 위젯/CustomPainter (목표선 막대, 체중 스파크라인)  |
+| **UI**               | 시스템 폰트(SF/Apple SD Gothic Neo, Roboto/Noto Sans CJK), flutter_svg, Material 3 NavigationBar |
 | **Icons**            | flutter_lucide                                            |
 | **Localization**     | Flutter gen-l10n — 한국어/영어, 시스템 언어/수동 선택 지원 |
 | **Code Generation**  | Freezed, json_serializable, build_runner                  |
-| **Testing**          | flutter_test — 168개 단위·위젯·서버 테스트                 |
+| **Testing**          | flutter_test — 210개 단위·위젯·서버 테스트                 |
 | **CI/CD**            | GitHub Actions — build_runner, format, analyze, test, Android release APK |
 | **Architecture**     | Feature-first + Service Layer + Typed Model Layer         |
 
@@ -137,8 +142,7 @@ lib/                                    # 앱 소스 70개 Dart 파일
 │   ├── router/
 │   │   └── app_router.dart             # GoRouter 라우팅 설정
 │   └── utils/
-│       ├── date_utils.dart             # 날짜 포맷 유틸리티
-│       └── number_utils.dart           # 숫자 포맷 유틸리티
+│       └── formatters.dart             # intl 기반 숫자/날짜 포맷 (ko/en)
 │
 ├── data/
 │   ├── models/                         # Freezed 도메인 모델 (6개)
@@ -190,7 +194,9 @@ lib/                                    # 앱 소스 70개 Dart 파일
 │   │   ├── meal_screen.dart            # 날짜별 섭취 리포트
 │   │   ├── add_meal_screen.dart        # 카메라/검색 기반 음식 기록
 │   │   └── widgets/
-│   │       └── nutrition_summary_bar.dart # 영양소 요약 바
+│   │       ├── meal_entry_sheet.dart  # 촬영/앨범/검색 기록 진입 시트
+│   │       ├── meal_record_sheet.dart # 저장된 기록 편집 시트
+│   │       └── photo_picker.dart      # 카메라/앨범 선택 + 권한 오류 처리
 │   ├── onboarding/                     # 최초 실행 맞춤 플로우
 │   │   └── onboarding_screen.dart
 │   ├── chat/                           # 🤖 AI 챗봇
@@ -222,7 +228,7 @@ lib/l10n/                               # Flutter gen-l10n 다국어 리소스
 ├── app_localizations_context.dart      # context.l10n / enum label helper
 └── generated/                          # AppLocalizations generated files
 
-test/                                   # 168개 테스트
+test/                                   # 210개 테스트
 ├── models/                             # 모델 단위 테스트 (4개 파일, 27개 테스트)
 ├── services/                           # 서비스 단위 테스트 (5개 파일, 64개 테스트)
 ├── providers/                          # 프로바이더 테스트 (2개 파일, 39개 테스트)
@@ -238,7 +244,8 @@ supabase/
 ├── README.md                           # Supabase 무료 프로젝트 설정 가이드
 └── migrations/
     ├── 20260701000000_initial_sikdanscan_schema.sql # RLS 기반 초기 운영 스키마
-    └── 20260701001000_grant_authenticated_data_api_access.sql # Data API authenticated grant
+    ├── 20260701001000_grant_authenticated_data_api_access.sql # Data API authenticated grant
+    └── 20261107000000_meal_portion_and_account_deletion.sql # 양/사진 경로 컬럼 + 계정 삭제 RPC
 
 .github/workflows/
 └── flutter-ci.yml                      # pub get, build_runner, format, analyze, test, Android release APK
@@ -440,7 +447,7 @@ SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
 ## 🧪 테스트 및 빌드
 
 ```bash
-flutter test        # 전체 168개 테스트 실행
+flutter test        # 전체 210개 테스트 실행
 dart analyze        # 앱 정적 분석 (0 issues)
 dart analyze server # 서버 정적 분석 (0 issues)
 dart run build_runner build
@@ -451,12 +458,12 @@ flutter build ios --release --no-codesign
 
 | 영역           | 파일 수 | 테스트 수 | 커버리지                                      |
 | -------------- | ------- | --------- | --------------------------------------------- |
-| **모델**       | 4       | 27        | JSON 직렬화/역직렬화, 개선 목표, BMI, 날짜 계산 |
-| **서비스**     | 5       | 64        | 음식 검색/캐시/프록시 파싱, 사진 인식 locale payload, AI 폴백, 프록시 상태 확인, Supabase 설정/비활성 상태 |
-| **프로바이더** | 2       | 39        | StateNotifier CRUD, 목표별 식단 전략, 언어 설정 저장 복원/rollback, Supabase optional provider |
-| **서버**       | 2       | 31        | 프록시 헬스체크, readiness, metrics, 사용자 인증, 파일 DB persistence, Bearer 인증, CORS, JSON 오류, 본문 제한, rate limit, 이미지 payload 검증, 텍스트/이미지 파서 |
-| **위젯**       | 1       | 7         | 데일리 홈 로드, 한국어/영어 네비게이션, 촬영 CTA, Chips, 언어 설정 바텀시트 |
-| **합계**       | **14**  | **168**   | **All passed ✅**                             |
+| **모델**       | 4       | 28        | JSON 직렬화/역직렬화, 개선 목표, BMI, 날짜 계산 |
+| **서비스**     | 6       | 71        | 음식 검색/캐시/프록시 파싱, 사진 인식 locale payload, AI 멀티턴/폴백/오프라인 판정, 이미지 상대경로·레거시 경로 복구, Supabase row 매핑 |
+| **프로바이더** | 3       | 59        | CRUD, 계정 병합·재시도 큐, 오늘/리포트 날짜 분리, 리포트 계산, 양 재계산, 기록 확인 플로우, 대화 저장·재시도, 테마/언어, 목표별 전략(ko/en) |
+| **서버**       | 2       | 34        | 프록시 헬스체크, readiness, metrics, 인증, CORS, 본문 제한, rate limit, 이미지 payload 검증, 대화 기록 검증, 코치 프롬프트 |
+| **위젯**       | 1       | 18        | 온보딩(소셜 로그인 노출, 인라인 검증, 감량 목표 입력 회귀), 데일리·기록 시트·수분, 기록 확인 저장, 기록 편집/되돌리기, 리포트, 설정, AI 코치 오프라인 |
+| **합계**       | **16**  | **210**   | **All passed ✅**                             |
 
 ## 🚢 운영 배포 체크리스트
 

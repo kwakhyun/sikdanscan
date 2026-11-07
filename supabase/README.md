@@ -9,7 +9,9 @@ Supabase는 사용자 인증, Postgres, Storage를 담당하는 선택형 원격
 3. SQL Editor 또는 Supabase CLI로 `migrations/` 파일을 순서대로 적용합니다.
    - `20260701000000_initial_sikdanscan_schema.sql`
    - `20260701001000_grant_authenticated_data_api_access.sql`
-   - 이미 초기 스키마를 적용했다면 두 번째 grant migration만 추가로 실행하면 됩니다.
+   - `20261107000000_meal_portion_and_account_deletion.sql`
+   - 이미 앞의 migration을 적용했다면 남은 파일만 순서대로 추가 실행하면 됩니다.
+   - 세 번째 migration은 앱이 동기화하는 `meal_records.portion`, `meal_records.image_storage_path` 컬럼과 앱 내 계정 삭제용 `delete_my_account()` RPC를 추가합니다. **적용하지 않으면 식단 동기화 upsert가 실패**하므로 앱 업데이트 전에 적용하세요.
 4. Flutter 앱 `.env`에 공개 설정만 추가합니다.
 
 ```bash
@@ -38,6 +40,13 @@ Jurnee는 앱이 provider 토큰을 받아 자체 Node 서버 `/auth/social`에 
 - `food_recognition_results`: AI 음식 인식 원본 결과
 - `meal-images` storage bucket: 음식 사진 private bucket
 - `avatars` storage bucket: 프로필 이미지 private bucket
+
+## 동기화 동작
+
+- 로그인 시 기기 기록과 계정 기록을 record id 기준으로 병합합니다. 같은 기록은 `updated_at`이 더 최근인 쪽을 유지하고, 기기에만 있는 기록은 업로드합니다.
+- 오프라인 등으로 실패한 업로드/삭제는 기기에 재시도 큐로 저장되고, 앱 복귀·수동 동기화·재로그인 시 다시 전송됩니다.
+- 사진은 `meal-images/<user_id>/<record_id>.<ext>`로 업로드되고, 다른 기기에서는 signed URL로 표시됩니다.
+- 앱 내 `계정 삭제`는 Storage API로 사용자 폴더의 사진을 지운 뒤 `delete_my_account()`로 auth 사용자를 삭제합니다. 테이블 row는 `on delete cascade`로 함께 삭제됩니다.
 
 ## 보안 정책
 

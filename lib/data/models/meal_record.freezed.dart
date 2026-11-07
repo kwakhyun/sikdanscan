@@ -15,7 +15,11 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$MealRecord {
 
- String get id; DateTime get date; MealType get mealType; String get name; int get calories; double get carbs; double get protein; double get fat; String? get imageUrl; String? get servingSize; bool get isAiRecognized; double? get recognitionConfidence; String? get memo;
+ String get id; DateTime get date; MealType get mealType; String get name; int get calories; double get carbs; double get protein; double get fat; String? get imageUrl; String? get servingSize; bool get isAiRecognized; double? get recognitionConfidence; String? get memo;/// Portion multiplier the stored nutrition values already include.
+/// Editing the portion rescales from the 1× base instead of compounding.
+ double get portion;/// Last local modification, used to resolve local/remote merge conflicts.
+ DateTime? get updatedAt;/// Supabase Storage object path once the photo has been uploaded.
+ String? get imageStoragePath;
 /// Create a copy of MealRecord
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +32,16 @@ $MealRecordCopyWith<MealRecord> get copyWith => _$MealRecordCopyWithImpl<MealRec
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is MealRecord&&(identical(other.id, id) || other.id == id)&&(identical(other.date, date) || other.date == date)&&(identical(other.mealType, mealType) || other.mealType == mealType)&&(identical(other.name, name) || other.name == name)&&(identical(other.calories, calories) || other.calories == calories)&&(identical(other.carbs, carbs) || other.carbs == carbs)&&(identical(other.protein, protein) || other.protein == protein)&&(identical(other.fat, fat) || other.fat == fat)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.servingSize, servingSize) || other.servingSize == servingSize)&&(identical(other.isAiRecognized, isAiRecognized) || other.isAiRecognized == isAiRecognized)&&(identical(other.recognitionConfidence, recognitionConfidence) || other.recognitionConfidence == recognitionConfidence)&&(identical(other.memo, memo) || other.memo == memo));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is MealRecord&&(identical(other.id, id) || other.id == id)&&(identical(other.date, date) || other.date == date)&&(identical(other.mealType, mealType) || other.mealType == mealType)&&(identical(other.name, name) || other.name == name)&&(identical(other.calories, calories) || other.calories == calories)&&(identical(other.carbs, carbs) || other.carbs == carbs)&&(identical(other.protein, protein) || other.protein == protein)&&(identical(other.fat, fat) || other.fat == fat)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.servingSize, servingSize) || other.servingSize == servingSize)&&(identical(other.isAiRecognized, isAiRecognized) || other.isAiRecognized == isAiRecognized)&&(identical(other.recognitionConfidence, recognitionConfidence) || other.recognitionConfidence == recognitionConfidence)&&(identical(other.memo, memo) || other.memo == memo)&&(identical(other.portion, portion) || other.portion == portion)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.imageStoragePath, imageStoragePath) || other.imageStoragePath == imageStoragePath));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,date,mealType,name,calories,carbs,protein,fat,imageUrl,servingSize,isAiRecognized,recognitionConfidence,memo);
+int get hashCode => Object.hash(runtimeType,id,date,mealType,name,calories,carbs,protein,fat,imageUrl,servingSize,isAiRecognized,recognitionConfidence,memo,portion,updatedAt,imageStoragePath);
 
 @override
 String toString() {
-  return 'MealRecord(id: $id, date: $date, mealType: $mealType, name: $name, calories: $calories, carbs: $carbs, protein: $protein, fat: $fat, imageUrl: $imageUrl, servingSize: $servingSize, isAiRecognized: $isAiRecognized, recognitionConfidence: $recognitionConfidence, memo: $memo)';
+  return 'MealRecord(id: $id, date: $date, mealType: $mealType, name: $name, calories: $calories, carbs: $carbs, protein: $protein, fat: $fat, imageUrl: $imageUrl, servingSize: $servingSize, isAiRecognized: $isAiRecognized, recognitionConfidence: $recognitionConfidence, memo: $memo, portion: $portion, updatedAt: $updatedAt, imageStoragePath: $imageStoragePath)';
 }
 
 
@@ -48,7 +52,7 @@ abstract mixin class $MealRecordCopyWith<$Res>  {
   factory $MealRecordCopyWith(MealRecord value, $Res Function(MealRecord) _then) = _$MealRecordCopyWithImpl;
 @useResult
 $Res call({
- String id, DateTime date, MealType mealType, String name, int calories, double carbs, double protein, double fat, String? imageUrl, String? servingSize, bool isAiRecognized, double? recognitionConfidence, String? memo
+ String id, DateTime date, MealType mealType, String name, int calories, double carbs, double protein, double fat, String? imageUrl, String? servingSize, bool isAiRecognized, double? recognitionConfidence, String? memo, double portion, DateTime? updatedAt, String? imageStoragePath
 });
 
 
@@ -65,7 +69,7 @@ class _$MealRecordCopyWithImpl<$Res>
 
 /// Create a copy of MealRecord
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? date = null,Object? mealType = null,Object? name = null,Object? calories = null,Object? carbs = null,Object? protein = null,Object? fat = null,Object? imageUrl = freezed,Object? servingSize = freezed,Object? isAiRecognized = null,Object? recognitionConfidence = freezed,Object? memo = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? date = null,Object? mealType = null,Object? name = null,Object? calories = null,Object? carbs = null,Object? protein = null,Object? fat = null,Object? imageUrl = freezed,Object? servingSize = freezed,Object? isAiRecognized = null,Object? recognitionConfidence = freezed,Object? memo = freezed,Object? portion = null,Object? updatedAt = freezed,Object? imageStoragePath = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,date: null == date ? _self.date : date // ignore: cast_nullable_to_non_nullable
@@ -80,6 +84,9 @@ as String?,servingSize: freezed == servingSize ? _self.servingSize : servingSize
 as String?,isAiRecognized: null == isAiRecognized ? _self.isAiRecognized : isAiRecognized // ignore: cast_nullable_to_non_nullable
 as bool,recognitionConfidence: freezed == recognitionConfidence ? _self.recognitionConfidence : recognitionConfidence // ignore: cast_nullable_to_non_nullable
 as double?,memo: freezed == memo ? _self.memo : memo // ignore: cast_nullable_to_non_nullable
+as String?,portion: null == portion ? _self.portion : portion // ignore: cast_nullable_to_non_nullable
+as double,updatedAt: freezed == updatedAt ? _self.updatedAt : updatedAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,imageStoragePath: freezed == imageStoragePath ? _self.imageStoragePath : imageStoragePath // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }
@@ -165,10 +172,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  DateTime date,  MealType mealType,  String name,  int calories,  double carbs,  double protein,  double fat,  String? imageUrl,  String? servingSize,  bool isAiRecognized,  double? recognitionConfidence,  String? memo)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  DateTime date,  MealType mealType,  String name,  int calories,  double carbs,  double protein,  double fat,  String? imageUrl,  String? servingSize,  bool isAiRecognized,  double? recognitionConfidence,  String? memo,  double portion,  DateTime? updatedAt,  String? imageStoragePath)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _MealRecord() when $default != null:
-return $default(_that.id,_that.date,_that.mealType,_that.name,_that.calories,_that.carbs,_that.protein,_that.fat,_that.imageUrl,_that.servingSize,_that.isAiRecognized,_that.recognitionConfidence,_that.memo);case _:
+return $default(_that.id,_that.date,_that.mealType,_that.name,_that.calories,_that.carbs,_that.protein,_that.fat,_that.imageUrl,_that.servingSize,_that.isAiRecognized,_that.recognitionConfidence,_that.memo,_that.portion,_that.updatedAt,_that.imageStoragePath);case _:
   return orElse();
 
 }
@@ -186,10 +193,10 @@ return $default(_that.id,_that.date,_that.mealType,_that.name,_that.calories,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  DateTime date,  MealType mealType,  String name,  int calories,  double carbs,  double protein,  double fat,  String? imageUrl,  String? servingSize,  bool isAiRecognized,  double? recognitionConfidence,  String? memo)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  DateTime date,  MealType mealType,  String name,  int calories,  double carbs,  double protein,  double fat,  String? imageUrl,  String? servingSize,  bool isAiRecognized,  double? recognitionConfidence,  String? memo,  double portion,  DateTime? updatedAt,  String? imageStoragePath)  $default,) {final _that = this;
 switch (_that) {
 case _MealRecord():
-return $default(_that.id,_that.date,_that.mealType,_that.name,_that.calories,_that.carbs,_that.protein,_that.fat,_that.imageUrl,_that.servingSize,_that.isAiRecognized,_that.recognitionConfidence,_that.memo);case _:
+return $default(_that.id,_that.date,_that.mealType,_that.name,_that.calories,_that.carbs,_that.protein,_that.fat,_that.imageUrl,_that.servingSize,_that.isAiRecognized,_that.recognitionConfidence,_that.memo,_that.portion,_that.updatedAt,_that.imageStoragePath);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -206,10 +213,10 @@ return $default(_that.id,_that.date,_that.mealType,_that.name,_that.calories,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  DateTime date,  MealType mealType,  String name,  int calories,  double carbs,  double protein,  double fat,  String? imageUrl,  String? servingSize,  bool isAiRecognized,  double? recognitionConfidence,  String? memo)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  DateTime date,  MealType mealType,  String name,  int calories,  double carbs,  double protein,  double fat,  String? imageUrl,  String? servingSize,  bool isAiRecognized,  double? recognitionConfidence,  String? memo,  double portion,  DateTime? updatedAt,  String? imageStoragePath)?  $default,) {final _that = this;
 switch (_that) {
 case _MealRecord() when $default != null:
-return $default(_that.id,_that.date,_that.mealType,_that.name,_that.calories,_that.carbs,_that.protein,_that.fat,_that.imageUrl,_that.servingSize,_that.isAiRecognized,_that.recognitionConfidence,_that.memo);case _:
+return $default(_that.id,_that.date,_that.mealType,_that.name,_that.calories,_that.carbs,_that.protein,_that.fat,_that.imageUrl,_that.servingSize,_that.isAiRecognized,_that.recognitionConfidence,_that.memo,_that.portion,_that.updatedAt,_that.imageStoragePath);case _:
   return null;
 
 }
@@ -220,8 +227,8 @@ return $default(_that.id,_that.date,_that.mealType,_that.name,_that.calories,_th
 /// @nodoc
 @JsonSerializable()
 
-class _MealRecord implements MealRecord {
-  const _MealRecord({required this.id, required this.date, required this.mealType, required this.name, required this.calories, required this.carbs, required this.protein, required this.fat, this.imageUrl, this.servingSize, this.isAiRecognized = false, this.recognitionConfidence, this.memo});
+class _MealRecord extends MealRecord {
+  const _MealRecord({required this.id, required this.date, required this.mealType, required this.name, required this.calories, required this.carbs, required this.protein, required this.fat, this.imageUrl, this.servingSize, this.isAiRecognized = false, this.recognitionConfidence, this.memo, this.portion = 1.0, this.updatedAt, this.imageStoragePath}): super._();
   factory _MealRecord.fromJson(Map<String, dynamic> json) => _$MealRecordFromJson(json);
 
 @override final  String id;
@@ -237,6 +244,13 @@ class _MealRecord implements MealRecord {
 @override@JsonKey() final  bool isAiRecognized;
 @override final  double? recognitionConfidence;
 @override final  String? memo;
+/// Portion multiplier the stored nutrition values already include.
+/// Editing the portion rescales from the 1× base instead of compounding.
+@override@JsonKey() final  double portion;
+/// Last local modification, used to resolve local/remote merge conflicts.
+@override final  DateTime? updatedAt;
+/// Supabase Storage object path once the photo has been uploaded.
+@override final  String? imageStoragePath;
 
 /// Create a copy of MealRecord
 /// with the given fields replaced by the non-null parameter values.
@@ -251,16 +265,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MealRecord&&(identical(other.id, id) || other.id == id)&&(identical(other.date, date) || other.date == date)&&(identical(other.mealType, mealType) || other.mealType == mealType)&&(identical(other.name, name) || other.name == name)&&(identical(other.calories, calories) || other.calories == calories)&&(identical(other.carbs, carbs) || other.carbs == carbs)&&(identical(other.protein, protein) || other.protein == protein)&&(identical(other.fat, fat) || other.fat == fat)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.servingSize, servingSize) || other.servingSize == servingSize)&&(identical(other.isAiRecognized, isAiRecognized) || other.isAiRecognized == isAiRecognized)&&(identical(other.recognitionConfidence, recognitionConfidence) || other.recognitionConfidence == recognitionConfidence)&&(identical(other.memo, memo) || other.memo == memo));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MealRecord&&(identical(other.id, id) || other.id == id)&&(identical(other.date, date) || other.date == date)&&(identical(other.mealType, mealType) || other.mealType == mealType)&&(identical(other.name, name) || other.name == name)&&(identical(other.calories, calories) || other.calories == calories)&&(identical(other.carbs, carbs) || other.carbs == carbs)&&(identical(other.protein, protein) || other.protein == protein)&&(identical(other.fat, fat) || other.fat == fat)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.servingSize, servingSize) || other.servingSize == servingSize)&&(identical(other.isAiRecognized, isAiRecognized) || other.isAiRecognized == isAiRecognized)&&(identical(other.recognitionConfidence, recognitionConfidence) || other.recognitionConfidence == recognitionConfidence)&&(identical(other.memo, memo) || other.memo == memo)&&(identical(other.portion, portion) || other.portion == portion)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.imageStoragePath, imageStoragePath) || other.imageStoragePath == imageStoragePath));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,date,mealType,name,calories,carbs,protein,fat,imageUrl,servingSize,isAiRecognized,recognitionConfidence,memo);
+int get hashCode => Object.hash(runtimeType,id,date,mealType,name,calories,carbs,protein,fat,imageUrl,servingSize,isAiRecognized,recognitionConfidence,memo,portion,updatedAt,imageStoragePath);
 
 @override
 String toString() {
-  return 'MealRecord(id: $id, date: $date, mealType: $mealType, name: $name, calories: $calories, carbs: $carbs, protein: $protein, fat: $fat, imageUrl: $imageUrl, servingSize: $servingSize, isAiRecognized: $isAiRecognized, recognitionConfidence: $recognitionConfidence, memo: $memo)';
+  return 'MealRecord(id: $id, date: $date, mealType: $mealType, name: $name, calories: $calories, carbs: $carbs, protein: $protein, fat: $fat, imageUrl: $imageUrl, servingSize: $servingSize, isAiRecognized: $isAiRecognized, recognitionConfidence: $recognitionConfidence, memo: $memo, portion: $portion, updatedAt: $updatedAt, imageStoragePath: $imageStoragePath)';
 }
 
 
@@ -271,7 +285,7 @@ abstract mixin class _$MealRecordCopyWith<$Res> implements $MealRecordCopyWith<$
   factory _$MealRecordCopyWith(_MealRecord value, $Res Function(_MealRecord) _then) = __$MealRecordCopyWithImpl;
 @override @useResult
 $Res call({
- String id, DateTime date, MealType mealType, String name, int calories, double carbs, double protein, double fat, String? imageUrl, String? servingSize, bool isAiRecognized, double? recognitionConfidence, String? memo
+ String id, DateTime date, MealType mealType, String name, int calories, double carbs, double protein, double fat, String? imageUrl, String? servingSize, bool isAiRecognized, double? recognitionConfidence, String? memo, double portion, DateTime? updatedAt, String? imageStoragePath
 });
 
 
@@ -288,7 +302,7 @@ class __$MealRecordCopyWithImpl<$Res>
 
 /// Create a copy of MealRecord
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? date = null,Object? mealType = null,Object? name = null,Object? calories = null,Object? carbs = null,Object? protein = null,Object? fat = null,Object? imageUrl = freezed,Object? servingSize = freezed,Object? isAiRecognized = null,Object? recognitionConfidence = freezed,Object? memo = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? date = null,Object? mealType = null,Object? name = null,Object? calories = null,Object? carbs = null,Object? protein = null,Object? fat = null,Object? imageUrl = freezed,Object? servingSize = freezed,Object? isAiRecognized = null,Object? recognitionConfidence = freezed,Object? memo = freezed,Object? portion = null,Object? updatedAt = freezed,Object? imageStoragePath = freezed,}) {
   return _then(_MealRecord(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,date: null == date ? _self.date : date // ignore: cast_nullable_to_non_nullable
@@ -303,6 +317,9 @@ as String?,servingSize: freezed == servingSize ? _self.servingSize : servingSize
 as String?,isAiRecognized: null == isAiRecognized ? _self.isAiRecognized : isAiRecognized // ignore: cast_nullable_to_non_nullable
 as bool,recognitionConfidence: freezed == recognitionConfidence ? _self.recognitionConfidence : recognitionConfidence // ignore: cast_nullable_to_non_nullable
 as double?,memo: freezed == memo ? _self.memo : memo // ignore: cast_nullable_to_non_nullable
+as String?,portion: null == portion ? _self.portion : portion // ignore: cast_nullable_to_non_nullable
+as double,updatedAt: freezed == updatedAt ? _self.updatedAt : updatedAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,imageStoragePath: freezed == imageStoragePath ? _self.imageStoragePath : imageStoragePath // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }

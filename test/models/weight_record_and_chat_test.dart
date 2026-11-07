@@ -82,7 +82,9 @@ void main() {
     });
 
     test('ChatMessageType has all expected values', () {
-      expect(ChatMessageType.values.length, 4);
+      expect(ChatMessageType.values.length, 6);
+      expect(ChatMessageType.values, contains(ChatMessageType.offline));
+      expect(ChatMessageType.values, contains(ChatMessageType.error));
       expect(ChatMessageType.values, contains(ChatMessageType.text));
       expect(ChatMessageType.values, contains(ChatMessageType.suggestion));
       expect(ChatMessageType.values, contains(ChatMessageType.mealAnalysis));

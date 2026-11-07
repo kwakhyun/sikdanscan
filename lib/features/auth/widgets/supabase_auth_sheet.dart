@@ -83,7 +83,7 @@ class _SupabaseAuthSheetState extends ConsumerState<SupabaseAuthSheet> {
                   : context.l10n.authSignInTitle,
               style: TextStyle(
                 fontSize: 22,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w800,
                 color: context.colorTextPrimary,
               ),
             ),
@@ -155,9 +155,9 @@ class _SupabaseAuthSheetState extends ConsumerState<SupabaseAuthSheet> {
               child: ElevatedButton(
                 onPressed: isLoading ? null : _submit,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
+                  backgroundColor: AppColors.primaryStrong,
                   foregroundColor: Colors.white,
-                  disabledBackgroundColor: AppColors.primary.withValues(
+                  disabledBackgroundColor: AppColors.primaryStrong.withValues(
                     alpha: 0.45,
                   ),
                   shape: RoundedRectangleBorder(
@@ -391,7 +391,9 @@ class _ModeButton extends StatelessWidget {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w800,
-              color: selected ? AppColors.primary : context.colorTextSecondary,
+              color: selected
+                  ? context.colorPrimaryText
+                  : context.colorTextSecondary,
             ),
           ),
         ),
@@ -444,7 +446,7 @@ class _AuthTextField extends StatelessWidget {
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppColors.primary, width: 2),
+              borderSide: BorderSide(color: context.colorPrimaryText, width: 2),
             ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,

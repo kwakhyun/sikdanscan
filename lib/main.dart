@@ -5,8 +5,10 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'core/router/app_router.dart';
+import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'data/services/local_storage_service.dart';
+import 'data/services/meal_image_store.dart';
 import 'data/services/supabase_bootstrap.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'providers/app_providers.dart';
@@ -22,6 +24,7 @@ Future<void> main() async {
     await _loadOptionalEnv();
     await SupabaseBootstrap.initializeFromEnvironment();
     await LocalStorageService().initialize();
+    await MealImageStore.initialize();
     await Future.wait([
       initializeDateFormatting('ko'),
       initializeDateFormatting('en'),
@@ -67,43 +70,77 @@ Future<void> _loadOptionalEnv() async {
   }
 }
 
-class SikdanScanApp extends ConsumerWidget {
+class SikdanScanApp extends ConsumerStatefulWidget {
   const SikdanScanApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isDarkMode = ref.watch(darkModeProvider);
+  ConsumerState<SikdanScanApp> createState() => _SikdanScanAppState();
+}
+
+class _SikdanScanAppState extends ConsumerState<SikdanScanApp> {
+  late final AppLifecycleListener _lifecycleListener;
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycleListener = AppLifecycleListener(onResume: _onResume);
+  }
+
+  /// Picks up a new calendar day and retries meal uploads that failed while
+  /// the device was offline.
+  void _onResume() {
+    ref.read(todayDateProvider.notifier).refresh();
+    ref.read(mealRecordsProvider.notifier).flushPendingSync();
+  }
+
+  @override
+  void dispose() {
+    _lifecycleListener.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final themePreference = ref.watch(themePreferenceProvider);
     final language = ref.watch(languageProvider);
+    final router = ref.watch(appRouterProvider);
 
-    final overlayStyle = isDarkMode
-        ? const SystemUiOverlayStyle(
-            statusBarColor: Colors.transparent,
-            statusBarIconBrightness: Brightness.light,
-            statusBarBrightness: Brightness.dark,
-            systemNavigationBarColor: Color(0xFF0F1117),
-            systemNavigationBarIconBrightness: Brightness.light,
-          )
-        : const SystemUiOverlayStyle(
-            statusBarColor: Colors.transparent,
-            statusBarIconBrightness: Brightness.dark,
-            statusBarBrightness: Brightness.light,
-            systemNavigationBarColor: Colors.white,
-            systemNavigationBarIconBrightness: Brightness.dark,
-          );
-
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: overlayStyle,
-      child: MaterialApp.router(
-        onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
-        locale: language.locale,
-        supportedLocales: AppLocalizations.supportedLocales,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        routerConfig: appRouter,
+    return MaterialApp.router(
+      onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themePreference.themeMode,
+      locale: language.locale,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      // Same rule as AppLocalePreference.languageCode, so generated content
+      // (strategy, AI replies) always matches the UI language.
+      localeListResolutionCallback: (locales, supported) => Locale(
+        AppLocalePreference.resolveSupportedLanguageCode(locales ?? const []),
       ),
+      routerConfig: router,
+      builder: (context, child) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: isDark
+              ? const SystemUiOverlayStyle(
+                  statusBarColor: Colors.transparent,
+                  statusBarIconBrightness: Brightness.light,
+                  statusBarBrightness: Brightness.dark,
+                  systemNavigationBarColor: AppColors.darkSurface,
+                  systemNavigationBarIconBrightness: Brightness.light,
+                )
+              : const SystemUiOverlayStyle(
+                  statusBarColor: Colors.transparent,
+                  statusBarIconBrightness: Brightness.dark,
+                  statusBarBrightness: Brightness.light,
+                  systemNavigationBarColor: Colors.white,
+                  systemNavigationBarIconBrightness: Brightness.dark,
+                ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     );
   }
 }
@@ -136,7 +173,7 @@ class SikdanScanStartupErrorApp extends StatelessWidget {
                   const Icon(
                     Icons.error_outline_rounded,
                     size: 48,
-                    color: Colors.redAccent,
+                    color: AppColors.error,
                   ),
                   const SizedBox(height: 16),
                   Text(

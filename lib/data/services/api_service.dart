@@ -73,11 +73,19 @@ class ApiService {
     String path, {
     dynamic data,
     Map<String, dynamic>? headers,
+    CancelToken? cancelToken,
+    int? maxRetries,
   }) async {
     return _dio.post<T>(
       '$baseUrl$path',
       data: data,
-      options: Options(headers: headers),
+      cancelToken: cancelToken,
+      options: Options(
+        headers: headers,
+        extra: {
+          if (maxRetries != null) RetryInterceptor.maxRetriesKey: maxRetries,
+        },
+      ),
     );
   }
 
@@ -117,6 +125,9 @@ class ApiService {
 }
 
 class RetryInterceptor extends Interceptor {
+  /// Per-request override of [ApiConstants.maxRetries] via `Options.extra`.
+  static const maxRetriesKey = 'maxRetries';
+
   final Dio dio;
 
   RetryInterceptor({required this.dio});
@@ -133,15 +144,19 @@ class RetryInterceptor extends Interceptor {
       }
     }
 
+    final maxRetries =
+        err.requestOptions.extra[maxRetriesKey] as int? ??
+        ApiConstants.maxRetries;
     final shouldRetry =
-        retryCount < ApiConstants.maxRetries &&
+        err.type != DioExceptionType.cancel &&
+        retryCount < maxRetries &&
         (statusCode == 429 || (statusCode != null && statusCode >= 500));
 
     if (shouldRetry) {
       final delay = ApiConstants.retryDelayMs * (1 << retryCount);
       if (kDebugMode) {
         debugPrint(
-          'API 재시도 ${retryCount + 1}/${ApiConstants.maxRetries} (${delay}ms 후)',
+          'API retry ${retryCount + 1}/$maxRetries (after ${delay}ms)',
         );
       }
       await Future.delayed(Duration(milliseconds: delay));

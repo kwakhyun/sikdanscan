@@ -1,17 +1,17 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../data/models/user_profile.dart';
+import '../../data/services/meal_image_store.dart';
 import '../../features/auth/widgets/supabase_account_card.dart';
 import '../../l10n/app_localizations_context.dart';
 import '../../providers/app_providers.dart';
 import 'widgets/edit_profile_sheet.dart';
 import 'widgets/profile_stat_card.dart';
 import 'widgets/settings_section.dart';
+import 'widgets/weight_card.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -20,9 +20,7 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(userProfileProvider);
     final records = ref.watch(weightRecordsProvider);
-    final currentWeight = records.isNotEmpty
-        ? records.last.weight
-        : profile.currentWeight;
+    final currentWeight = ref.watch(currentWeightProvider);
     final bmi = profile.currentWeight > 0
         ? profile.copyWith(currentWeight: currentWeight).bmi
         : 0.0;
@@ -40,7 +38,7 @@ class ProfileScreen extends ConsumerWidget {
           SliverAppBar(
             expandedHeight: 70,
             pinned: true,
-            backgroundColor: AppColors.primary,
+            backgroundColor: AppColors.primaryStrong,
             toolbarHeight: 0,
             systemOverlayStyle: const SystemUiOverlayStyle(
               statusBarColor: Colors.transparent,
@@ -54,7 +52,7 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 child: _ProfileHero(
                   profile: profile,
-                  onEdit: () => _showEditProfile(context),
+                  onEdit: () => showEditProfileSheet(context),
                 ),
               ),
             ),
@@ -83,11 +81,13 @@ class ProfileScreen extends ConsumerWidget {
                         value: currentWeight > 0
                             ? '${currentWeight.toStringAsFixed(1)}kg'
                             : '-',
-                        subtitle: profile.onboardingCompleted
+                        subtitle: records.isNotEmpty
+                            ? l10n.profileLatestLogBasis
+                            : profile.onboardingCompleted
                             ? l10n.profileInitialInputBasis
                             : l10n.profileFallbackNeedsSetup,
                         icon: Icons.monitor_weight_outlined,
-                        color: AppColors.primary,
+                        color: AppColors.primaryStrong,
                       ),
                     ),
                   ],
@@ -119,6 +119,8 @@ class ProfileScreen extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
+                const WeightCard(),
+                const SizedBox(height: 16),
                 _CalorieGoalBasisCard(profile: profile),
                 const SizedBox(height: 24),
                 const SettingsSection(),
@@ -138,17 +140,6 @@ class ProfileScreen extends ConsumerWidget {
     if (bmi < 25) return AppColors.warning;
     return AppColors.error;
   }
-
-  void _showEditProfile(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => const EditProfileSheet(),
-    );
-  }
 }
 
 class _ProfileHero extends StatelessWidget {
@@ -160,12 +151,11 @@ class _ProfileHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final isEnglish = Localizations.localeOf(context).languageCode == 'en';
     final gender = profile.gender == 'male'
         ? l10n.profileMale
         : l10n.profileFemale;
     final bodyText = profile.hasBodyMetrics
-        ? '${profile.age}${isEnglish ? 'y' : '세'} · ${profile.height.toStringAsFixed(0)}cm · $gender'
+        ? '${profile.age}${l10n.unitYears} · ${profile.height.toStringAsFixed(0)}cm · $gender'
         : l10n.profileBodyNotConfigured;
     final topInset = MediaQuery.paddingOf(context).top;
 
@@ -190,7 +180,7 @@ class _ProfileHero extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 19,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w800,
                       color: Colors.white,
                       height: 1.08,
                     ),
@@ -217,7 +207,7 @@ class _ProfileHero extends StatelessWidget {
                 onPressed: onEdit,
                 tooltip: l10n.profileEditTooltip,
                 icon: const Icon(Icons.edit_rounded, size: 19),
-                color: AppColors.primaryDark,
+                color: AppColors.primaryStrong,
                 style: IconButton.styleFrom(
                   backgroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
@@ -241,53 +231,59 @@ class _ProfileAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final avatarPath = profile.avatarImagePath;
-    final hasAvatar = avatarPath != null && File(avatarPath).existsSync();
+    final avatarFile = MealImageStore.resolveFile(profile.avatarImagePath);
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.9),
-                width: 2,
-              ),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: hasAvatar
-                ? Image.file(File(avatarPath), fit: BoxFit.cover)
-                : const Icon(
-                    Icons.person_rounded,
-                    size: 25,
-                    color: Colors.white,
-                  ),
-          ),
-          Positioned(
-            right: -2,
-            bottom: -2,
-            child: Container(
-              width: 18,
-              height: 18,
+    return Semantics(
+      button: true,
+      label: context.l10n.profileEditTooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: 46,
+              height: 46,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Colors.white.withValues(alpha: 0.18),
                 shape: BoxShape.circle,
-                border: Border.all(color: AppColors.primary, width: 1.5),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  width: 2,
+                ),
               ),
-              child: const Icon(
-                Icons.camera_alt_rounded,
-                size: 10,
-                color: AppColors.primary,
+              clipBehavior: Clip.antiAlias,
+              child: avatarFile != null
+                  ? Image.file(avatarFile, fit: BoxFit.cover)
+                  : const Icon(
+                      Icons.person_rounded,
+                      size: 25,
+                      color: Colors.white,
+                    ),
+            ),
+            Positioned(
+              right: -2,
+              bottom: -2,
+              child: Container(
+                width: 18,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: AppColors.primaryStrong,
+                    width: 1.5,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.camera_alt_rounded,
+                  size: 10,
+                  color: AppColors.primaryStrong,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -323,9 +319,9 @@ class _CalorieGoalBasisCard extends StatelessWidget {
                   color: AppColors.secondary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.calculate_rounded,
-                  color: AppColors.secondary,
+                  color: context.colorSecondaryText,
                   size: 21,
                 ),
               ),

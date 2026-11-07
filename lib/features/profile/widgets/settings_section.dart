@@ -1,15 +1,20 @@
 import 'dart:convert';
 import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
 import '../../../data/services/proxy_status_service.dart';
 import '../../../l10n/app_localizations_context.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../providers/app_providers.dart';
 import '../../../shared/widgets/app_svg_icon.dart';
+import '../../../shared/widgets/sheet_handle.dart';
 import 'edit_profile_sheet.dart';
 import 'goal_settings_sheet.dart';
 
@@ -18,8 +23,7 @@ class SettingsSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final notificationsEnabled = ref.watch(notificationsEnabledProvider);
-    final darkMode = ref.watch(darkModeProvider);
+    final theme = ref.watch(themePreferenceProvider);
     final language = ref.watch(languageProvider);
     final l10n = context.l10n;
 
@@ -34,19 +38,20 @@ class SettingsSection extends ConsumerWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-            child: Text(
-              l10n.settingsTitle,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: context.colorTextPrimary,
+            child: Semantics(
+              header: true,
+              child: Text(
+                l10n.settingsTitle,
+                style: AppTextStyles.section.copyWith(
+                  color: context.colorTextPrimary,
+                ),
               ),
             ),
           ),
           _SettingsTile(
             icon: Icons.person_outline_rounded,
             title: l10n.settingsEditProfile,
-            onTap: () => _showEditProfile(context),
+            onTap: () => showEditProfileSheet(context),
           ),
           _SettingsTile(
             icon: Icons.flag_outlined,
@@ -54,41 +59,41 @@ class SettingsSection extends ConsumerWidget {
             onTap: () => _showGoalSettings(context),
           ),
           _SettingsTile(
-            icon: Icons.notifications_outlined,
-            title: l10n.settingsNotifications,
-            trailing: Switch(
-              value: notificationsEnabled,
-              onChanged: (_) =>
-                  ref.read(notificationsEnabledProvider.notifier).toggle(),
-              activeThumbColor: AppColors.primary,
+            icon: Icons.contrast_rounded,
+            title: l10n.settingsTheme,
+            value: _themeLabel(theme, l10n),
+            onTap: () => _showOptionSheet<ThemePreference>(
+              context,
+              title: l10n.settingsTheme,
+              subtitle: l10n.themeSubtitle,
+              values: ThemePreference.values,
+              selected: theme,
+              labelOf: (value) => _themeLabel(value, l10n),
+              onSelected: (value) => ref
+                  .read(themePreferenceProvider.notifier)
+                  .setPreference(value),
             ),
-            onTap: () =>
-                ref.read(notificationsEnabledProvider.notifier).toggle(),
-          ),
-          _SettingsTile(
-            icon: Icons.dark_mode_outlined,
-            title: l10n.settingsDarkMode,
-            trailing: Switch(
-              value: darkMode,
-              onChanged: (_) => ref.read(darkModeProvider.notifier).toggle(),
-              activeThumbColor: AppColors.primary,
-            ),
-            onTap: () => ref.read(darkModeProvider.notifier).toggle(),
           ),
           _SettingsTile(
             icon: Icons.language_rounded,
             title: l10n.settingsLanguage,
-            trailing: Text(
-              _languageLabel(language, l10n),
-              style: TextStyle(fontSize: 14, color: context.colorTextTertiary),
+            value: _languageLabel(language, l10n),
+            onTap: () => _showOptionSheet<AppLocalePreference>(
+              context,
+              title: l10n.languageTitle,
+              subtitle: l10n.languageSubtitle,
+              values: AppLocalePreference.values,
+              selected: language,
+              labelOf: (value) => _languageLabel(value, l10n),
+              onSelected: (value) =>
+                  ref.read(languageProvider.notifier).setPreference(value),
             ),
-            onTap: () => _showLanguageSettings(context, ref),
           ),
           const Divider(height: 0, indent: 56),
           _SettingsTile(
-            icon: Icons.cloud_outlined,
-            title: l10n.settingsApiStatus,
-            onTap: () => _showApiStatus(context, ref),
+            icon: Icons.auto_awesome_outlined,
+            title: l10n.settingsAiStatus,
+            onTap: () => _showAiStatus(context, ref),
           ),
           _SettingsTile(
             icon: Icons.download_outlined,
@@ -98,16 +103,13 @@ class SettingsSection extends ConsumerWidget {
           _SettingsTile(
             icon: Icons.info_outline_rounded,
             title: l10n.settingsAppInfo,
-            trailing: Text(
-              'v1.0.0',
-              style: TextStyle(fontSize: 14, color: context.colorTextTertiary),
-            ),
+            value: 'v1.0.0',
             onTap: () => _showAppInfo(context),
           ),
           _SettingsTile(
-            icon: Icons.logout_rounded,
+            icon: Icons.restart_alt_rounded,
             title: l10n.settingsResetData,
-            color: AppColors.error,
+            destructive: true,
             onTap: () => _showResetConfirm(context, ref),
             showDivider: false,
           ),
@@ -116,21 +118,11 @@ class SettingsSection extends ConsumerWidget {
     );
   }
 
-  void _showEditProfile(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => const EditProfileSheet(),
-    );
-  }
-
   void _showGoalSettings(BuildContext context) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -138,7 +130,10 @@ class SettingsSection extends ConsumerWidget {
     );
   }
 
-  String _languageLabel(AppLocalePreference preference, AppLocalizations l10n) {
+  static String _languageLabel(
+    AppLocalePreference preference,
+    AppLocalizations l10n,
+  ) {
     return switch (preference) {
       AppLocalePreference.system => l10n.languageSystem,
       AppLocalePreference.korean => l10n.languageKorean,
@@ -146,86 +141,96 @@ class SettingsSection extends ConsumerWidget {
     };
   }
 
-  void _showLanguageSettings(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
-    showModalBottomSheet(
+  static String _themeLabel(ThemePreference preference, AppLocalizations l10n) {
+    return switch (preference) {
+      ThemePreference.system => l10n.themeSystem,
+      ThemePreference.light => l10n.themeLight,
+      ThemePreference.dark => l10n.themeDark,
+    };
+  }
+
+  void _showOptionSheet<T>(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required List<T> values,
+    required T selected,
+    required String Function(T value) labelOf,
+    required Future<void> Function(T value) onSelected,
+  }) {
+    showModalBottomSheet<void>(
       context: context,
-      backgroundColor: context.colorSurface,
+      useRootNavigator: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (sheetContext) {
-        return Consumer(
-          builder: (context, ref, _) {
-            final selected = ref.watch(languageProvider);
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: context.colorBorder,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Text(
-                      l10n.languageTitle,
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: context.colorTextPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      l10n.languageSubtitle,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: context.colorTextSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    for (final preference in AppLocalePreference.values)
-                      _LanguageOptionTile(
-                        label: _languageLabel(preference, l10n),
-                        selected: selected == preference,
-                        onTap: () async {
-                          await ref
-                              .read(languageProvider.notifier)
-                              .setPreference(preference);
-                          if (sheetContext.mounted) Navigator.pop(sheetContext);
-                        },
-                      ),
-                  ],
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SheetHandle(),
+                const SizedBox(height: 18),
+                Text(
+                  title,
+                  style: AppTextStyles.headline.copyWith(
+                    color: sheetContext.colorTextPrimary,
+                  ),
                 ),
-              ),
-            );
-          },
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: AppTextStyles.label.copyWith(
+                    color: sheetContext.colorTextSecondary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                RadioGroup<T>(
+                  groupValue: selected,
+                  onChanged: (value) async {
+                    if (value == null) return;
+                    await onSelected(value);
+                    if (sheetContext.mounted) Navigator.pop(sheetContext);
+                  },
+                  child: Column(
+                    children: [
+                      for (final value in values)
+                        RadioListTile<T>(
+                          value: value,
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            labelOf(value),
+                            style: AppTextStyles.body.copyWith(
+                              color: sheetContext.colorTextPrimary,
+                              fontWeight: value == selected
+                                  ? FontWeight.w800
+                                  : FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
   }
 
-  void _exportData(BuildContext context, WidgetRef ref) async {
+  Future<void> _exportData(BuildContext context, WidgetRef ref) async {
     final profile = ref.read(userProfileProvider);
     final meals = ref.read(mealRecordsProvider);
     final weights = ref.read(weightRecordsProvider);
     final health = ref.read(dailyHealthProvider);
 
-    // async 전에 context 의존 값 캡처
-    final screenSize = MediaQuery.of(context).size;
+    final screenSize = MediaQuery.sizeOf(context);
     final scaffoldMessenger = ScaffoldMessenger.of(context);
-    final exportSubject = context.l10n.exportSubject;
-    final exportText = context.l10n.exportText;
-    final exportFailed = context.l10n.exportFailed;
+    final l10n = context.l10n;
 
     final data = {
       'export_date': DateTime.now().toIso8601String(),
@@ -238,7 +243,6 @@ class SettingsSection extends ConsumerWidget {
     final jsonString = const JsonEncoder.withIndent('  ').convert(data);
 
     try {
-      // 임시 디렉토리에 JSON 파일 저장 후 공유
       final dir = await getTemporaryDirectory();
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final file = File('${dir.path}/sikdanscan_data_$timestamp.json');
@@ -246,8 +250,8 @@ class SettingsSection extends ConsumerWidget {
 
       await Share.shareXFiles(
         [XFile(file.path)],
-        subject: exportSubject,
-        text: exportText,
+        subject: l10n.exportSubject,
+        text: l10n.exportText,
         sharePositionOrigin: Rect.fromLTWH(
           0,
           0,
@@ -255,15 +259,9 @@ class SettingsSection extends ConsumerWidget {
           screenSize.height / 2,
         ),
       );
-    } catch (e) {
+    } catch (_) {
       scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text('$exportFailed: $e'),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
+        SnackBar(content: Text(l10n.exportFailed)),
       );
     }
   }
@@ -281,70 +279,111 @@ class SettingsSection extends ConsumerWidget {
         Text(
           context.l10n.appInfoDescription,
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 14, height: 1.5),
+          style: const TextStyle(fontSize: 14, height: 1.5),
         ),
       ],
     );
   }
 
-  void _showApiStatus(BuildContext context, WidgetRef ref) {
+  /// User-facing availability of AI features. Proxy internals are shown only
+  /// in debug builds.
+  void _showAiStatus(BuildContext context, WidgetRef ref) {
     ref.invalidate(proxyConnectionStatusProvider);
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => Consumer(
         builder: (context, ref, _) {
           final proxyStatus = ref.watch(proxyConnectionStatusProvider);
+          final l10n = context.l10n;
+          final status = proxyStatus.valueOrNull;
+          final loading = proxyStatus.isLoading;
+          final available = status?.isConnected == true && !loading;
 
           return AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            title: Row(
+            title: Text(l10n.settingsAiStatus),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.cloud_outlined,
-                    color: AppColors.primary,
-                    size: 20,
-                  ),
+                Row(
+                  children: [
+                    Icon(
+                      loading
+                          ? Icons.hourglass_top_rounded
+                          : available
+                          ? Icons.check_circle_rounded
+                          : Icons.cloud_off_rounded,
+                      color: loading
+                          ? context.colorInfoText
+                          : available
+                          ? context.colorSuccessText
+                          : context.colorWarningText,
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      loading
+                          ? l10n.aiStatusChecking
+                          : available
+                          ? l10n.aiStatusAvailable
+                          : l10n.aiStatusUnavailable,
+                      style: AppTextStyles.section.copyWith(
+                        color: context.colorTextPrimary,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(height: 12),
                 Text(
-                  context.l10n.settingsApiStatus,
-                  style: const TextStyle(fontSize: 18),
+                  available
+                      ? l10n.aiStatusAvailableBody
+                      : l10n.aiStatusUnavailableBody,
+                  style: AppTextStyles.body.copyWith(
+                    color: context.colorTextSecondary,
+                  ),
                 ),
+                if (kDebugMode && status != null) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    l10n.aiStatusDeveloperDetails,
+                    style: AppTextStyles.micro.copyWith(
+                      color: context.colorTextTertiary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  _DebugStatusRow(
+                    label: l10n.apiProxy,
+                    ok: available,
+                    iconAsset: null,
+                  ),
+                  _DebugStatusRow(
+                    label: l10n.apiPublicFoodDb,
+                    ok: available,
+                    iconAsset: 'assets/icons/app/source_public_api.svg',
+                  ),
+                  _DebugStatusRow(
+                    label: l10n.apiOpenAi,
+                    ok: available,
+                    iconAsset: 'assets/icons/app/source_ai.svg',
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _proxyStatusMessage(l10n, status),
+                    style: AppTextStyles.micro.copyWith(
+                      color: context.colorTextSecondary,
+                    ),
+                  ),
+                ],
               ],
-            ),
-            content: proxyStatus.when(
-              data: (status) => _buildApiStatusContent(context, status),
-              loading: () => _buildApiStatusContent(
-                context,
-                ProxyConnectionStatus.unavailable(
-                  message: context.l10n.apiChecking,
-                ),
-                loading: true,
-              ),
-              error: (_, __) => _buildApiStatusContent(
-                context,
-                ProxyConnectionStatus.unavailable(
-                  message: context.l10n.apiCheckFailed,
-                ),
-              ),
             ),
             actions: [
               TextButton(
                 onPressed: () => ref.invalidate(proxyConnectionStatusProvider),
-                child: Text(context.l10n.apiRefresh),
+                child: Text(l10n.apiRefresh),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: Text(context.l10n.apiOk),
+                child: Text(l10n.apiOk),
               ),
             ],
           );
@@ -353,80 +392,10 @@ class SettingsSection extends ConsumerWidget {
     );
   }
 
-  Widget _buildApiStatusContent(
-    BuildContext context,
-    ProxyConnectionStatus status, {
-    bool loading = false,
-  }) {
-    final proxyConnected = status.isConnected && !loading;
-    final proxyLabel = _proxyStatusLabel(context, status, loading: loading);
-    final dependentLabel = proxyConnected
-        ? context.l10n.apiConnected
-        : context.l10n.apiProxyRequired;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _buildApiStatusRow(
-          context,
-          context.l10n.apiBuiltInDb,
-          true,
-          iconAsset: 'assets/icons/app/source_local_db.svg',
-        ),
-        _buildApiStatusRow(
-          context,
-          context.l10n.apiProxy,
-          proxyConnected,
-          statusLabel: proxyLabel,
-          loading: loading,
-          leadingIcon: Icons.security_rounded,
-        ),
-        _buildApiStatusRow(
-          context,
-          context.l10n.apiPublicFoodDb,
-          proxyConnected,
-          statusLabel: dependentLabel,
-          iconAsset: 'assets/icons/app/source_public_api.svg',
-        ),
-        _buildApiStatusRow(
-          context,
-          context.l10n.apiOpenAi,
-          proxyConnected,
-          statusLabel: dependentLabel,
-          iconAsset: 'assets/icons/app/source_ai.svg',
-        ),
-        _buildApiStatusRow(
-          context,
-          context.l10n.apiBarcode,
-          true,
-          iconAsset: 'assets/icons/app/source_barcode.svg',
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: context.colorBackground,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            '${_proxyStatusMessage(context, status)}\n${context.l10n.apiSecurityNote}',
-            style: TextStyle(
-              fontSize: 12,
-              height: 1.5,
-              color: context.colorTextSecondary,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      ],
-    );
-  }
-
-  String _proxyStatusMessage(
-    BuildContext context,
+  static String _proxyStatusMessage(
+    AppLocalizations l10n,
     ProxyConnectionStatus status,
   ) {
-    final l10n = context.l10n;
     return switch (status.detail) {
       ProxyStatusDetail.notConfigured => l10n.proxyStatusNotConfigured,
       ProxyStatusDetail.connected => l10n.proxyStatusConnected,
@@ -439,139 +408,29 @@ class SettingsSection extends ConsumerWidget {
     };
   }
 
-  String _proxyStatusLabel(
-    BuildContext context,
-    ProxyConnectionStatus status, {
-    required bool loading,
-  }) {
-    if (loading) return context.l10n.apiCheckingShort;
-
-    switch (status.state) {
-      case ProxyConnectionState.connected:
-        return context.l10n.apiConnected;
-      case ProxyConnectionState.notConfigured:
-        return context.l10n.apiNotConfigured;
-      case ProxyConnectionState.unavailable:
-        return context.l10n.apiOffline;
-    }
-  }
-
-  Widget _buildApiStatusRow(
-    BuildContext context,
-    String label,
-    bool connected, {
-    String? statusLabel,
-    bool loading = false,
-    String? iconAsset,
-    IconData? leadingIcon,
-  }) {
-    final color = loading
-        ? Colors.blue
-        : connected
-        ? Colors.green
-        : Colors.orange;
-    final icon = loading
-        ? Icons.hourglass_top_rounded
-        : connected
-        ? Icons.check_circle
-        : Icons.warning_amber_rounded;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          if (iconAsset != null) ...[
-            AppSvgIcon(iconAsset, color: context.colorTextSecondary, size: 17),
-            const SizedBox(width: 8),
-          ] else if (leadingIcon != null) ...[
-            Icon(leadingIcon, color: context.colorTextSecondary, size: 17),
-            const SizedBox(width: 8),
-          ],
-          Expanded(child: Text(label, style: const TextStyle(fontSize: 14))),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 14, color: color),
-                const SizedBox(width: 4),
-                Text(
-                  statusLabel ??
-                      (connected
-                          ? context.l10n.apiConnected
-                          : context.l10n.apiNotConfigured),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: color,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showResetConfirm(BuildContext context, WidgetRef ref) {
-    showDialog(
+    final l10n = context.l10n;
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.error.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.warning_amber_rounded,
-                color: AppColors.error,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(context.l10n.resetTitle),
-          ],
-        ),
-        content: Text(context.l10n.resetMessage, style: TextStyle(height: 1.5)),
+        icon: Icon(Icons.warning_amber_rounded, color: ctx.colorErrorText),
+        title: Text(l10n.resetTitle),
+        content: Text(l10n.resetMessage, style: const TextStyle(height: 1.5)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(context.l10n.commonCancel),
+            child: Text(l10n.commonCancel),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
               final resetFn = ref.read(dataResetProvider);
               await resetFn();
               if (ctx.mounted) Navigator.pop(ctx);
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(context.l10n.resetDone),
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                );
-              }
+              messenger.showSnackBar(SnackBar(content: Text(l10n.resetDone)));
             },
-            child: Text(context.l10n.resetAction),
+            child: Text(l10n.resetAction),
           ),
         ],
       ),
@@ -579,57 +438,71 @@ class SettingsSection extends ConsumerWidget {
   }
 }
 
-class _LanguageOptionTile extends StatelessWidget {
-  const _LanguageOptionTile({
+class _DebugStatusRow extends StatelessWidget {
+  const _DebugStatusRow({
     required this.label,
-    required this.selected,
-    required this.onTap,
+    required this.ok,
+    required this.iconAsset,
   });
 
   final String label;
-  final bool selected;
-  final VoidCallback onTap;
+  final bool ok;
+  final String? iconAsset;
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      onTap: onTap,
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(
-        selected ? Icons.radio_button_checked : Icons.radio_button_off,
-        color: selected ? AppColors.primary : context.colorTextTertiary,
-      ),
-      title: Text(
-        label,
-        style: TextStyle(
-          fontSize: 15,
-          fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-          color: context.colorTextPrimary,
-        ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          if (iconAsset != null)
+            AppSvgIcon(iconAsset!, color: context.colorTextSecondary, size: 15)
+          else
+            Icon(
+              Icons.security_rounded,
+              size: 15,
+              color: context.colorTextSecondary,
+            ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: AppTextStyles.caption.copyWith(
+                color: context.colorTextPrimary,
+              ),
+            ),
+          ),
+          Icon(
+            ok ? Icons.check_circle : Icons.remove_circle_outline,
+            size: 15,
+            color: ok ? context.colorSuccessText : context.colorWarningText,
+          ),
+        ],
       ),
     );
   }
 }
 
 class _SettingsTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final Widget? trailing;
-  final Color? color;
-  final VoidCallback onTap;
-  final bool showDivider;
-
   const _SettingsTile({
     required this.icon,
     required this.title,
-    this.trailing,
-    this.color,
     required this.onTap,
+    this.value,
+    this.destructive = false,
     this.showDivider = true,
   });
 
+  final IconData icon;
+  final String title;
+  final VoidCallback onTap;
+  final String? value;
+  final bool destructive;
+  final bool showDivider;
+
   @override
   Widget build(BuildContext context) {
+    final color = destructive ? context.colorErrorText : null;
     return Column(
       children: [
         ListTile(
@@ -640,19 +513,28 @@ class _SettingsTile extends StatelessWidget {
           ),
           title: Text(
             title,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
+            style: AppTextStyles.body.copyWith(
               color: color ?? context.colorTextPrimary,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          trailing:
-              trailing ??
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (value != null)
+                Text(
+                  value!,
+                  style: AppTextStyles.label.copyWith(
+                    color: context.colorTextSecondary,
+                  ),
+                ),
               Icon(
                 Icons.chevron_right_rounded,
                 color: context.colorTextTertiary,
                 size: 20,
               ),
+            ],
+          ),
           onTap: onTap,
           contentPadding: const EdgeInsets.symmetric(horizontal: 20),
         ),

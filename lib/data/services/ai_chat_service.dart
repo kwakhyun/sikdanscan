@@ -1,8 +1,43 @@
+import 'package:dio/dio.dart';
+
 import '../../core/constants/api_constants.dart';
 import 'api_service.dart';
 import 'proxy_client_config.dart';
 
+/// A single turn sent to the coach as conversation history.
+class AiChatTurn {
+  const AiChatTurn({required this.isUser, required this.content});
+
+  final bool isUser;
+  final String content;
+
+  Map<String, String> toJson() => {
+    'role': isUser ? 'user' : 'assistant',
+    'content': content,
+  };
+}
+
+/// Coach answer plus whether it came from the AI server or the local
+/// keyword fallback, so the UI never presents canned text as AI output.
+class AiChatReply {
+  const AiChatReply({
+    required this.content,
+    this.isFallback = false,
+    this.quotaExceeded = false,
+  });
+
+  final String content;
+  final bool isFallback;
+  final bool quotaExceeded;
+}
+
 class AiChatService {
+  /// Turns of prior conversation sent with each request.
+  static const maxHistoryTurns = 10;
+  // Keeps the request well under the proxy 32KB body limit (UTF-8 Hangul is
+  // 3 bytes per character).
+  static const _maxTurnLength = 600;
+
   final ApiService _apiService;
   final ProxyClientConfig _proxyConfig;
 
@@ -21,13 +56,19 @@ class AiChatService {
 
   bool get isConfigured => _proxyConfig.isConfigured;
 
-  Future<String> generateResponse({
+  /// Returns the coach reply. Throws when the server is configured but the
+  /// request fails for a reason other than quota, so the UI can offer retry.
+  Future<AiChatReply> reply({
     required String userMessage,
+    List<AiChatTurn> history = const [],
     Map<String, dynamic>? context,
     String locale = 'ko',
   }) async {
     if (!isConfigured) {
-      return _generateFallbackResponse(userMessage, locale: locale);
+      return AiChatReply(
+        content: fallbackResponse(userMessage, locale: locale),
+        isFallback: true,
+      );
     }
 
     try {
@@ -37,6 +78,7 @@ class AiChatService {
         data: {
           'message': userMessage,
           'locale': _normalizeLocale(locale),
+          'history': trimHistory(history).map((turn) => turn.toJson()).toList(),
           if (context != null) 'context': context,
         },
         headers: _proxyConfig.authHeaders,
@@ -44,22 +86,77 @@ class AiChatService {
 
       final content = _extractProxyContent(response.data);
       if (content != null && content.isNotEmpty) {
-        return content;
+        return AiChatReply(content: content);
       }
-
-      return _generateFallbackResponse(userMessage, locale: locale);
+      throw const AiChatException('empty_response');
     } catch (e) {
       final errorMsg = e.toString();
       if (errorMsg.contains('insufficient_quota') ||
           errorMsg.contains('RATE_LIMIT')) {
-        final fallback = _generateFallbackResponse(userMessage, locale: locale);
-        final notice = _isEnglish(locale)
-            ? 'The AI server quota is currently exceeded, so a local response is shown.'
-            : '현재 AI 서버 사용량이 초과되어 로컬 응답을 표시합니다.';
-        return '$fallback\n\n---\n$notice';
+        return AiChatReply(
+          content: fallbackResponse(userMessage, locale: locale),
+          isFallback: true,
+          quotaExceeded: true,
+        );
       }
-      return _generateFallbackResponse(userMessage, locale: locale);
+      // Unreachable server (offline, proxy down): answer with the local tips,
+      // clearly labelled as offline, instead of an error bubble.
+      if (_isConnectivityError(e)) {
+        return AiChatReply(
+          content: fallbackResponse(userMessage, locale: locale),
+          isFallback: true,
+        );
+      }
+      rethrow;
     }
+  }
+
+  static bool _isConnectivityError(Object error) {
+    if (error is! DioException) return false;
+    final apiError = error.error;
+    if (apiError is ApiError) {
+      return apiError.code == 'NO_CONNECTION' || apiError.code == 'TIMEOUT';
+    }
+    return error.type == DioExceptionType.connectionError ||
+        error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.receiveTimeout ||
+        error.type == DioExceptionType.sendTimeout;
+  }
+
+  /// Backwards-compatible single-string API.
+  Future<String> generateResponse({
+    required String userMessage,
+    Map<String, dynamic>? context,
+    String locale = 'ko',
+  }) async {
+    try {
+      final result = await reply(
+        userMessage: userMessage,
+        context: context,
+        locale: locale,
+      );
+      return result.content;
+    } catch (_) {
+      return fallbackResponse(userMessage, locale: locale);
+    }
+  }
+
+  /// Keeps the most recent turns and truncates very long ones.
+  static List<AiChatTurn> trimHistory(List<AiChatTurn> history) {
+    final recent = history.length > maxHistoryTurns
+        ? history.sublist(history.length - maxHistoryTurns)
+        : history;
+    return recent
+        .where((turn) => turn.content.trim().isNotEmpty)
+        .map(
+          (turn) => AiChatTurn(
+            isUser: turn.isUser,
+            content: turn.content.length > _maxTurnLength
+                ? turn.content.substring(0, _maxTurnLength)
+                : turn.content,
+          ),
+        )
+        .toList(growable: false);
   }
 
   String? _extractProxyContent(Object? responseData) {
@@ -71,74 +168,93 @@ class AiChatService {
     return content.trim();
   }
 
-  String _generateFallbackResponse(String message, {String locale = 'ko'}) {
+  String fallbackResponse(String message, {String locale = 'ko'}) {
     final lowerMessage = message.toLowerCase();
     if (_isEnglish(locale)) {
-      return _generateEnglishFallbackResponse(lowerMessage);
+      return _englishFallback(lowerMessage);
     }
 
-    if (lowerMessage.contains('칼로리') || lowerMessage.contains('열량')) {
-      return '칼로리는 식단 전략의 중요한 기준이에요.\n\n일반적으로 성인 여성 1,200~1,500kcal, 남성 1,500~1,800kcal 범위를 참고할 수 있습니다.\n\n데일리에서 오늘 섭취량과 목표별 전략을 함께 확인해보세요.';
+    if (_containsAny(lowerMessage, const ['칼로리', '열량'])) {
+      return '칼로리는 식단 전략의 기준점이에요.\n\n개인 목표 칼로리는 나이·키·체중·활동량으로 계산되며, 프로필의 "일일 목표 칼로리 기준"에서 확인할 수 있어요.\n\n데일리 화면에서 남은 칼로리를 보고 다음 식사는 단백질과 채소부터 채워보세요.';
     }
 
-    if (lowerMessage.contains('운동') ||
-        lowerMessage.contains('헬스') ||
-        lowerMessage.contains('트레이닝')) {
-      return '식단 목표와 함께하기 좋은 활동을 추천해드릴게요.\n\n1. 식후 10분 걷기\n2. 스쿼트 3세트 x 15회\n3. 플랭크 3세트 x 30초\n4. 가벼운 스트레칭 5분\n\n운동보다 먼저 식사 기록과 회복 루틴을 꾸준히 맞춰보세요.';
+    if (_containsAny(lowerMessage, const ['운동', '헬스', '트레이닝'])) {
+      return '식단 목표와 함께하기 좋은 운동이에요.\n\n1. 식후 10분 걷기\n2. 스쿼트 3세트 x 15회\n3. 플랭크 3세트 x 30초\n4. 가벼운 스트레칭 5분\n\n통증이나 질환이 있다면 전문가와 먼저 상의하세요.';
     }
 
-    if (lowerMessage.contains('물') || lowerMessage.contains('수분')) {
-      return '수분 섭취는 피부, 소화, 컨디션 목표 모두에 중요해요.\n\n• 식전 30분 물 한 잔\n• 하루 참고량: 체중(kg) × 30ml\n• 카페인 음료는 물과 따로 기록\n\n오늘 식단이 짜거나 기름졌다면 물을 조금 더 보강하세요.';
+    if (_containsAny(lowerMessage, const ['물', '수분'])) {
+      return '수분은 피부, 소화, 컨디션 목표 모두에 중요해요.\n\n• 식전 30분 물 한 잔\n• 하루 참고량: 체중(kg) × 30ml\n• 데일리 화면의 수분 카드에서 한 잔씩 기록\n\n짜거나 기름진 식사 뒤에는 조금 더 보강하세요.';
     }
 
-    if (lowerMessage.contains('체중') || lowerMessage.contains('몸무게')) {
-      return '건강한 체중 감량 팁입니다.\n\n주당 0.5~1kg 감량이 이상적입니다.\n\n급격한 감량은 요요현상의 원인이 돼요. 꾸준하게 기록하고 추이를 확인하는 것이 가장 중요합니다.\n\n체중 기록 탭에서 변화 추이를 확인해보세요.';
+    if (_containsAny(lowerMessage, const ['체중', '몸무게'])) {
+      return '체중은 하루 값보다 추이가 중요해요.\n\n주당 0.5~1kg 정도의 완만한 변화가 유지하기 좋아요. 프로필의 체중 기록에서 같은 시간대에 꾸준히 기록하고 추이를 확인해보세요.';
     }
 
-    if (lowerMessage.contains('간식') || lowerMessage.contains('야식')) {
-      return '건강한 간식을 추천해드릴게요.\n\n• 그릭요거트 + 베리류 (130kcal)\n• 삶은 계란 2개 (156kcal)\n• 견과류 한줌 (180kcal)\n• 당근 스틱 + 후무스 (100kcal)\n• 프로틴 쉐이크 (150kcal)\n\n야식이 당길 때는 따뜻한 허브차를 마셔보세요.';
+    if (_containsAny(lowerMessage, const ['간식', '야식'])) {
+      return '부담이 적은 간식 예시예요.\n\n• 그릭요거트 + 베리류\n• 삶은 계란 2개\n• 견과류 한 줌\n• 당근 스틱 + 후무스\n\n야식이 당길 때는 따뜻한 차를 먼저 마셔보세요.';
     }
 
-    if (lowerMessage.contains('안녕') ||
-        lowerMessage.contains('하이') ||
-        lowerMessage.contains('hi')) {
-      return '안녕하세요.\n\n오늘도 건강한 하루 보내고 계신가요?\n\n궁금한 점이 있으시면 편하게 물어보세요:\n• 식단 추천\n• 운동 추천\n• 칼로리 분석\n• 체중 추이\n• 수분 섭취 팁';
+    if (_containsAny(lowerMessage, const ['안녕', '하이', '반가'])) {
+      return '안녕하세요.\n\n이런 것들을 물어볼 수 있어요:\n• 오늘 식단 분석\n• 다음 식사 추천\n• 운동 루틴\n• 수분·간식 팁';
     }
 
-    return '좋은 질문이에요.\n\n목표별 식단 개선을 위한 핵심 팁:\n\n1. 매끼 단백질을 포함하세요\n2. 수분을 함께 기록하세요\n3. 채소와 식이섬유를 보강하세요\n4. 식후 10분 걷기를 시도하세요\n5. 사진 기록으로 패턴을 확인하세요\n\n피부, 감량, 장 건강 중 어떤 목표인지 알려주시면 더 구체적으로 도와드릴게요.';
+    return '목표별 식단 개선의 기본 팁이에요.\n\n1. 매끼 단백질 포함\n2. 채소와 식이섬유 보강\n3. 수분 함께 기록\n4. 식후 10분 걷기\n5. 사진 기록으로 패턴 확인';
   }
 
-  String _generateEnglishFallbackResponse(String lowerMessage) {
-    if (lowerMessage.contains('calorie') || lowerMessage.contains('kcal')) {
-      return 'Calories are an important baseline for meal strategy.\n\nCheck today’s intake against your goal in Daily, then adjust the next meal with protein, vegetables, and hydration first.';
+  String _englishFallback(String lowerMessage) {
+    if (_containsWord(lowerMessage, const ['calorie', 'calories', 'kcal'])) {
+      return 'Calories are the baseline for meal strategy.\n\nYour personal target is calculated from age, height, weight and activity — see "Daily calorie basis" in Profile.\n\nCheck what is left in Daily and build the next meal with protein and vegetables first.';
     }
 
-    if (lowerMessage.contains('exercise') ||
-        lowerMessage.contains('workout') ||
-        lowerMessage.contains('training')) {
-      return 'Here are simple activities that pair well with meal goals.\n\n1. Walk 10 minutes after meals\n2. Squats 3 x 15\n3. Plank 3 x 30 seconds\n4. Light stretching for 5 minutes';
+    if (_containsWord(lowerMessage, const [
+      'exercise',
+      'workout',
+      'training',
+    ])) {
+      return 'Simple activities that pair well with meal goals:\n\n1. Walk 10 minutes after meals\n2. Squats 3 x 15\n3. Plank 3 x 30 seconds\n4. Light stretching for 5 minutes\n\nCheck with a professional first if you have pain or a condition.';
     }
 
-    if (lowerMessage.contains('water') || lowerMessage.contains('hydration')) {
-      return 'Hydration supports skin, digestion, and energy goals.\n\n• Drink water 30 minutes before meals\n• Use body weight(kg) x 30ml as a baseline\n• Add extra water after salty or oily meals';
+    if (_containsWord(lowerMessage, const ['water', 'hydration', 'drink'])) {
+      return 'Hydration supports skin, digestion and energy goals.\n\n• A glass of water 30 minutes before meals\n• Baseline: body weight (kg) x 30ml\n• Log each glass on the water card in Daily';
     }
 
-    if (lowerMessage.contains('weight')) {
-      return 'Healthy weight change is gradual.\n\nA steady trend matters more than a single day. Keep recording meals and review your report to spot patterns.';
+    if (_containsWord(lowerMessage, const ['weight'])) {
+      return 'Weight trends matter more than a single day.\n\nA steady change of about 0.5–1kg per week is sustainable. Log your weight in Profile at the same time of day and watch the trend.';
     }
 
-    if (lowerMessage.contains('snack') || lowerMessage.contains('late')) {
-      return 'Here are balanced snack ideas.\n\n• Greek yogurt with berries\n• Two boiled eggs\n• A small handful of nuts\n• Carrot sticks with hummus\n• Protein shake';
+    if (_containsWord(lowerMessage, const ['snack', 'snacks', 'late'])) {
+      return 'Balanced snack ideas:\n\n• Greek yogurt with berries\n• Two boiled eggs\n• A small handful of nuts\n• Carrot sticks with hummus';
     }
 
-    if (lowerMessage.contains('hi') || lowerMessage.contains('hello')) {
-      return 'Hi.\n\nHow is your day going? Ask me about meal ideas, exercise, calorie analysis, weight trends, or hydration tips.';
+    if (_containsWord(lowerMessage, const ['hi', 'hello', 'hey'])) {
+      return 'Hi.\n\nYou can ask me about:\n• Today’s meals\n• What to eat next\n• Exercise routines\n• Hydration and snack tips';
     }
 
-    return 'Good question.\n\nFor better meal strategy, start with these basics:\n\n1. Include protein in each meal\n2. Track hydration\n3. Add vegetables and fiber\n4. Walk 10 minutes after meals\n5. Use photo logs to find patterns';
+    return 'Basics for goal-based eating:\n\n1. Include protein in each meal\n2. Add vegetables and fiber\n3. Track hydration\n4. Walk 10 minutes after meals\n5. Use photo logs to spot patterns';
+  }
+
+  static bool _containsAny(String text, List<String> keywords) {
+    return keywords.any(text.contains);
+  }
+
+  /// Whole-word match so "this" or "which" never count as "hi".
+  static bool _containsWord(String text, List<String> words) {
+    return words.any(
+      (word) =>
+          RegExp('(^|[^a-z])${RegExp.escape(word)}([^a-z]|\$)').hasMatch(text),
+    );
   }
 
   String _normalizeLocale(String locale) => _isEnglish(locale) ? 'en' : 'ko';
 
   bool _isEnglish(String locale) => locale.toLowerCase().startsWith('en');
+}
+
+class AiChatException implements Exception {
+  const AiChatException(this.code);
+
+  final String code;
+
+  @override
+  String toString() => 'AiChatException($code)';
 }

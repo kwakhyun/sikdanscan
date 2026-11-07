@@ -59,7 +59,7 @@ class SupabaseAccountCard extends ConsumerWidget {
                       ? Icons.cloud_queue_rounded
                       : Icons.cloud_done_rounded,
                   color: configured
-                      ? AppColors.primary
+                      ? context.colorPrimaryText
                       : context.colorTextTertiary,
                   size: 23,
                 ),
@@ -73,7 +73,7 @@ class SupabaseAccountCard extends ConsumerWidget {
                       title,
                       style: TextStyle(
                         fontSize: 16,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w800,
                         color: context.colorTextPrimary,
                       ),
                     ),
@@ -128,6 +128,19 @@ class SupabaseAccountCard extends ConsumerWidget {
                 ],
               ],
             ),
+            if (user != null)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: isLoading
+                      ? null
+                      : () => _confirmDeleteAccount(context, ref),
+                  style: TextButton.styleFrom(
+                    foregroundColor: context.colorErrorText,
+                  ),
+                  child: Text(context.l10n.authDeleteAccount),
+                ),
+              ),
           ],
         ],
       ),
@@ -137,6 +150,7 @@ class SupabaseAccountCard extends ConsumerWidget {
   void _showAuthSheet(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: context.colorSurface,
       shape: const RoundedRectangleBorder(
@@ -167,6 +181,49 @@ class SupabaseAccountCard extends ConsumerWidget {
     } catch (_) {
       if (!context.mounted) return;
       _showMessage(context, context.l10n.authFailed);
+    }
+  }
+
+  Future<void> _confirmDeleteAccount(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final l10n = context.l10n;
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: Icon(
+          Icons.warning_amber_rounded,
+          color: dialogContext.colorErrorText,
+        ),
+        title: Text(l10n.authDeleteAccountTitle),
+        content: Text(l10n.authDeleteAccountMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(l10n.commonCancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(l10n.authDeleteAccountConfirm),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await ref.read(supabaseAuthControllerProvider.notifier).deleteAccount();
+      await ref.read(dataResetProvider)();
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.authDeleteAccountDone)),
+      );
+    } catch (_) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.authDeleteAccountFailed)),
+      );
     }
   }
 
@@ -205,7 +262,7 @@ class _AccountActionButton extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
           ),
         ),
       ],
@@ -231,7 +288,7 @@ class _AccountActionButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
+          backgroundColor: AppColors.primaryStrong,
           foregroundColor: Colors.white,
           shape: shape,
         ),

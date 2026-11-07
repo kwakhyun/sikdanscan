@@ -2,11 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/utils/formatters.dart';
 import '../../data/models/meal_record.dart';
 import '../../l10n/app_localizations_context.dart';
 import '../../providers/app_providers.dart';
-import 'widgets/meal_record_sheet.dart';
+import '../../shared/widgets/app_card.dart';
+import '../../shared/widgets/empty_state.dart';
+import '../dashboard/widgets/daily_intake_overview_card.dart';
+import 'report_models.dart';
+import 'widgets/meal_entry_sheet.dart';
 
+/// Report tab: day / week / month intake, trend against the daily goal,
+/// meal-type breakdown and the full list of records for the period.
 class MealScreen extends ConsumerStatefulWidget {
   const MealScreen({super.key});
 
@@ -15,49 +23,95 @@ class MealScreen extends ConsumerStatefulWidget {
 }
 
 class _MealScreenState extends ConsumerState<MealScreen> {
-  _ReportRange _range = _ReportRange.day;
+  ReportRange _range = ReportRange.day;
 
   @override
   Widget build(BuildContext context) {
-    final selectedDate = ref.watch(selectedDateProvider);
+    final anchor = ref.watch(selectedDateProvider);
     final allMeals = ref.watch(mealRecordsProvider);
     final profile = ref.watch(userProfileProvider);
-    final period = _ReportPeriod.from(range: _range, anchorDate: selectedDate);
-    final meals = _filterMealsByPeriod(allMeals, period);
-    final summary = _ReportSummary.from(
+    final today = ref.watch(todayDateProvider);
+    final period = ReportPeriod.from(range: _range, anchorDate: anchor);
+    final meals = period.filter(allMeals);
+    final summary = ReportSummary.from(
       meals: meals,
       period: period,
       dailyCalorieGoal: profile.dailyCalorieGoal,
+      today: today,
     );
+    final l10n = context.l10n;
 
     return Scaffold(
       backgroundColor: context.colorBackground,
       body: SafeArea(
+        bottom: false,
         child: CustomScrollView(
           slivers: [
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
               sliver: SliverList.list(
                 children: [
-                  _ReportHeader(period: period),
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      l10n.reportTitle,
+                      style: AppTextStyles.headline.copyWith(
+                        color: context.colorTextPrimary,
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 14),
-                  _RangeSelector(
-                    selected: _range,
-                    onChanged: (range) => setState(() => _range = range),
+                  SizedBox(
+                    width: double.infinity,
+                    child: SegmentedButton<ReportRange>(
+                      showSelectedIcon: false,
+                      segments: [
+                        ButtonSegment(
+                          value: ReportRange.day,
+                          label: Text(l10n.reportDay),
+                        ),
+                        ButtonSegment(
+                          value: ReportRange.week,
+                          label: Text(l10n.reportWeek),
+                        ),
+                        ButtonSegment(
+                          value: ReportRange.month,
+                          label: Text(l10n.reportMonth),
+                        ),
+                      ],
+                      selected: {_range},
+                      onSelectionChanged: (selection) =>
+                          setState(() => _range = selection.first),
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  _PeriodNavigator(period: period, range: _range),
+                  _PeriodNavigator(period: period, today: today),
                   const SizedBox(height: 16),
                   _PeriodSummaryCard(summary: summary),
                   const SizedBox(height: 16),
-                  _TrendCard(period: period, meals: meals),
-                  if (_range != _ReportRange.day) ...[
+                  if (_range == ReportRange.day)
+                    _MealTypeBarsCard(meals: meals)
+                  else
+                    _TrendCard(
+                      period: period,
+                      meals: meals,
+                      dailyGoal: profile.dailyCalorieGoal,
+                      today: today,
+                      onDaySelected: (day) {
+                        ref.read(selectedDateProvider.notifier).state = day;
+                        setState(() => _range = ReportRange.day);
+                      },
+                    ),
+                  if (_range != ReportRange.day) ...[
                     const SizedBox(height: 16),
                     _MealTypeBreakdownCard(meals: meals),
                   ],
                   const SizedBox(height: 16),
-                  _RecordedFoodPanel(meals: meals, period: period),
-                  const SizedBox(height: 32),
+                  _RecordedFoodPanel(
+                    meals: meals,
+                    period: period,
+                    today: today,
+                  ),
                 ],
               ),
             ),
@@ -68,249 +122,26 @@ class _MealScreenState extends ConsumerState<MealScreen> {
   }
 }
 
-enum _ReportRange { day, week, month }
-
-extension _ReportRangeText on _ReportRange {
-  String labelOf(BuildContext context) {
-    return switch (this) {
-      _ReportRange.day => context.l10n.reportDay,
-      _ReportRange.week => context.l10n.reportWeek,
-      _ReportRange.month => context.l10n.reportMonth,
-    };
-  }
-}
-
-class _ReportPeriod {
-  const _ReportPeriod({
-    required this.range,
-    required this.start,
-    required this.end,
-  });
-
-  final _ReportRange range;
-  final DateTime start;
-  final DateTime end;
-
-  int get dayCount => end.difference(start).inDays + 1;
-
-  String titleOf(BuildContext context) {
-    final isEnglish = Localizations.localeOf(context).languageCode == 'en';
-    return switch (range) {
-      _ReportRange.day =>
-        isEnglish ? _formatEnglishDate(start) : _formatKoreanDate(start),
-      _ReportRange.week =>
-        '${_formatShortDate(start, isEnglish: isEnglish)} - ${_formatShortDate(end, isEnglish: isEnglish)}',
-      _ReportRange.month =>
-        isEnglish
-            ? '${_monthName(start.month)} ${start.year}'
-            : '${start.year}년 ${start.month}월',
-    };
-  }
-
-  String subtitleOf(BuildContext context) {
-    final isEnglish = Localizations.localeOf(context).languageCode == 'en';
-    return switch (range) {
-      _ReportRange.day => context.l10n.reportDailySubtitle,
-      _ReportRange.week => context.l10n.reportWeeklySubtitle,
-      _ReportRange.month =>
-        isEnglish ? '$dayCount-day cumulative report' : '$dayCount일 누적 리포트',
-    };
-  }
-
-  static _ReportPeriod from({
-    required _ReportRange range,
-    required DateTime anchorDate,
-  }) {
-    final day = DateTime(anchorDate.year, anchorDate.month, anchorDate.day);
-    return switch (range) {
-      _ReportRange.day => _ReportPeriod(range: range, start: day, end: day),
-      _ReportRange.week => () {
-        final start = day.subtract(Duration(days: day.weekday - 1));
-        return _ReportPeriod(
-          range: range,
-          start: start,
-          end: start.add(const Duration(days: 6)),
-        );
-      }(),
-      _ReportRange.month => _ReportPeriod(
-        range: range,
-        start: DateTime(day.year, day.month),
-        end: DateTime(day.year, day.month + 1, 0),
-      ),
-    };
-  }
-}
-
-class _ReportSummary {
-  const _ReportSummary({
-    required this.meals,
-    required this.period,
-    required this.calorieGoal,
-    required this.calories,
-    required this.carbs,
-    required this.protein,
-    required this.fat,
-  });
-
-  final List<MealRecord> meals;
-  final _ReportPeriod period;
-  final int calorieGoal;
-  final int calories;
-  final double carbs;
-  final double protein;
-  final double fat;
-
-  int get dailyAverageCalories =>
-      period.dayCount <= 0 ? calories : (calories / period.dayCount).round();
-  int get remainingCalories => calorieGoal - calories;
-  double get progress => calorieGoal <= 0 ? 0 : calories / calorieGoal;
-  int get recordedDays => _groupMealsByDay(meals).length;
-
-  factory _ReportSummary.from({
-    required List<MealRecord> meals,
-    required _ReportPeriod period,
-    required int dailyCalorieGoal,
-  }) {
-    final calorieGoal = dailyCalorieGoal <= 0
-        ? period.dayCount
-        : dailyCalorieGoal * period.dayCount;
-    return _ReportSummary(
-      meals: meals,
-      period: period,
-      calorieGoal: calorieGoal,
-      calories: meals.fold(0, (sum, meal) => sum + meal.calories),
-      carbs: meals.fold(0.0, (sum, meal) => sum + meal.carbs),
-      protein: meals.fold(0.0, (sum, meal) => sum + meal.protein),
-      fat: meals.fold(0.0, (sum, meal) => sum + meal.fat),
-    );
-  }
-}
-
-class _ReportHeader extends StatelessWidget {
-  const _ReportHeader({required this.period});
-
-  final _ReportPeriod period;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                context.l10n.reportTitle,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  color: context.colorTextPrimary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${period.range.labelOf(context)} · ${period.subtitleOf(context)}',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: context.colorTextSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: context.colorPrimarySurface,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: const Icon(Icons.insights_rounded, color: AppColors.primary),
-        ),
-      ],
-    );
-  }
-}
-
-class _RangeSelector extends StatelessWidget {
-  const _RangeSelector({required this.selected, required this.onChanged});
-
-  final _ReportRange selected;
-  final ValueChanged<_ReportRange> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: context.colorSurfaceVariant,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: _ReportRange.values.map((range) {
-          final isSelected = range == selected;
-          return Expanded(
-            child: InkWell(
-              onTap: () => onChanged(range),
-              borderRadius: BorderRadius.circular(12),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                padding: const EdgeInsets.symmetric(vertical: 11),
-                decoration: BoxDecoration(
-                  color: isSelected ? context.colorSurface : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Text(
-                  range.labelOf(context),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                    color: isSelected
-                        ? AppColors.primary
-                        : context.colorTextSecondary,
-                  ),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-
 class _PeriodNavigator extends ConsumerWidget {
-  const _PeriodNavigator({required this.period, required this.range});
+  const _PeriodNavigator({required this.period, required this.today});
 
-  final _ReportPeriod period;
-  final _ReportRange range;
+  final ReportPeriod period;
+  final DateTime today;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final today = DateTime.now();
-    final currentPeriod = _ReportPeriod.from(range: range, anchorDate: today);
-    final isCurrent =
-        _isSameDay(period.start, currentPeriod.start) &&
-        _isSameDay(period.end, currentPeriod.end);
+    final l10n = context.l10n;
+    final isCurrent = period.isCurrent(today);
+    final locale = context.localeTag;
 
     return Row(
       children: [
-        _PeriodNavButton(
-          icon: Icons.chevron_left_rounded,
-          onTap: () => _move(ref, -1),
+        IconButton.filledTonal(
+          tooltip: l10n.reportPrevious,
+          onPressed: () => _setAnchor(ref, period.shift(-1).start),
+          icon: const Icon(Icons.chevron_left_rounded),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         Expanded(
           child: OutlinedButton.icon(
             onPressed: () async {
@@ -319,106 +150,73 @@ class _PeriodNavigator extends ConsumerWidget {
                 initialDate: period.start.isAfter(today) ? today : period.start,
                 firstDate: today.subtract(const Duration(days: 365 * 2)),
                 lastDate: today,
-                builder: (context, child) {
-                  return Theme(
-                    data: Theme.of(context).copyWith(
-                      colorScheme: Theme.of(
-                        context,
-                      ).colorScheme.copyWith(primary: AppColors.primary),
-                    ),
-                    child: child!,
-                  );
-                },
               );
-              if (picked != null) {
-                ref.read(selectedDateProvider.notifier).state = picked;
-              }
+              if (picked != null) _setAnchor(ref, picked);
             },
             icon: const Icon(Icons.calendar_today_rounded, size: 18),
-            label: Text(period.titleOf(context)),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primary,
-              side: BorderSide(color: context.colorBorder),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 13),
+            label: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(_title(period, locale)),
             ),
           ),
         ),
-        const SizedBox(width: 10),
-        _PeriodNavButton(
-          icon: Icons.chevron_right_rounded,
-          onTap: isCurrent ? null : () => _move(ref, 1),
+        const SizedBox(width: 8),
+        IconButton.filledTonal(
+          tooltip: l10n.reportNext,
+          onPressed: isCurrent
+              ? null
+              : () => _setAnchor(ref, period.shift(1).start),
+          icon: const Icon(Icons.chevron_right_rounded),
         ),
         if (!isCurrent) ...[
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
           TextButton(
-            onPressed: () =>
-                ref.read(selectedDateProvider.notifier).state = today,
-            child: Text(
-              Localizations.localeOf(context).languageCode == 'en'
-                  ? 'Today'
-                  : '오늘',
-            ),
+            onPressed: () => _setAnchor(ref, today),
+            child: Text(l10n.reportToday),
           ),
         ],
       ],
     );
   }
 
-  void _move(WidgetRef ref, int direction) {
-    final delta = switch (range) {
-      _ReportRange.day => Duration(days: direction),
-      _ReportRange.week => Duration(days: 7 * direction),
-      _ReportRange.month => null,
-    };
-    final next = range == _ReportRange.month
-        ? DateTime(period.start.year, period.start.month + direction, 1)
-        : period.start.add(delta!);
-    ref.read(selectedDateProvider.notifier).state = next;
+  void _setAnchor(WidgetRef ref, DateTime date) {
+    final today = ref.read(todayDateProvider);
+    ref.read(selectedDateProvider.notifier).state = date.isAfter(today)
+        ? today
+        : date;
   }
-}
 
-class _PeriodNavButton extends StatelessWidget {
-  const _PeriodNavButton({required this.icon, required this.onTap});
-
-  final IconData icon;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton.filledTonal(
-      onPressed: onTap,
-      icon: Icon(icon),
-      style: IconButton.styleFrom(
-        backgroundColor: context.colorSurfaceVariant,
-        foregroundColor: onTap == null
-            ? context.colorTextTertiary
-            : context.colorTextPrimary,
-      ),
-    );
+  static String _title(ReportPeriod period, String locale) {
+    return switch (period.range) {
+      ReportRange.day => AppFormat.mediumDate(period.start, locale),
+      ReportRange.week =>
+        '${AppFormat.shortDate(period.start)} – ${AppFormat.shortDate(period.end)}',
+      ReportRange.month => AppFormat.monthYear(period.start, locale),
+    };
   }
 }
 
 class _PeriodSummaryCard extends StatelessWidget {
   const _PeriodSummaryCard({required this.summary});
 
-  final _ReportSummary summary;
+  final ReportSummary summary;
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = summary.calories <= summary.calorieGoal
-        ? AppColors.primary
-        : AppColors.error;
+    final l10n = context.l10n;
+    final locale = context.localeTag;
+    final over = summary.calorieGoal > 0 && summary.remainingCalories < 0;
+    final statusColor = over
+        ? context.colorErrorText
+        : context.colorPrimaryText;
+    final goalText = AppFormat.integer(summary.calorieGoal, locale);
+    final amountText = AppFormat.integer(
+      summary.remainingCalories.abs(),
+      locale,
+    );
+    final isDay = summary.period.range == ReportRange.day;
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: context.colorSurface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: context.colorBorder),
-      ),
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -426,24 +224,20 @@ class _PeriodSummaryCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  '${summary.period.range.labelOf(context)} ${Localizations.localeOf(context).languageCode == 'en' ? 'summary' : '요약'}',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
+                  l10n.reportSummaryTitle,
+                  style: AppTextStyles.section.copyWith(
                     color: context.colorTextPrimary,
                   ),
                 ),
               ),
-              Text(
-                Localizations.localeOf(context).languageCode == 'en'
-                    ? '${summary.recordedDays}/${summary.period.dayCount} days logged'
-                    : '${summary.recordedDays}/${summary.period.dayCount}일 기록',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: context.colorTextSecondary,
+              if (!isDay)
+                Text(
+                  l10n.reportLoggedDays(summary.recordedDays, summary.goalDays),
+                  style: AppTextStyles.caption.copyWith(
+                    color: context.colorTextSecondary,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 14),
@@ -452,75 +246,78 @@ class _PeriodSummaryCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  '${_formatInt(summary.calories)} kcal',
-                  style: TextStyle(
-                    fontSize: 32,
-                    height: 1,
-                    fontWeight: FontWeight.w900,
+                  AppFormat.kcal(summary.calories, locale),
+                  style: AppTextStyles.display.copyWith(
                     color: context.colorTextPrimary,
                   ),
                 ),
               ),
-              Text(
-                '${(summary.progress * 100).round()}%',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  color: statusColor,
+              if (summary.calorieGoal > 0)
+                Text(
+                  '${(summary.progress * 100).round()}%',
+                  style: AppTextStyles.title.copyWith(color: statusColor),
                 ),
-              ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            summary.remainingCalories >= 0
-                ? _periodGoalText(context, summary, over: false)
-                : _periodGoalText(context, summary, over: true),
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: statusColor,
+          if (summary.calorieGoal > 0) ...[
+            const SizedBox(height: 8),
+            Text(
+              over
+                  ? l10n.reportGoalOver(goalText, amountText)
+                  : l10n.reportGoalLeft(goalText, amountText),
+              style: AppTextStyles.label.copyWith(color: statusColor),
             ),
-          ),
-          const SizedBox(height: 14),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              minHeight: 9,
-              value: summary.progress.clamp(0.0, 1.0),
-              backgroundColor: context.colorSurfaceVariant,
-              valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+            if (!isDay && summary.goalDays < summary.period.dayCount)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  l10n.reportGoalElapsedNote(summary.goalDays),
+                  style: AppTextStyles.micro.copyWith(
+                    color: context.colorTextSecondary,
+                  ),
+                ),
+              ),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                minHeight: 9,
+                value: summary.progress.clamp(0.0, 1.0),
+                backgroundColor: context.colorSurfaceVariant,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  over ? AppColors.error : AppColors.chartBar,
+                ),
+              ),
             ),
-          ),
+          ],
           const SizedBox(height: 18),
           Row(
             children: [
-              Expanded(
-                child: _SummaryMetric(
-                  label: Localizations.localeOf(context).languageCode == 'en'
-                      ? 'Daily avg'
-                      : '일평균',
-                  value: '${_formatInt(summary.dailyAverageCalories)} kcal',
+              if (!isDay)
+                Expanded(
+                  child: _SummaryMetric(
+                    label: l10n.reportDailyAverage,
+                    value: AppFormat.kcal(summary.dailyAverageCalories, locale),
+                  ),
                 ),
-              ),
               Expanded(
                 child: _SummaryMetric(
-                  label: context.l10n.dailyCarbs,
-                  value: '${summary.carbs.toStringAsFixed(0)}g',
+                  label: l10n.dailyCarbs,
+                  value: AppFormat.grams(summary.carbs),
                   color: AppColors.chartCarbs,
                 ),
               ),
               Expanded(
                 child: _SummaryMetric(
-                  label: context.l10n.dailyProtein,
-                  value: '${summary.protein.toStringAsFixed(0)}g',
+                  label: l10n.dailyProtein,
+                  value: AppFormat.grams(summary.protein),
                   color: AppColors.chartProtein,
                 ),
               ),
               Expanded(
                 child: _SummaryMetric(
-                  label: context.l10n.dailyFat,
-                  value: '${summary.fat.toStringAsFixed(0)}g',
+                  label: l10n.dailyFat,
+                  value: AppFormat.grams(summary.fat),
                   color: AppColors.chartFat,
                 ),
               ),
@@ -559,24 +356,21 @@ class _SummaryMetric extends StatelessWidget {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
+                style: AppTextStyles.micro.copyWith(
                   color: context.colorTextSecondary,
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 5),
+        const SizedBox(height: 4),
         Text(
           value,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w900,
+          style: AppTextStyles.label.copyWith(
             color: context.colorTextPrimary,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ],
@@ -584,161 +378,347 @@ class _SummaryMetric extends StatelessWidget {
   }
 }
 
-class _TrendCard extends StatelessWidget {
-  const _TrendCard({required this.period, required this.meals});
+/// Day view: calories per meal type as horizontal bars.
+class _MealTypeBarsCard extends StatelessWidget {
+  const _MealTypeBarsCard({required this.meals});
 
-  final _ReportPeriod period;
   final List<MealRecord> meals;
+
+  static const typeColors = {
+    MealType.breakfast: AppColors.info,
+    MealType.lunch: AppColors.chartBar,
+    MealType.dinner: AppColors.accent,
+    MealType.snack: AppColors.warning,
+  };
 
   @override
   Widget build(BuildContext context) {
-    final buckets = _buildDailyBuckets(context, period, meals);
-    final maxCalories = buckets.fold<int>(
-      0,
-      (max, bucket) => bucket.calories > max ? bucket.calories : max,
-    );
+    final l10n = context.l10n;
+    final locale = context.localeTag;
+    final byType = {
+      for (final type in MealType.values)
+        type: meals
+            .where((m) => m.mealType == type)
+            .fold(0, (sum, m) => sum + m.calories),
+    };
+    final max = byType.values.fold(0, (a, b) => a > b ? a : b);
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: context.colorSurface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: context.colorBorder),
-      ),
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            period.range == _ReportRange.day
-                ? (Localizations.localeOf(context).languageCode == 'en'
-                      ? 'Hourly records'
-                      : '시간별 기록')
-                : (Localizations.localeOf(context).languageCode == 'en'
-                      ? 'Daily trend'
-                      : '일별 추이'),
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
+            l10n.reportMealTypeDayTitle,
+            style: AppTextStyles.section.copyWith(
               color: context.colorTextPrimary,
             ),
           ),
           const SizedBox(height: 14),
-          SizedBox(
-            height: 148,
-            child: buckets.isEmpty
-                ? _EmptyReportState(
-                    message:
-                        Localizations.localeOf(context).languageCode == 'en'
-                        ? 'No records to display'
-                        : '표시할 기록이 없습니다',
-                  )
-                : Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: buckets.map((bucket) {
-                      final ratio = maxCalories <= 0
-                          ? 0.0
-                          : bucket.calories / maxCalories;
-                      return Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 3),
-                          child: _TrendBar(bucket: bucket, ratio: ratio),
+          for (final type in MealType.values)
+            Semantics(
+              label:
+                  '${type.labelOf(l10n)} ${AppFormat.kcal(byType[type]!, locale)}',
+              excludeSemantics: true,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 52,
+                      child: Text(
+                        type.labelOf(l10n),
+                        style: AppTextStyles.label.copyWith(
+                          color: context.colorTextPrimary,
                         ),
-                      );
-                    }).toList(),
-                  ),
-          ),
+                      ),
+                    ),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(999),
+                        child: LinearProgressIndicator(
+                          minHeight: 12,
+                          value: max <= 0 ? 0 : byType[type]! / max,
+                          backgroundColor: context.colorSurfaceVariant,
+                          valueColor: AlwaysStoppedAnimation(typeColors[type]),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    SizedBox(
+                      width: 76,
+                      child: Text(
+                        byType[type]! > 0
+                            ? AppFormat.kcal(byType[type]!, locale)
+                            : '–',
+                        textAlign: TextAlign.right,
+                        style: AppTextStyles.caption.copyWith(
+                          color: context.colorTextSecondary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 }
 
-class _DailyBucket {
-  const _DailyBucket({
-    required this.date,
-    required this.label,
-    required this.calories,
+/// Week / month view: one bar per day with the daily goal as a dashed line.
+/// Bars above the goal use the warning color; tapping a bar opens that day.
+class _TrendCard extends StatelessWidget {
+  const _TrendCard({
+    required this.period,
+    required this.meals,
+    required this.dailyGoal,
+    required this.today,
+    required this.onDaySelected,
   });
 
-  final DateTime date;
-  final String label;
-  final int calories;
-}
+  final ReportPeriod period;
+  final List<MealRecord> meals;
+  final int dailyGoal;
+  final DateTime today;
+  final ValueChanged<DateTime> onDaySelected;
 
-class _TrendBar extends StatelessWidget {
-  const _TrendBar({required this.bucket, required this.ratio});
-
-  final _DailyBucket bucket;
-  final double ratio;
+  static const _chartHeight = 150.0;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        SizedBox(
-          height: 18,
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              bucket.calories > 0
-                  ? '${(bucket.calories / 1000).toStringAsFixed(1)}k'
-                  : '-',
-              maxLines: 1,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: bucket.calories > 0
-                    ? context.colorTextSecondary
-                    : context.colorTextTertiary,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final barHeight = bucket.calories > 0
-                  ? (18 +
-                        ((constraints.maxHeight - 18) * ratio.clamp(0.0, 1.0)))
-                  : 18.0;
+    final l10n = context.l10n;
+    final locale = context.localeTag;
+    final buckets = dailyCalories(period, meals);
+    final maxCalories = buckets.fold<int>(
+      dailyGoal,
+      (max, bucket) => bucket.$2 > max ? bucket.$2 : max,
+    );
+    final isMonth = period.range == ReportRange.month;
 
-              return Align(
-                alignment: Alignment.bottomCenter,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  width: 22,
-                  height: barHeight.clamp(18.0, constraints.maxHeight),
-                  decoration: BoxDecoration(
-                    color: bucket.calories > 0
-                        ? AppColors.primary
-                        : context.colorSurfaceVariant,
-                    borderRadius: BorderRadius.circular(999),
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  l10n.reportDailyTrend,
+                  style: AppTextStyles.section.copyWith(
+                    color: context.colorTextPrimary,
                   ),
                 ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 18,
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              bucket.label,
-              maxLines: 1,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                color: context.colorTextTertiary,
               ),
+              if (dailyGoal > 0)
+                Row(
+                  children: [
+                    Container(
+                      width: 14,
+                      height: 2,
+                      color: context.colorTextSecondary,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      l10n.reportGoalLine(AppFormat.integer(dailyGoal, locale)),
+                      style: AppTextStyles.micro.copyWith(
+                        color: context.colorTextSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            l10n.reportTapDayHint,
+            style: AppTextStyles.micro.copyWith(
+              color: context.colorTextTertiary,
             ),
           ),
-        ),
-      ],
+          const SizedBox(height: 14),
+          SizedBox(
+            height: _chartHeight + 22,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final count = buckets.length;
+                final slot = constraints.maxWidth / count;
+                final barWidth = (slot * (isMonth ? 0.62 : 0.5)).clamp(
+                  3.0,
+                  26.0,
+                );
+                final goalY = maxCalories <= 0 || dailyGoal <= 0
+                    ? null
+                    : _chartHeight * (1 - dailyGoal / maxCalories);
+
+                return Stack(
+                  children: [
+                    if (goalY != null)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        top: goalY,
+                        child: CustomPaint(
+                          size: Size(constraints.maxWidth, 1),
+                          painter: _DashedLinePainter(
+                            color: context.colorTextSecondary.withValues(
+                              alpha: 0.7,
+                            ),
+                          ),
+                        ),
+                      ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        for (var i = 0; i < count; i++)
+                          _DayBar(
+                            width: slot,
+                            barWidth: barWidth,
+                            chartHeight: _chartHeight,
+                            day: buckets[i].$1,
+                            calories: buckets[i].$2,
+                            maxCalories: maxCalories,
+                            overGoal:
+                                dailyGoal > 0 && buckets[i].$2 > dailyGoal,
+                            isFuture: buckets[i].$1.isAfter(today),
+                            label: isMonth
+                                ? (_showMonthLabel(buckets[i].$1, period)
+                                      ? '${buckets[i].$1.day}'
+                                      : '')
+                                : AppFormat.weekdayShort(buckets[i].$1, locale),
+                            semanticLabel: l10n.reportBarSemantics(
+                              AppFormat.mediumDate(buckets[i].$1, locale),
+                              AppFormat.kcal(buckets[i].$2, locale),
+                            ),
+                            onTap: buckets[i].$1.isAfter(today)
+                                ? null
+                                : () => onDaySelected(buckets[i].$1),
+                          ),
+                      ],
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
+
+  static bool _showMonthLabel(DateTime day, ReportPeriod period) {
+    return day.day == 1 || day.day % 5 == 0 || day.isSameDay(period.end);
+  }
+}
+
+class _DayBar extends StatelessWidget {
+  const _DayBar({
+    required this.width,
+    required this.barWidth,
+    required this.chartHeight,
+    required this.day,
+    required this.calories,
+    required this.maxCalories,
+    required this.overGoal,
+    required this.isFuture,
+    required this.label,
+    required this.semanticLabel,
+    required this.onTap,
+  });
+
+  final double width;
+  final double barWidth;
+  final double chartHeight;
+  final DateTime day;
+  final int calories;
+  final int maxCalories;
+  final bool overGoal;
+  final bool isFuture;
+  final String label;
+  final String semanticLabel;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final ratio = maxCalories <= 0 ? 0.0 : calories / maxCalories;
+    final height = calories > 0
+        ? (chartHeight * ratio).clamp(4.0, chartHeight)
+        : 3.0;
+    final color = calories <= 0
+        ? context.colorSurfaceVariant
+        : overGoal
+        ? AppColors.warning
+        : AppColors.chartBar;
+
+    return Semantics(
+      button: onTap != null,
+      label: semanticLabel,
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: SizedBox(
+          width: width,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Container(
+                width: barWidth,
+                height: height,
+                decoration: BoxDecoration(
+                  color: isFuture ? Colors.transparent : color,
+                  borderRadius: BorderRadius.circular(barWidth / 2),
+                ),
+              ),
+              SizedBox(
+                height: 22,
+                child: Center(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.visible,
+                    softWrap: false,
+                    style: AppTextStyles.micro.copyWith(
+                      color: context.colorTextSecondary,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DashedLinePainter extends CustomPainter {
+  const _DashedLinePainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.2;
+    const dash = 4.0;
+    const gap = 3.0;
+    var x = 0.0;
+    while (x < size.width) {
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset((x + dash).clamp(0, size.width), 0),
+        paint,
+      );
+      x += dash + gap;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedLinePainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 class _MealTypeBreakdownCard extends StatelessWidget {
@@ -746,47 +726,47 @@ class _MealTypeBreakdownCard extends StatelessWidget {
 
   final List<MealRecord> meals;
 
-  static const _typeColors = {
-    MealType.breakfast: AppColors.info,
-    MealType.lunch: AppColors.primary,
-    MealType.dinner: AppColors.accent,
-    MealType.snack: AppColors.warning,
-  };
-
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final totalCalories = meals.fold(0, (sum, meal) => sum + meal.calories);
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: context.colorSurface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: context.colorBorder),
-      ),
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            context.l10n.reportMealTypeTitle,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
+            l10n.reportMealTypeTitle,
+            style: AppTextStyles.section.copyWith(
               color: context.colorTextPrimary,
             ),
           ),
           const SizedBox(height: 14),
           if (totalCalories <= 0)
-            _EmptyReportState(
-              message: Localizations.localeOf(context).languageCode == 'en'
-                  ? 'No records to display'
-                  : '표시할 기록이 없습니다',
+            EmptyStateBox(
+              icon: Icons.bar_chart_rounded,
+              message: l10n.reportNoRecordsToShow,
             )
           else ...[
-            _MealTypeStackedBar(
-              meals: meals,
-              totalCalories: totalCalories,
-              typeColors: _typeColors,
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: SizedBox(
+                height: 12,
+                child: Row(
+                  children: MealType.values.map((type) {
+                    final calories = meals
+                        .where((meal) => meal.mealType == type)
+                        .fold(0, (sum, meal) => sum + meal.calories);
+                    if (calories <= 0) return const SizedBox.shrink();
+                    return Expanded(
+                      flex: calories,
+                      child: Container(
+                        color: _MealTypeBarsCard.typeColors[type],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
             ),
             const SizedBox(height: 16),
             ...MealType.values.map((type) {
@@ -799,7 +779,7 @@ class _MealTypeBreakdownCard extends StatelessWidget {
               );
               return _MealTypeBreakdownRow(
                 type: type,
-                color: _typeColors[type]!,
+                color: _MealTypeBarsCard.typeColors[type]!,
                 calories: calories,
                 count: typeMeals.length,
                 share: totalCalories <= 0 ? 0 : calories / totalCalories,
@@ -807,40 +787,6 @@ class _MealTypeBreakdownCard extends StatelessWidget {
             }),
           ],
         ],
-      ),
-    );
-  }
-}
-
-class _MealTypeStackedBar extends StatelessWidget {
-  const _MealTypeStackedBar({
-    required this.meals,
-    required this.totalCalories,
-    required this.typeColors,
-  });
-
-  final List<MealRecord> meals;
-  final int totalCalories;
-  final Map<MealType, Color> typeColors;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(999),
-      child: SizedBox(
-        height: 12,
-        child: Row(
-          children: MealType.values.map((type) {
-            final calories = meals
-                .where((meal) => meal.mealType == type)
-                .fold(0, (sum, meal) => sum + meal.calories);
-            if (calories <= 0) return const SizedBox.shrink();
-            return Expanded(
-              flex: calories,
-              child: Container(color: typeColors[type]),
-            );
-          }).toList(),
-        ),
       ),
     );
   }
@@ -864,6 +810,8 @@ class _MealTypeBreakdownRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasRecords = count > 0;
+    final l10n = context.l10n;
+    final locale = context.localeTag;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -881,10 +829,8 @@ class _MealTypeBreakdownRow extends StatelessWidget {
           SizedBox(
             width: 64,
             child: Text(
-              type.labelOf(context.l10n),
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
+              type.labelOf(l10n),
+              style: AppTextStyles.label.copyWith(
                 color: hasRecords
                     ? context.colorTextPrimary
                     : context.colorTextTertiary,
@@ -894,13 +840,11 @@ class _MealTypeBreakdownRow extends StatelessWidget {
           Expanded(
             child: Text(
               hasRecords
-                  ? '${_formatInt(calories)} kcal · ${context.l10n.reportMealTypeRecords(count)}'
+                  ? '${AppFormat.kcal(calories, locale)} · ${l10n.reportMealTypeRecords(count)}'
                   : '-',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+              style: AppTextStyles.caption.copyWith(
                 color: context.colorTextSecondary,
               ),
             ),
@@ -908,10 +852,11 @@ class _MealTypeBreakdownRow extends StatelessWidget {
           const SizedBox(width: 10),
           Text(
             hasRecords ? '${(share * 100).round()}%' : '0%',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w900,
-              color: hasRecords ? color : context.colorTextTertiary,
+            style: AppTextStyles.label.copyWith(
+              color: hasRecords
+                  ? context.colorTextPrimary
+                  : context.colorTextTertiary,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
@@ -920,23 +865,67 @@ class _MealTypeBreakdownRow extends StatelessWidget {
   }
 }
 
-class _RecordedFoodPanel extends StatelessWidget {
-  const _RecordedFoodPanel({required this.meals, required this.period});
+/// All records of the period, grouped by day. Long periods show the first
+/// rows with a "show all" toggle instead of silently truncating.
+class _RecordedFoodPanel extends ConsumerStatefulWidget {
+  const _RecordedFoodPanel({
+    required this.meals,
+    required this.period,
+    required this.today,
+  });
 
   final List<MealRecord> meals;
-  final _ReportPeriod period;
+  final ReportPeriod period;
+  final DateTime today;
+
+  @override
+  ConsumerState<_RecordedFoodPanel> createState() => _RecordedFoodPanelState();
+}
+
+class _RecordedFoodPanelState extends ConsumerState<_RecordedFoodPanel> {
+  static const _collapsedCount = 15;
+  bool _expanded = false;
+
+  @override
+  void didUpdateWidget(covariant _RecordedFoodPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.period.start != widget.period.start ||
+        oldWidget.period.range != widget.period.range) {
+      _expanded = false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final sorted = [...meals]..sort((a, b) => b.date.compareTo(a.date));
+    final l10n = context.l10n;
+    final locale = context.localeTag;
+    final sorted = [...widget.meals]..sort((a, b) => b.date.compareTo(a.date));
+    final visible = _expanded ? sorted : sorted.take(_collapsedCount).toList();
+    final isDay = widget.period.range == ReportRange.day;
+    final canAdd = isDay && !widget.period.start.isAfter(widget.today);
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: context.colorSurface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: context.colorBorder),
-      ),
+    final children = <Widget>[];
+    DateTime? currentDay;
+    for (final meal in visible) {
+      final day = meal.date.dateOnly;
+      if (!isDay && currentDay != day) {
+        currentDay = day;
+        children.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 10, bottom: 2),
+            child: Text(
+              AppFormat.mediumDate(day, locale),
+              style: AppTextStyles.micro.copyWith(
+                color: context.colorTextSecondary,
+              ),
+            ),
+          ),
+        );
+      }
+      children.add(MealLogRow(meal: meal));
+    }
+
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -944,334 +933,65 @@ class _RecordedFoodPanel extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  Localizations.localeOf(context).languageCode == 'en'
-                      ? 'Recorded foods'
-                      : '기록된 음식',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
+                  l10n.reportRecordedFoods,
+                  style: AppTextStyles.section.copyWith(
                     color: context.colorTextPrimary,
                   ),
                 ),
               ),
               Text(
-                Localizations.localeOf(context).languageCode == 'en'
-                    ? '${meals.length} items'
-                    : '${meals.length}개',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
+                l10n.commonItemCount(sorted.length),
+                style: AppTextStyles.caption.copyWith(
                   color: context.colorTextSecondary,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           if (sorted.isEmpty)
-            _EmptyReportState(
-              message: Localizations.localeOf(context).languageCode == 'en'
-                  ? 'Record your first food with a photo'
-                  : '사진으로 첫 음식을 기록해보세요',
+            EmptyStateBox(
+              icon: Icons.no_meals_rounded,
+              message: l10n.reportNoRecordsForPeriod,
+              actionLabel: canAdd ? l10n.reportAddForDay : null,
+              onAction: canAdd
+                  ? () => showMealEntrySheet(
+                      context,
+                      ref,
+                      date: widget.period.start,
+                    )
+                  : null,
             )
-          else
-            ...sorted
-                .take(12)
-                .map(
-                  (meal) => _FoodReportRow(
-                    meal: meal,
-                    showDate: period.range != _ReportRange.day,
+          else ...[
+            ...children,
+            if (sorted.length > _collapsedCount)
+              Center(
+                child: TextButton.icon(
+                  onPressed: () => setState(() => _expanded = !_expanded),
+                  icon: Icon(
+                    _expanded
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                  ),
+                  label: Text(
+                    _expanded
+                        ? l10n.reportShowLess
+                        : l10n.reportShowAll(sorted.length),
                   ),
                 ),
-          if (sorted.length > 12) ...[
-            const SizedBox(height: 8),
-            Text(
-              Localizations.localeOf(context).languageCode == 'en'
-                  ? '+${sorted.length - 12} more records'
-                  : '외 ${sorted.length - 12}개 기록',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: context.colorTextTertiary,
               ),
-            ),
+            if (canAdd) ...[
+              const SizedBox(height: 4),
+              OutlinedButton.icon(
+                onPressed: () =>
+                    showMealEntrySheet(context, ref, date: widget.period.start),
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: Text(l10n.reportAddForDay),
+              ),
+            ],
           ],
         ],
       ),
     );
   }
-}
-
-class _FoodReportRow extends StatelessWidget {
-  const _FoodReportRow({required this.meal, required this.showDate});
-
-  final MealRecord meal;
-  final bool showDate;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => showMealRecordSheet(context, meal),
-      borderRadius: BorderRadius.circular(14),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: context.colorPrimarySurface,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.restaurant_rounded,
-                color: AppColors.primary,
-                size: 19,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    meal.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: context.colorTextPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _recordMeta(context, meal, showDate: showDate),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: context.colorTextTertiary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              '${meal.calories} kcal',
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                color: AppColors.primary,
-              ),
-            ),
-            const SizedBox(width: 2),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 18,
-              color: context.colorTextTertiary,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _EmptyReportState extends StatelessWidget {
-  const _EmptyReportState({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 22),
-      decoration: BoxDecoration(
-        color: context.colorSurfaceVariant,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.camera_alt_outlined,
-            color: context.colorTextTertiary,
-            size: 28,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: context.colorTextSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-List<MealRecord> _filterMealsByPeriod(
-  List<MealRecord> meals,
-  _ReportPeriod period,
-) {
-  return meals.where((meal) {
-    final date = DateTime(meal.date.year, meal.date.month, meal.date.day);
-    return !date.isBefore(period.start) && !date.isAfter(period.end);
-  }).toList();
-}
-
-Map<DateTime, List<MealRecord>> _groupMealsByDay(List<MealRecord> meals) {
-  final groups = <DateTime, List<MealRecord>>{};
-  for (final meal in meals) {
-    final day = DateTime(meal.date.year, meal.date.month, meal.date.day);
-    groups.putIfAbsent(day, () => []).add(meal);
-  }
-  return groups;
-}
-
-List<_DailyBucket> _buildDailyBuckets(
-  BuildContext context,
-  _ReportPeriod period,
-  List<MealRecord> meals,
-) {
-  final isEnglish = Localizations.localeOf(context).languageCode == 'en';
-  if (period.range == _ReportRange.day) {
-    const slots = [0, 6, 12, 18];
-    return slots.map((startHour) {
-      final endHour = startHour + 6;
-      final calories = meals
-          .where(
-            (meal) => meal.date.hour >= startHour && meal.date.hour < endHour,
-          )
-          .fold(0, (sum, meal) => sum + meal.calories);
-      return _DailyBucket(
-        date: period.start,
-        label: isEnglish
-            ? '${startHour.toString().padLeft(2, '0')}:00'
-            : '${startHour.toString().padLeft(2, '0')}시',
-        calories: calories,
-      );
-    }).toList();
-  }
-
-  final byDay = _groupMealsByDay(meals);
-  return List.generate(period.dayCount, (index) {
-    final date = period.start.add(Duration(days: index));
-    final dayMeals = byDay[date] ?? const <MealRecord>[];
-    final calories = dayMeals.fold(0, (sum, meal) => sum + meal.calories);
-    return _DailyBucket(
-      date: date,
-      label: period.range == _ReportRange.week
-          ? _weekdayShort(date, isEnglish: isEnglish)
-          : date.day.toString(),
-      calories: calories,
-    );
-  });
-}
-
-bool _isSameDay(DateTime a, DateTime b) {
-  return a.year == b.year && a.month == b.month && a.day == b.day;
-}
-
-String _formatKoreanDate(DateTime date) {
-  const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
-  return '${date.month}월 ${date.day}일 (${weekdays[date.weekday - 1]})';
-}
-
-String _formatEnglishDate(DateTime date) {
-  const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  return '${_monthName(date.month)} ${date.day} (${weekdays[date.weekday - 1]})';
-}
-
-String _formatShortDate(DateTime date, {bool isEnglish = false}) {
-  if (isEnglish) return '${date.month}/${date.day}';
-  return '${date.month}/${date.day}';
-}
-
-String _weekdayShort(DateTime date, {bool isEnglish = false}) {
-  if (isEnglish) {
-    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return weekdays[date.weekday - 1];
-  }
-  const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
-  return weekdays[date.weekday - 1];
-}
-
-String _monthName(int month) {
-  const months = [
-    'January',
-    'February',
-    'March',
-    'April',
-    'May',
-    'June',
-    'July',
-    'August',
-    'September',
-    'October',
-    'November',
-    'December',
-  ];
-  return months[month.clamp(1, 12) - 1];
-}
-
-String _formatTime(DateTime date) {
-  final hour = date.hour.toString().padLeft(2, '0');
-  final minute = date.minute.toString().padLeft(2, '0');
-  return '$hour:$minute';
-}
-
-String _recordMeta(
-  BuildContext context,
-  MealRecord meal, {
-  required bool showDate,
-}) {
-  final serving = meal.servingSize?.trim();
-  final isEnglish = Localizations.localeOf(context).languageCode == 'en';
-  final parts = [
-    if (showDate) _formatShortDate(meal.date, isEnglish: isEnglish),
-    _formatTime(meal.date),
-    if (serving != null && serving.isNotEmpty) serving,
-    isEnglish
-        ? 'C ${meal.carbs.toStringAsFixed(0)}g · P ${meal.protein.toStringAsFixed(0)}g · F ${meal.fat.toStringAsFixed(0)}g'
-        : '탄 ${meal.carbs.toStringAsFixed(0)}g · 단 ${meal.protein.toStringAsFixed(0)}g · 지 ${meal.fat.toStringAsFixed(0)}g',
-  ];
-  return parts.join(' · ');
-}
-
-String _periodGoalText(
-  BuildContext context,
-  _ReportSummary summary, {
-  required bool over,
-}) {
-  final goal = _formatInt(summary.calorieGoal);
-  final amount = _formatInt(summary.remainingCalories.abs());
-  if (Localizations.localeOf(context).languageCode == 'en') {
-    return over
-        ? 'Period goal $goal kcal · $amount kcal over'
-        : 'Period goal $goal kcal · $amount kcal left';
-  }
-  return over
-      ? '기간 목표 $goal kcal · $amount kcal 초과'
-      : '기간 목표 $goal kcal · $amount kcal 남음';
-}
-
-String _formatInt(int value) {
-  final text = value.abs().toString();
-  final buffer = StringBuffer();
-  for (var i = 0; i < text.length; i++) {
-    if (i > 0 && (text.length - i) % 3 == 0) {
-      buffer.write(',');
-    }
-    buffer.write(text[i]);
-  }
-  return value < 0 ? '-$buffer' : buffer.toString();
 }

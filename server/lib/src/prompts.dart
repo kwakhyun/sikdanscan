@@ -17,8 +17,9 @@ String buildAiCoachPrompt(
           'targetWeight': 'Target weight',
           'wellnessGoal': 'Wellness goal',
           'wellnessGoalDescription': 'Goal description',
-          'waterMl': 'Today hydration',
-          'steps': 'Today steps',
+          'waterMl': 'Today hydration (ml)',
+          'waterGoalMl': 'Daily hydration goal (ml)',
+          'proteinGoal': 'Daily protein goal (g)',
         }
       : {
           'todayCalories': '오늘 섭취 칼로리',
@@ -27,8 +28,9 @@ String buildAiCoachPrompt(
           'targetWeight': '목표 체중',
           'wellnessGoal': '개선 목표',
           'wellnessGoalDescription': '개선 목표 설명',
-          'waterMl': '오늘 수분 섭취',
-          'steps': '오늘 걸음 수',
+          'waterMl': '오늘 수분 섭취(ml)',
+          'waterGoalMl': '일일 수분 목표(ml)',
+          'proteinGoal': '일일 단백질 목표(g)',
         };
 
   for (final entry in entries.entries) {
@@ -43,6 +45,21 @@ String buildAiCoachPrompt(
     prompt += isEnglish
         ? '- Carbs: ${readNumeric(macros['carbs']).toStringAsFixed(0)}g, Protein: ${readNumeric(macros['protein']).toStringAsFixed(0)}g, Fat: ${readNumeric(macros['fat']).toStringAsFixed(0)}g\n'
         : '- 탄수화물: ${readNumeric(macros['carbs']).toStringAsFixed(0)}g, 단백질: ${readNumeric(macros['protein']).toStringAsFixed(0)}g, 지방: ${readNumeric(macros['fat']).toStringAsFixed(0)}g\n';
+  }
+
+  final meals = asList(context['meals']);
+  if (meals != null && meals.isNotEmpty) {
+    prompt += isEnglish ? '- Meals logged today:\n' : '- 오늘 기록한 식사:\n';
+    for (final meal in meals.take(20)) {
+      final map = asStringMap(meal);
+      if (map == null) continue;
+      final name = readString(map['name']);
+      if (name == null) continue;
+      final type = readString(map['mealType']) ?? '';
+      final time = readString(map['time']) ?? '';
+      final kcal = readNumeric(map['calories']).toStringAsFixed(0);
+      prompt += '  · $time $type $name ${kcal}kcal\n';
+    }
   }
 
   return prompt;
@@ -77,6 +94,8 @@ const aiCoachSystemPrompt = '''
 4. 의학적 진단이나 처방은 하지 마세요
 5. 한국어로 답변하세요
 6. 답변은 간결하되 유용한 정보를 담으세요 (최대 300자)
+7. 이전 대화가 있으면 그 맥락을 이어서 답변하세요
+8. 오늘 기록한 식사 목록이 있으면 실제 메뉴를 근거로 구체적으로 조언하세요
 ''';
 
 const aiCoachSystemPromptEn = '''
@@ -96,6 +115,8 @@ Rules:
 4. Do not provide medical diagnosis or prescriptions
 5. Reply in English
 6. Keep responses concise and useful, up to 300 characters
+7. Continue from the previous conversation when there is one
+8. When today's meal list is provided, ground the advice in those actual dishes
 ''';
 
 const foodAnalysisPrompt = '''

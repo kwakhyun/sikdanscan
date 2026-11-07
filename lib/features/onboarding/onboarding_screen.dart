@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/formatters.dart';
 import '../../data/models/user_profile.dart';
 import '../../l10n/app_localizations_context.dart';
 import '../../providers/app_providers.dart';
@@ -32,6 +33,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   ActivityLevel _activityLevel = ActivityLevel.moderate;
   bool _saving = false;
   bool _oauthInProgress = false;
+  String? _ageError;
+  String? _heightError;
+  String? _weightError;
+
+  /// User adjustment on top of the recommended calorie goal (±50 kcal steps).
+  int _calorieAdjustment = 0;
+
+  /// Target weight chosen on the review step (weight-loss goal only).
+  double? _targetWeightOverride;
   String? _lastMergedOAuthUserId;
   Timer? _oauthResumeTimer;
 
@@ -136,7 +146,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
             ),
             child: const Icon(
               Icons.camera_alt_rounded,
-              color: AppColors.primary,
+              color: AppColors.primaryStrong,
               size: 38,
             ),
           ),
@@ -146,7 +156,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
             style: TextStyle(
               fontSize: 30,
               height: 1.12,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w800,
               color: context.colorTextPrimary,
             ),
           ),
@@ -160,14 +170,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
               color: context.colorTextSecondary,
             ),
           ),
-          const SizedBox(height: 20),
-          _OnboardingSocialLoginRow(
-            disabled: socialLoginDisabled,
-            onOAuthPressed: configured
-                ? _submitOAuth
-                : (_) =>
-                      _showMessage(context.l10n.authCloudNotConfiguredSubtitle),
-          ),
+          if (configured) ...[
+            const SizedBox(height: 20),
+            _OnboardingSocialLoginRow(
+              disabled: socialLoginDisabled,
+              onOAuthPressed: _submitOAuth,
+            ),
+          ],
           const SizedBox(height: 24),
           _BenefitRow(
             icon: Icons.flash_on_rounded,
@@ -242,6 +251,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
           ),
           const SizedBox(height: 14),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: _OnboardingTextField(
@@ -250,11 +260,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                   controller: _ageController,
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  suffix: Localizations.localeOf(context).languageCode == 'en'
-                      ? 'y'
-                      : '세',
+                  suffix: context.l10n.unitYears,
                   icon: Icons.cake_outlined,
-                  onChanged: (_) => setState(() {}),
+                  errorText: _ageError,
+                  onChanged: (_) => setState(() => _ageError = null),
                 ),
               ),
               const SizedBox(width: 12),
@@ -268,7 +277,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                   ),
                   suffix: 'cm',
                   icon: Icons.height_rounded,
-                  onChanged: (_) => setState(() {}),
+                  errorText: _heightError,
+                  onChanged: (_) => setState(() => _heightError = null),
                 ),
               ),
             ],
@@ -281,7 +291,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             suffix: 'kg',
             icon: Icons.monitor_weight_outlined,
-            onChanged: (_) => setState(() {}),
+            errorText: _weightError,
+            onChanged: (_) => setState(() {
+              _weightError = null;
+              _targetWeightOverride = null;
+            }),
           ),
           const SizedBox(height: 20),
           _SectionLabel(
@@ -333,8 +347,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
 
   Widget _buildReviewStep() {
     final draft = _draftProfile();
-    final calorieGoal = draft?.recommendedDailyCalorieGoal ?? 0;
+    final recommendedCalories = draft?.recommendedDailyCalorieGoal ?? 0;
+    final calorieGoal = _adjustedCalorieGoal(recommendedCalories);
     final waterGoal = draft?.recommendedWaterGoalMl ?? 0;
+    final locale = context.localeTag;
 
     return _StepPadding(
       child: ListView(
@@ -354,8 +370,59 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
             description: draft != null
                 ? draft.calorieGoalBasisSummaryOf(context.l10n)
                 : context.l10n.onboardingCheckInputs,
-            color: AppColors.secondary,
+            color: AppColors.secondaryStrong,
+            trailing: calorieGoal > 0
+                ? _Stepper(
+                    decreaseLabel: context.l10n.onboardingDecreaseCalories,
+                    increaseLabel: context.l10n.onboardingIncreaseCalories,
+                    onDecrease: calorieGoal - 50 >= 1200
+                        ? () => setState(() => _calorieAdjustment -= 50)
+                        : null,
+                    onIncrease: calorieGoal + 50 <= 4000
+                        ? () => setState(() => _calorieAdjustment += 50)
+                        : null,
+                  )
+                : null,
+            footer: _calorieAdjustment != 0
+                ? TextButton(
+                    onPressed: () => setState(() => _calorieAdjustment = 0),
+                    child: Text(
+                      context.l10n.onboardingResetRecommended(
+                        AppFormat.integer(recommendedCalories, locale),
+                      ),
+                    ),
+                  )
+                : null,
           ),
+          if (draft != null && _goal == WellnessGoal.weightLoss) ...[
+            const SizedBox(height: 12),
+            _ReviewMetricCard(
+              icon: Icons.flag_rounded,
+              title: context.l10n.goalTargetWeight,
+              value: '${AppFormat.decimal(draft.targetWeight)} kg',
+              description: context.l10n.onboardingTargetWeightDescription(
+                AppFormat.yearMonthDay(
+                  draft.targetDate ?? DateTime.now(),
+                  locale,
+                ),
+              ),
+              color: AppColors.accentStrong,
+              trailing: _Stepper(
+                decreaseLabel: context.l10n.onboardingDecreaseTarget,
+                increaseLabel: context.l10n.onboardingIncreaseTarget,
+                onDecrease: draft.targetWeight - 0.5 >= 30
+                    ? () => setState(
+                        () => _targetWeightOverride = draft.targetWeight - 0.5,
+                      )
+                    : null,
+                onIncrease: draft.targetWeight + 0.5 <= draft.currentWeight
+                    ? () => setState(
+                        () => _targetWeightOverride = draft.targetWeight + 0.5,
+                      )
+                    : null,
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           _ReviewMetricCard(
             icon: Icons.water_drop_rounded,
@@ -364,7 +431,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                 ? '$waterGoal ml'
                 : context.l10n.onboardingNeedsCalculation,
             description: context.l10n.onboardingWaterBasisDescription,
-            color: AppColors.info,
+            color: AppColors.infoText,
           ),
           const SizedBox(height: 12),
           _ReviewMetricCard(
@@ -373,7 +440,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
             title: context.l10n.profileWellnessGoal,
             value: _goal.labelOf(context.l10n),
             description: _goal.descriptionOf(context.l10n),
-            color: AppColors.primary,
+            color: AppColors.primaryStrong,
           ),
           const SizedBox(height: 18),
           Container(
@@ -385,9 +452,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(
+                Icon(
                   Icons.info_outline_rounded,
-                  color: AppColors.primary,
+                  color: context.colorPrimaryText,
                   size: 20,
                 ),
                 const SizedBox(width: 10),
@@ -443,16 +510,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
               height: 52,
               child: ElevatedButton(
                 onPressed: _saving ? null : _next,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: AppColors.primary.withValues(
-                    alpha: 0.5,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
                 child: _saving
                     ? const SizedBox(
                         width: 20,
@@ -464,7 +521,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                       )
                     : Text(
                         _step == 0
-                            ? context.l10n.onboardingQuickStart
+                            ? (ref.watch(supabaseConfiguredProvider)
+                                  ? context.l10n.onboardingQuickStart
+                                  : context.l10n.onboardingGetStarted)
                             : _step == _stepCount - 1
                             ? context.l10n.onboardingStartFlow
                             : context.l10n.commonNext,
@@ -506,23 +565,28 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   }
 
   bool _validateBodyMetrics() {
+    final l10n = context.l10n;
     final age = int.tryParse(_ageController.text.trim());
     final height = double.tryParse(_heightController.text.trim());
     final weight = double.tryParse(_weightController.text.trim());
 
-    if (age == null || age < 10 || age > 100) {
-      _showError(context.l10n.onboardingValidationAge);
-      return false;
-    }
-    if (height == null || height < 100 || height > 230) {
-      _showError(context.l10n.onboardingValidationHeight);
-      return false;
-    }
-    if (weight == null || weight < 30 || weight > 250) {
-      _showError(context.l10n.onboardingValidationWeight);
-      return false;
-    }
-    return true;
+    setState(() {
+      _ageError = age == null || age < 10 || age > 100
+          ? l10n.onboardingValidationAge
+          : null;
+      _heightError = height == null || height < 100 || height > 230
+          ? l10n.onboardingValidationHeight
+          : null;
+      _weightError = weight == null || weight < 30 || weight > 250
+          ? l10n.onboardingValidationWeight
+          : null;
+    });
+    return _ageError == null && _heightError == null && _weightError == null;
+  }
+
+  int _adjustedCalorieGoal(int recommended) {
+    if (recommended <= 0) return 0;
+    return (recommended + _calorieAdjustment).clamp(1200, 4000);
   }
 
   Future<void> _completeOnboarding() async {
@@ -533,7 +597,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     }
 
     final profile = draft.copyWith(
-      dailyCalorieGoal: draft.recommendedDailyCalorieGoal,
+      dailyCalorieGoal: _adjustedCalorieGoal(draft.recommendedDailyCalorieGoal),
       dailyWaterGoalMl: draft.recommendedWaterGoalMl,
       dailyStepGoal: _activityLevel.stepGoal,
       onboardingCompleted: true,
@@ -557,11 +621,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     final height = double.tryParse(_heightController.text.trim());
     final weight = double.tryParse(_weightController.text.trim());
     if (age == null || height == null || weight == null) return null;
+    // Partially typed values (e.g. "6" on the way to "63") are invalid, and
+    // clamping against them would throw; only build a draft for valid input.
+    if (age < 10 ||
+        age > 100 ||
+        height < 100 ||
+        height > 230 ||
+        weight < 30 ||
+        weight > 250) {
+      return null;
+    }
 
     final targetWeight = switch (_goal) {
       WellnessGoal.weightLoss =>
-        (weight - (weight * 0.05).clamp(2.0, 6.0)).clamp(30.0, weight),
-      WellnessGoal.muscle => weight,
+        (_targetWeightOverride ?? weight - (weight * 0.05).clamp(2.0, 6.0))
+            .clamp(30.0, weight),
       _ => weight,
     };
 
@@ -637,27 +711,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   void _showError(String message) => _showMessage(message);
 }
 
-class AppStartGate extends ConsumerWidget {
-  const AppStartGate({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(userProfileProvider);
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!context.mounted) return;
-      context.go(profile.onboardingCompleted ? '/dashboard' : '/onboarding');
-    });
-
-    return Scaffold(
-      backgroundColor: context.colorBackground,
-      body: const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      ),
-    );
-  }
-}
-
 class _OnboardingTopBar extends StatelessWidget {
   const _OnboardingTopBar({
     required this.step,
@@ -706,7 +759,9 @@ class _OnboardingTopBar extends StatelessWidget {
                       right: index == stepCount - 1 ? 0 : 7,
                     ),
                     decoration: BoxDecoration(
-                      color: active ? AppColors.primary : context.colorBorder,
+                      color: active
+                          ? AppColors.primaryStrong
+                          : context.colorBorder,
                       borderRadius: BorderRadius.circular(999),
                     ),
                   ),
@@ -747,7 +802,7 @@ class _StepTitle extends StatelessWidget {
           style: TextStyle(
             fontSize: 25,
             height: 1.18,
-            fontWeight: FontWeight.w900,
+            fontWeight: FontWeight.w800,
             color: context.colorTextPrimary,
           ),
         ),
@@ -790,7 +845,7 @@ class _BenefitRow extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: context.colorBorder),
           ),
-          child: Icon(icon, color: AppColors.primary, size: 22),
+          child: Icon(icon, color: AppColors.primaryStrong, size: 22),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -849,7 +904,7 @@ class _SelectableTile extends StatelessWidget {
           color: selected ? context.colorPrimarySurface : context.colorSurface,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: selected ? AppColors.primary : context.colorBorder,
+            color: selected ? AppColors.primaryStrong : context.colorBorder,
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -860,7 +915,7 @@ class _SelectableTile extends StatelessWidget {
               height: 42,
               decoration: BoxDecoration(
                 color: selected
-                    ? AppColors.primary
+                    ? AppColors.primaryStrong
                     : context.colorSurfaceVariant,
                 borderRadius: BorderRadius.circular(15),
               ),
@@ -868,7 +923,7 @@ class _SelectableTile extends StatelessWidget {
               child: AppSvgIcon(
                 iconAsset,
                 size: 22,
-                color: selected ? Colors.white : AppColors.primary,
+                color: selected ? Colors.white : AppColors.primaryStrong,
               ),
             ),
             const SizedBox(width: 14),
@@ -899,7 +954,9 @@ class _SelectableTile extends StatelessWidget {
             const SizedBox(width: 10),
             Icon(
               selected ? Icons.check_circle_rounded : Icons.circle_outlined,
-              color: selected ? AppColors.primary : context.colorTextTertiary,
+              color: selected
+                  ? AppColors.primaryStrong
+                  : context.colorTextTertiary,
             ),
           ],
         ),
@@ -919,8 +976,10 @@ class _OnboardingTextField extends StatelessWidget {
     this.inputFormatters,
     this.suffix,
     this.onChanged,
+    this.errorText,
   });
 
+  final String? errorText;
   final String label;
   final String hint;
   final TextEditingController controller;
@@ -947,6 +1006,8 @@ class _OnboardingTextField extends StatelessWidget {
           decoration: InputDecoration(
             hintText: hint,
             suffixText: suffix,
+            errorText: errorText,
+            errorMaxLines: 2,
             filled: true,
             fillColor: context.colorSurface,
             border: OutlineInputBorder(
@@ -959,7 +1020,7 @@ class _OnboardingTextField extends StatelessWidget {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppColors.primary, width: 2),
+              borderSide: BorderSide(color: context.colorPrimaryText, width: 2),
             ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
@@ -982,7 +1043,7 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: AppColors.primary),
+        Icon(icon, size: 16, color: context.colorPrimaryText),
         const SizedBox(width: 6),
         Text(
           label,
@@ -1010,25 +1071,30 @@ class _SegmentButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        height: 48,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primary : context.colorSurface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? AppColors.primary : context.colorBorder,
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          height: 48,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primaryStrong : context.colorSurface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: selected ? AppColors.primaryStrong : context.colorBorder,
+            ),
           ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w800,
-            color: selected ? Colors.white : context.colorTextSecondary,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: selected ? Colors.white : context.colorTextSecondary,
+            ),
           ),
         ),
       ),
@@ -1144,7 +1210,7 @@ class _OnboardingSocialButton extends StatelessWidget {
                 maxLines: 1,
                 style: const TextStyle(
                   fontSize: 13,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
@@ -1163,8 +1229,12 @@ class _ReviewMetricCard extends StatelessWidget {
     required this.value,
     required this.description,
     required this.color,
+    this.trailing,
+    this.footer,
   });
 
+  final Widget? trailing;
+  final Widget? footer;
   final IconData icon;
   final String? iconAsset;
   final String title;
@@ -1213,7 +1283,7 @@ class _ReviewMetricCard extends StatelessWidget {
                   value,
                   style: TextStyle(
                     fontSize: 20,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w800,
                     color: context.colorTextPrimary,
                   ),
                 ),
@@ -1226,11 +1296,49 @@ class _ReviewMetricCard extends StatelessWidget {
                     color: context.colorTextSecondary,
                   ),
                 ),
+                if (footer != null) footer!,
               ],
             ),
           ),
+          if (trailing != null) ...[const SizedBox(width: 8), trailing!],
         ],
       ),
+    );
+  }
+}
+
+/// Compact −/+ control used on the review step.
+class _Stepper extends StatelessWidget {
+  const _Stepper({
+    required this.decreaseLabel,
+    required this.increaseLabel,
+    required this.onDecrease,
+    required this.onIncrease,
+  });
+
+  final String decreaseLabel;
+  final String increaseLabel;
+  final VoidCallback? onDecrease;
+  final VoidCallback? onIncrease;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton.filledTonal(
+          tooltip: increaseLabel,
+          onPressed: onIncrease,
+          icon: const Icon(Icons.add_rounded, size: 18),
+          visualDensity: VisualDensity.compact,
+        ),
+        IconButton.filledTonal(
+          tooltip: decreaseLabel,
+          onPressed: onDecrease,
+          icon: const Icon(Icons.remove_rounded, size: 18),
+          visualDensity: VisualDensity.compact,
+        ),
+      ],
     );
   }
 }

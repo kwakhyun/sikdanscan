@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:uuid/uuid.dart';
+
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
 import '../../data/models/chat_message.dart';
 import '../../l10n/app_localizations_context.dart';
 import '../../providers/app_providers.dart';
@@ -22,6 +23,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _focusNode = FocusNode();
 
   @override
+  void initState() {
+    super.initState();
+    _controller.addListener(() => setState(() {}));
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
@@ -30,31 +38,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _sendMessage(String text) {
-    if (text.trim().isEmpty) return;
-
-    final isLoading = ref.read(chatLoadingProvider);
-    if (isLoading) return; // AI 응답 대기 중에는 전송 차단
-
-    final message = ChatMessage(
-      id: const Uuid().v4(),
-      content: text.trim(),
-      isUser: true,
-      timestamp: DateTime.now(),
-    );
-
-    ref.read(chatMessagesProvider.notifier).addMessage(message);
-    ref.read(chatMessagesProvider.notifier).addBotResponse(text.trim());
-
+    if (text.trim().isEmpty || ref.read(chatLoadingProvider)) return;
+    ref.read(chatMessagesProvider.notifier).send(text);
     _controller.clear();
     _scrollToBottom();
   }
 
   void _scrollToBottom() {
-    Future.delayed(const Duration(milliseconds: 300), () {
+    Future.delayed(const Duration(milliseconds: 120), () {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 260),
           curve: Curves.easeOut,
         );
       }
@@ -63,10 +58,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _showClearChatDialog(BuildContext context) {
     final l10n = context.l10n;
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(l10n.chatClearTitle),
         content: Text(l10n.chatClearMessage),
         actions: [
@@ -74,16 +68,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             onPressed: () => Navigator.pop(ctx),
             child: Text(l10n.commonCancel),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: ctx.colorErrorText),
             onPressed: () {
-              ref.invalidate(chatMessagesProvider);
+              ref.read(chatMessagesProvider.notifier).clear();
               Navigator.pop(ctx);
             },
             child: Text(l10n.chatClearAction),
@@ -97,49 +85,63 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget build(BuildContext context) {
     final messages = ref.watch(chatMessagesProvider);
     final isLoading = ref.watch(chatLoadingProvider);
+    final online = ref.watch(chatOnlineProvider);
     final l10n = context.l10n;
+    final hasUserMessages = messages.any((m) => m.isUser);
+    final welcome = ChatMessage(
+      id: 'welcome',
+      content: l10n.chatWelcome,
+      isUser: false,
+      timestamp: messages.isEmpty ? DateTime.now() : messages.first.timestamp,
+    );
+    final items = [welcome, ...messages];
 
-    ref.listen(chatMessagesProvider, (prev, next) {
-      _scrollToBottom();
-    });
+    ref.listen(chatMessagesProvider, (prev, next) => _scrollToBottom());
 
     return Scaffold(
       backgroundColor: context.colorBackground,
       appBar: AppBar(
         title: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.smart_toy_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
+            const CoachAvatar(),
             const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l10n.chatTitle,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(l10n.chatTitle, style: AppTextStyles.section),
+                  Row(
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isLoading
+                              ? AppColors.secondary
+                              : online
+                              ? AppColors.success
+                              : context.colorTextTertiary,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Flexible(
+                        child: Text(
+                          isLoading
+                              ? l10n.chatTyping
+                              : online
+                              ? l10n.chatStatusOnline
+                              : l10n.chatStatusOffline,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.micro.copyWith(
+                            color: context.colorTextSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                Text(
-                  isLoading ? l10n.chatTyping : l10n.commonOnline,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isLoading ? AppColors.secondary : AppColors.success,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
@@ -147,72 +149,106 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           IconButton(
             icon: const Icon(Icons.delete_outline_rounded),
             tooltip: l10n.chatClearTitle,
-            onPressed: () => _showClearChatDialog(context),
+            onPressed: messages.isEmpty
+                ? null
+                : () => _showClearChatDialog(context),
           ),
         ],
       ),
       body: Column(
         children: [
+          if (!online)
+            Container(
+              width: double.infinity,
+              color: context.colorSurfaceVariant,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.cloud_off_rounded,
+                    size: 18,
+                    color: context.colorTextSecondary,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      l10n.chatOfflineBanner,
+                      style: AppTextStyles.caption.copyWith(
+                        color: context.colorTextPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
               padding: const EdgeInsets.all(16),
-              itemCount: messages.length + (isLoading ? 1 : 0),
+              itemCount: items.length + (isLoading ? 1 : 0),
               itemBuilder: (context, index) {
-                if (index == messages.length && isLoading) {
-                  return const TypingIndicator();
-                }
-                final message = messages[index];
+                if (index == items.length) return const TypingIndicator();
+                final message = items[index];
+                final isLast = index == items.length - 1;
                 return ChatBubble(
                   message: message,
                   showAvatar:
                       !message.isUser &&
-                      (index == 0 || messages[index - 1].isUser),
+                      (index == 0 || items[index - 1].isUser),
+                  onRetry: isLast && message.type == ChatMessageType.error
+                      ? () =>
+                            ref.read(chatMessagesProvider.notifier).retryLast()
+                      : null,
                 );
               },
             ),
           ),
-          SuggestionChips(onSuggestionTap: _sendMessage),
-          _buildInputBar(),
+          if (!hasUserMessages) SuggestionChips(onSuggestionTap: _sendMessage),
+          _buildInputBar(isLoading),
         ],
       ),
     );
   }
 
-  Widget _buildInputBar() {
+  Widget _buildInputBar(bool isLoading) {
+    final l10n = context.l10n;
+    final canSend = _controller.text.trim().isNotEmpty && !isLoading;
+
     return Container(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 12,
-        bottom: MediaQuery.of(context).padding.bottom + 12,
-      ),
+      padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
       decoration: BoxDecoration(
         color: context.colorSurface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
+        border: Border(top: BorderSide(color: context.colorBorder)),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: context.colorSurfaceVariant,
-                borderRadius: BorderRadius.circular(24),
-              ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            Expanded(
               child: TextField(
                 controller: _controller,
                 focusNode: _focusNode,
+                minLines: 1,
+                maxLines: 4,
                 textInputAction: TextInputAction.send,
                 onSubmitted: _sendMessage,
                 decoration: InputDecoration(
-                  hintText: context.l10n.chatInputHint,
-                  border: InputBorder.none,
+                  hintText: l10n.chatInputHint,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide(
+                      color: context.colorPrimaryText,
+                      width: 1.5,
+                    ),
+                  ),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 20,
                     vertical: 12,
@@ -220,24 +256,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: () => _sendMessage(_controller.text),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: const BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                shape: BoxShape.circle,
+            const SizedBox(width: 8),
+            IconButton.filled(
+              tooltip: l10n.chatSend,
+              onPressed: canSend ? () => _sendMessage(_controller.text) : null,
+              style: IconButton.styleFrom(
+                backgroundColor: AppColors.primaryStrong,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(48, 48),
               ),
-              child: const Icon(
-                Icons.send_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
+              icon: const Icon(Icons.send_rounded, size: 20),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

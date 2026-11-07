@@ -8,6 +8,9 @@ class LocalStorageService {
   static const String _dailyHealthBox = 'daily_health';
   static const String _settingsBox = 'settings';
 
+  static const String _chatHistoryKey = 'chat_history';
+  static const String _pendingMealSyncKey = 'pending_meal_sync';
+
   LocalStorageService();
 
   Future<void> initialize() async {
@@ -22,23 +25,19 @@ class LocalStorageService {
   }
 
   Future<void> saveUserProfile(Map<String, dynamic> profile) async {
-    final box = Hive.box<String>(_userProfileBox);
-    await box.put('profile', jsonEncode(profile));
+    await _writableBox(_userProfileBox).put('profile', jsonEncode(profile));
   }
 
   Map<String, dynamic>? getUserProfile() {
-    final box = Hive.box<String>(_userProfileBox);
-    return _decodeJsonMap(box.get('profile'));
+    return _decodeJsonMap(_readableBox(_userProfileBox)?.get('profile'));
   }
 
   Future<void> saveWeightRecords(List<Map<String, dynamic>> records) async {
-    final box = Hive.box<String>(_weightRecordsBox);
-    await box.put('records', jsonEncode(records));
+    await _writableBox(_weightRecordsBox).put('records', jsonEncode(records));
   }
 
   List<Map<String, dynamic>> getWeightRecords() {
-    final box = Hive.box<String>(_weightRecordsBox);
-    return _decodeJsonMapList(box.get('records'));
+    return _decodeJsonMapList(_readableBox(_weightRecordsBox)?.get('records'));
   }
 
   Future<void> addWeightRecord(Map<String, dynamic> record) async {
@@ -54,13 +53,11 @@ class LocalStorageService {
   }
 
   Future<void> saveMealRecords(List<Map<String, dynamic>> records) async {
-    final box = Hive.box<String>(_mealRecordsBox);
-    await box.put('records', jsonEncode(records));
+    await _writableBox(_mealRecordsBox).put('records', jsonEncode(records));
   }
 
   List<Map<String, dynamic>> getMealRecords() {
-    final box = Hive.box<String>(_mealRecordsBox);
-    return _decodeJsonMapList(box.get('records'));
+    return _decodeJsonMapList(_readableBox(_mealRecordsBox)?.get('records'));
   }
 
   Future<void> addMealRecord(Map<String, dynamic> record) async {
@@ -76,29 +73,29 @@ class LocalStorageService {
   }
 
   Future<void> saveDailyHealth(Map<String, dynamic> health) async {
-    final box = Hive.box<String>(_dailyHealthBox);
     final date = DateTime.tryParse(health['date'] as String? ?? '');
     final dateKey = _dateKey(date ?? DateTime.now());
-    await box.put(dateKey, jsonEncode(health));
+    await _writableBox(_dailyHealthBox).put(dateKey, jsonEncode(health));
   }
 
   Map<String, dynamic>? getDailyHealth(String dateKey) {
-    final box = Hive.box<String>(_dailyHealthBox);
-    return _decodeJsonMap(box.get(dateKey));
+    return _decodeJsonMap(_readableBox(_dailyHealthBox)?.get(dateKey));
+  }
+
+  Map<String, dynamic>? getDailyHealthFor(DateTime date) {
+    return getDailyHealth(_dateKey(date));
   }
 
   Map<String, dynamic>? getTodayHealth() {
-    return getDailyHealth(_dateKey(DateTime.now()));
+    return getDailyHealthFor(DateTime.now());
   }
 
   Future<void> saveSetting(String key, dynamic value) async {
-    final box = Hive.box<String>(_settingsBox);
-    await box.put(key, jsonEncode(value));
+    await _writableBox(_settingsBox).put(key, jsonEncode(value));
   }
 
   T? getSetting<T>(String key) {
-    final box = Hive.box<String>(_settingsBox);
-    final data = box.get(key);
+    final data = _readableBox(_settingsBox)?.get(key);
     if (data == null) return null;
     try {
       final decoded = jsonDecode(data);
@@ -108,19 +105,64 @@ class LocalStorageService {
     }
   }
 
+  Future<void> removeSetting(String key) async {
+    await _readableBox(_settingsBox)?.delete(key);
+  }
+
+  /// Persisted AI coach conversation (most recent last).
+  List<Map<String, dynamic>> getChatHistory() {
+    return _decodeJsonMapList(_readableBox(_settingsBox)?.get(_chatHistoryKey));
+  }
+
+  Future<void> saveChatHistory(List<Map<String, dynamic>> messages) async {
+    await _writableBox(_settingsBox).put(_chatHistoryKey, jsonEncode(messages));
+  }
+
+  /// Meal sync operations that failed and must be retried
+  /// (`{"op": "upsert" | "delete", "id": "..."}`).
+  List<Map<String, dynamic>> getPendingMealSync() {
+    return _decodeJsonMapList(
+      _readableBox(_settingsBox)?.get(_pendingMealSyncKey),
+    );
+  }
+
+  Future<void> savePendingMealSync(
+    List<Map<String, dynamic>> operations,
+  ) async {
+    await _writableBox(
+      _settingsBox,
+    ).put(_pendingMealSyncKey, jsonEncode(operations));
+  }
+
   Future<void> clearAll() async {
     await Future.wait([
-      Hive.box<String>(_userProfileBox).clear(),
-      Hive.box<String>(_weightRecordsBox).clear(),
-      Hive.box<String>(_mealRecordsBox).clear(),
-      Hive.box<String>(_dailyHealthBox).clear(),
-      Hive.box<String>(_settingsBox).clear(),
+      for (final name in const [
+        _userProfileBox,
+        _weightRecordsBox,
+        _mealRecordsBox,
+        _dailyHealthBox,
+        _settingsBox,
+      ])
+        if (_readableBox(name) != null) _readableBox(name)!.clear(),
     ]);
   }
 
-  bool get hasData {
-    final box = Hive.box<String>(_userProfileBox);
-    return box.isNotEmpty;
+  bool get hasData => _readableBox(_userProfileBox)?.isNotEmpty ?? false;
+
+  /// Reads tolerate an unopened box (e.g. widget tests that never call
+  /// [initialize]) and fall back to empty values.
+  Box<String>? _readableBox(String name) {
+    if (!Hive.isBoxOpen(name)) return null;
+    return Hive.box<String>(name);
+  }
+
+  /// Writes require the box; failing loudly lets notifiers roll back.
+  Box<String> _writableBox(String name) {
+    final box = _readableBox(name);
+    if (box == null) {
+      throw StateError('Local storage box "$name" is not open.');
+    }
+    return box;
   }
 
   static String _dateKey(DateTime date) {
@@ -141,11 +183,11 @@ class LocalStorageService {
   }
 
   static List<Map<String, dynamic>> _decodeJsonMapList(String? data) {
-    if (data == null || data.isEmpty) return const [];
+    if (data == null || data.isEmpty) return [];
 
     try {
       final decoded = jsonDecode(data);
-      if (decoded is! List) return const [];
+      if (decoded is! List) return [];
 
       return decoded
           .whereType<Map>()
@@ -154,7 +196,7 @@ class LocalStorageService {
           )
           .toList();
     } catch (_) {
-      return const [];
+      return [];
     }
   }
 }

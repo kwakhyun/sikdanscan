@@ -42,18 +42,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get commonDelete => '삭제';
 
   @override
-  String get commonEdit => '수정';
-
-  @override
-  String get commonOnline => '온라인';
-
-  @override
-  String get commonLoading => '로딩 중';
-
-  @override
-  String get commonAnalyzing => '분석 중';
-
-  @override
   String get authCloudNotConfiguredTitle => '클라우드 동기화 미설정';
 
   @override
@@ -158,16 +146,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get settingsGoal => '목표 설정';
 
   @override
-  String get settingsNotifications => '알림 설정';
-
-  @override
-  String get settingsDarkMode => '다크 모드';
-
-  @override
   String get settingsLanguage => '언어';
-
-  @override
-  String get settingsApiStatus => 'API 연결 상태';
 
   @override
   String get settingsExportData => '데이터 내보내기';
@@ -194,9 +173,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get languageEnglish => 'English';
 
   @override
-  String get languageChanged => '언어 설정이 변경되었습니다';
-
-  @override
   String get exportSubject => '식단스캔 데이터 내보내기';
 
   @override
@@ -210,34 +186,10 @@ class AppLocalizationsKo extends AppLocalizations {
       'AI 기반 식단 분석과 목표별 전략 코칭\n\n사진으로 식단을 기록하고 피부·감량·장 건강 등\n원하는 개선 방향에 맞춰 다음 식사를 설계하세요.';
 
   @override
-  String get apiChecking => '프록시 상태를 확인하고 있습니다.';
-
-  @override
-  String get apiCheckFailed => '프록시 상태 확인 중 오류가 발생했습니다.';
-
-  @override
   String get apiRefresh => '새로고침';
 
   @override
   String get apiOk => '확인';
-
-  @override
-  String get apiConnected => '연결됨';
-
-  @override
-  String get apiProxyRequired => '프록시 필요';
-
-  @override
-  String get apiCheckingShort => '확인 중';
-
-  @override
-  String get apiNotConfigured => '미설정';
-
-  @override
-  String get apiOffline => '오프라인';
-
-  @override
-  String get apiBuiltInDb => '내장 DB (80+ 음식)';
 
   @override
   String get apiProxy => '식단스캔 API 프록시';
@@ -249,18 +201,11 @@ class AppLocalizationsKo extends AppLocalizations {
   String get apiOpenAi => 'OpenAI GPT 분석';
 
   @override
-  String get apiBarcode => '바코드 검색 (Open Food Facts)';
-
-  @override
-  String get apiSecurityNote =>
-      '앱 .env에는 프록시 URL과 선택적 클라이언트 토큰만 두고, 외부 API 키는 서버에 보관하세요.';
-
-  @override
   String get resetTitle => '데이터 초기화';
 
   @override
   String get resetMessage =>
-      '모든 데이터가 삭제됩니다.\n이 작업은 되돌릴 수 없습니다.\n\n정말 초기화하시겠습니까?';
+      '이 기기의 프로필, 식단·체중·수분 기록, AI 코치 대화가 모두 삭제됩니다. 로그인 중이라면 로그아웃되며, 클라우드에 백업된 데이터는 계정에 그대로 남습니다.\n\n정말 초기화하시겠습니까?';
 
   @override
   String get resetAction => '초기화';
@@ -347,21 +292,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get profileUpdated => '프로필이 업데이트되었습니다';
 
   @override
-  String get dashboardCapture => '촬영';
-
-  @override
-  String get dashboardCaptureNow => '바로 촬영';
-
-  @override
-  String get dashboardCaptureNowSubtitle => '카메라로 음식 사진을 찍고 즉시 분석합니다';
-
-  @override
-  String get dashboardPickPhoto => '사진 선택';
-
-  @override
-  String get dashboardPickPhotoSubtitle => '앨범의 음식 사진을 선택해 분석합니다';
-
-  @override
   String get dashboardProxyRequired => '사진 인식은 식단스캔 API 프록시 연결 후 사용할 수 있습니다';
 
   @override
@@ -378,37 +308,13 @@ class AppLocalizationsKo extends AppLocalizations {
       '사진을 불러올 수 없습니다. 카메라/사진 권한을 확인해주세요';
 
   @override
-  String get dashboardAddedEstimated => '추정 결과를 오늘 기록에 추가했습니다';
-
-  @override
-  String get dashboardAddedAnalyzed => '분석 결과를 오늘 기록에 추가했습니다';
-
-  @override
   String get addMealTitle => '식단 추가';
 
   @override
   String get addMealSearchError => '검색 중 오류가 발생했습니다';
 
   @override
-  String get addMealRecognitionAdded => '인식 결과를 선택 목록에 추가했습니다. 저장 전 확인해 주세요';
-
-  @override
-  String get addMealRecognitionTitle => '사진으로 자동 인식';
-
-  @override
-  String get addMealRecognitionSubtitle => '음식 사진을 찍으면 영양 정보를 추정해 선택 목록에 추가합니다';
-
-  @override
-  String get addMealAnalyzingPhoto => '사진을 분석하고 있습니다';
-
-  @override
-  String get addMealRecognitionResult => '사진 인식 결과';
-
-  @override
   String get addMealSearchHint => '음식을 검색하세요 (예: 김치찌개, 아사이볼, 연어 포케)';
-
-  @override
-  String get addMealSelectedFoods => '선택된 음식';
 
   @override
   String get addMealRetry => '다시 시도';
@@ -447,10 +353,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get dailyNoRecords => '아직 기록된 음식이 없습니다';
 
   @override
-  String get strategyEmptyTitle => '첫 식사를 스캔해 전략을 시작하세요';
+  String get strategyEmptyTitle => '첫 식사를 기록해 전략을 시작하세요';
 
   @override
-  String get strategyEmptyPrimary => '음식 사진을 촬영하면 목표별 코칭이 생성됩니다.';
+  String get strategyEmptyPrimary => '음식 사진을 찍거나 검색해 기록하면 목표별 코칭이 생성됩니다.';
 
   @override
   String get reportTitle => '섭취 리포트';
@@ -463,12 +369,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get reportMonth => '월간';
-
-  @override
-  String get reportDailySubtitle => '하루 섭취 상태';
-
-  @override
-  String get reportWeeklySubtitle => '7일 섭취 흐름';
 
   @override
   String get chatTitle => '식단스캔 AI 코치';
@@ -544,10 +444,11 @@ class AppLocalizationsKo extends AppLocalizations {
   String get onboardingStartFlow => '맞춤 플로우 시작';
 
   @override
-  String get onboardingBenefitQuickTitle => '30초 안에 간편 가입';
+  String get onboardingBenefitQuickTitle => '30초 만에 시작';
 
   @override
-  String get onboardingBenefitQuickDescription => '이름과 기준 정보만 입력하면 바로 시작합니다.';
+  String get onboardingBenefitQuickDescription =>
+      '목표와 기본 정보만 입력하면 바로 기록을 시작합니다.';
 
   @override
   String get onboardingBenefitCalorieTitle => '일일 칼로리 자동 산정';
@@ -557,7 +458,7 @@ class AppLocalizationsKo extends AppLocalizations {
       '현재 체중, 키, 나이, 활동량으로 기준을 계산합니다.';
 
   @override
-  String get onboardingBenefitCoachTitle => '목표별 AI 코칭';
+  String get onboardingBenefitCoachTitle => '목표별 전략 · AI 코칭';
 
   @override
   String get onboardingBenefitCoachDescription =>
@@ -621,12 +522,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get goalWaterTarget => '수분 목표';
-
-  @override
-  String get goalStepTarget => '걸음 목표';
-
-  @override
-  String get goalStepSuffix => '걸음';
 
   @override
   String get goalSettingsDone => '목표 설정 완료';
@@ -713,11 +608,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get activityActive => '활동적';
 
   @override
-  String addMealRecognizedCount(int count) {
-    return '$count개 음식을 인식해 선택 목록에 추가했습니다';
-  }
-
-  @override
   String get addMealAiHint => 'DB에 없는 음식은 AI가 자동으로 영양 정보를 분석합니다';
 
   @override
@@ -742,22 +632,16 @@ class AppLocalizationsKo extends AppLocalizations {
   String get mealTypeSnack => '간식';
 
   @override
-  String get mealDetailTitle => '기록 상세';
-
-  @override
   String get mealDetailMealType => '식사 유형';
 
   @override
   String get mealDetailPortion => '분량 조절';
 
   @override
-  String get mealDetailPortionHint => '실제 먹은 양에 맞춰 칼로리와 영양소를 다시 계산합니다';
+  String get mealDetailPortionHint => '처음 저장한 1인분을 기준으로 칼로리와 영양소를 다시 계산합니다';
 
   @override
   String get mealDetailDeleteTitle => '기록 삭제';
-
-  @override
-  String get mealDetailDeleteMessage => '이 식사 기록을 삭제할까요? 되돌릴 수 없습니다.';
 
   @override
   String get mealDetailDeleted => '기록을 삭제했습니다';
@@ -855,4 +739,722 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get proxyStatusUnreachable => '프록시에 연결할 수 없습니다.';
+
+  @override
+  String strategyMetaLabel(int count) {
+    return '목표 전략 · 기록 $count개 반영';
+  }
+
+  @override
+  String strategyEmptySummary(String goal) {
+    return '$goal 목표에 맞춰 오늘 식단의 강점과 보완점을 정리해 드려요.';
+  }
+
+  @override
+  String get strategyTipPhotoAngle => '음식이 잘 보이도록 위에서 촬영';
+
+  @override
+  String get strategyTipReviewBeforeSave => '저장 전 음식명과 양 확인';
+
+  @override
+  String get strategyWeightLossOverTitle => '남은 식사는 가볍게 보정하세요';
+
+  @override
+  String get strategyWeightLossOnTrackTitle => '감량 흐름은 유지 중입니다';
+
+  @override
+  String get strategyWeightLossOverSummary =>
+      '오늘 목표 칼로리를 넘겼습니다. 다음 식사는 포만감 높은 단백질과 채소 중심이 좋습니다.';
+
+  @override
+  String get strategyWeightLossOnTrackSummary =>
+      '현재 섭취량은 목표 범위 안입니다. 단백질을 채우면 야식 가능성을 줄일 수 있습니다.';
+
+  @override
+  String get strategyWeightLossAddProtein => '다음 식사에 닭가슴살, 달걀, 두부 중 하나를 추가하세요.';
+
+  @override
+  String get strategyWeightLossVeggiesFirst => '탄수화물 추가보다 채소와 수분을 먼저 보강하세요.';
+
+  @override
+  String get strategyActionSkipFriedSauce => '튀김·소스류는 다음 식사에서 제외';
+
+  @override
+  String get strategyActionLightProteinMeal => '남은 식사는 400kcal 안쪽의 단백질 식사로 조정';
+
+  @override
+  String get strategyActionWalkAppetite => '식사 후 10분 걷기로 혈당과 식욕 변동 완화';
+
+  @override
+  String get strategySkinFixTitle => '피부 목표 기준 보정이 필요합니다';
+
+  @override
+  String get strategySkinGoodTitle => '피부 친화적인 흐름입니다';
+
+  @override
+  String get strategySkinHighCarbSummary =>
+      '탄수화물 비중이 높아 다음 식사는 혈당 변동을 줄이는 조합이 좋습니다.';
+
+  @override
+  String get strategySkinBalancedSummary =>
+      '오늘 식단은 한쪽으로 치우치지 않았습니다. 항산화 식품을 더하면 좋습니다.';
+
+  @override
+  String get strategySkinPrimary => '다음 식사는 생선·두부·달걀 + 녹황색 채소 조합을 우선하세요.';
+
+  @override
+  String get strategyActionNoCreamy => '기름진 메뉴와 크림 소스는 오늘 추가하지 않기';
+
+  @override
+  String get strategyActionNoSugarDrinks => '디저트·당 음료 대신 물 또는 무가당 차 선택';
+
+  @override
+  String get strategyActionVitaminC => '비타민 C가 있는 과일은 한 번에 소량만 추가';
+
+  @override
+  String get strategyDigestionHeavyTitle => '소화 부담을 낮춰야 합니다';
+
+  @override
+  String get strategyDigestionGoodTitle => '장 건강 루틴을 이어가세요';
+
+  @override
+  String get strategyDigestionHeavySummary =>
+      '지방 비중이 높으면 더부룩함이 생길 수 있습니다. 다음 식사는 담백하게 보정하세요.';
+
+  @override
+  String get strategyDigestionGoodSummary => '오늘은 수분과 식이섬유를 더하기 좋은 상태입니다.';
+
+  @override
+  String get strategyDigestionPrimary =>
+      '채소 반 접시와 물 500ml를 다음 식사 전후로 나눠 보강하세요.';
+
+  @override
+  String get strategyActionSolidsOverBroth => '국물보다 건더기 중심으로 선택';
+
+  @override
+  String get strategyActionFermented => '요거트, 김치, 나물류 중 하나 추가';
+
+  @override
+  String get strategyActionSkipFattyMeat => '튀김·기름진 고기는 다음 식사에서 제외';
+
+  @override
+  String get strategyEnergyCarbTitle => '오후 에너지 변동을 줄이세요';
+
+  @override
+  String get strategyEnergyGoodTitle => '컨디션 유지에 좋은 균형입니다';
+
+  @override
+  String get strategyEnergyLowSummary => '섭취량이 낮아 오후 집중력 저하가 올 수 있습니다.';
+
+  @override
+  String get strategyEnergyGoodSummary => '끼니 균형을 유지하면 피로감과 간식 욕구를 줄일 수 있습니다.';
+
+  @override
+  String get strategyEnergyAddProtein => '단백질 간식 또는 달걀/두부를 추가하세요.';
+
+  @override
+  String get strategyEnergyPairCarbs => '다음 식사는 탄수화물 단독보다 단백질과 함께 구성하세요.';
+
+  @override
+  String get strategyActionWaterOverSweet => '단 음료 대신 물 또는 아메리카노 선택';
+
+  @override
+  String get strategyActionSmartSnack => '간식은 견과류 소량이나 그릭요거트로 선택';
+
+  @override
+  String get strategyActionStretch => '식후 5분 스트레칭으로 졸림 완화';
+
+  @override
+  String get strategyMuscleLowTitle => '단백질 보강이 우선입니다';
+
+  @override
+  String get strategyMuscleCloseTitle => '단백질 목표에 가까워지고 있습니다';
+
+  @override
+  String strategyMuscleSummary(String protein, String goal) {
+    return '오늘 단백질은 ${protein}g, 목표는 ${goal}g입니다.';
+  }
+
+  @override
+  String strategyMuscleAddProtein(String gap) {
+    return '다음 식사에 단백질 ${gap}g 보강을 목표로 하세요.';
+  }
+
+  @override
+  String get strategyMuscleRecovery => '운동 후에는 수분과 탄수화물을 소량 함께 보강하세요.';
+
+  @override
+  String get strategyActionLeanProtein => '닭가슴살·생선·두부·그릭요거트 중 하나 선택';
+
+  @override
+  String get strategyActionPreWorkoutSnack => '섭취량이 낮으니 운동 전후 간식을 추가';
+
+  @override
+  String get strategyActionSpreadProtein => '단백질은 한 끼에 몰지 말고 나눠 섭취';
+
+  @override
+  String get strategyGlucoseCarbTitle => '탄수화물 속도 조절이 필요합니다';
+
+  @override
+  String get strategyGlucoseGoodTitle => '혈당 안정 흐름입니다';
+
+  @override
+  String get strategyGlucoseCarbSummary =>
+      '탄수화물 비중이 높습니다. 다음 식사는 식사 순서와 단백질 보강이 중요합니다.';
+
+  @override
+  String get strategyGlucoseGoodSummary => '현재 비율은 급격한 변동을 줄이기 좋은 편입니다.';
+
+  @override
+  String get strategyGlucosePrimary => '다음 식사는 채소 → 단백질 → 탄수화물 순서로 드세요.';
+
+  @override
+  String get strategyActionAddProteinSide => '밥/면 단독 식사는 피하고 단백질 반찬 추가';
+
+  @override
+  String get strategyActionWalk10 => '식후 10분 걷기';
+
+  @override
+  String get strategyActionNoDessert => '단 음료와 디저트는 오늘 추가하지 않기';
+
+  @override
+  String get strategyBalancedGoodTitle => '균형이 좋은 하루입니다';
+
+  @override
+  String get strategyBalancedFixTitle => '한쪽으로 치우친 영양소를 보정하세요';
+
+  @override
+  String get strategyBalancedGoodSummary => '현재 칼로리와 탄단지 흐름이 안정적입니다.';
+
+  @override
+  String get strategyBalancedFixSummary => '다음 식사에서 부족한 축을 보강하면 하루 균형이 좋아집니다.';
+
+  @override
+  String get strategyBalancedPrimary => '다음 식사는 단백질, 채소, 탄수화물을 한 접시에 함께 구성하세요.';
+
+  @override
+  String get strategyActionLogWater => '물 섭취도 함께 기록';
+
+  @override
+  String get strategyActionReviewRecords => '오늘 기록을 한 번 확인';
+
+  @override
+  String get strategyFactorCalories => '칼로리 범위';
+
+  @override
+  String get strategyFactorProtein => '단백질 충족';
+
+  @override
+  String get strategyFactorFat => '지방 비중';
+
+  @override
+  String get strategyFactorCarbs => '탄수화물 비중';
+
+  @override
+  String get strategyFactorBalance => '탄단지 균형';
+
+  @override
+  String get strategyFactorVolume => '식사량';
+
+  @override
+  String get strategyFactorConsistency => '기록 유지';
+
+  @override
+  String get strategyDetailTitle => '오늘의 목표 전략';
+
+  @override
+  String get strategyRuleBasedNote =>
+      '오늘 기록한 칼로리와 탄단지 비율을 목표 기준과 비교해 계산한 결과입니다. 의학적 진단이 아닙니다.';
+
+  @override
+  String get strategyScoreTitle => '점수 기준';
+
+  @override
+  String strategyScoreSemantics(int score) {
+    return '목표 점수 100점 만점에 $score점';
+  }
+
+  @override
+  String get strategyNextMeal => '다음 식사 제안';
+
+  @override
+  String get strategyTips => '실천 팁';
+
+  @override
+  String get strategyAskCoach => 'AI 코치에게 물어보기';
+
+  @override
+  String get strategyAskCoachPrompt => '오늘 기록을 보고 다음 식사로 무엇을 먹으면 좋을지 알려줘';
+
+  @override
+  String get strategyOpenDetail => '전략 자세히 보기';
+
+  @override
+  String get commonClose => '닫기';
+
+  @override
+  String get commonClear => '지우기';
+
+  @override
+  String get commonUndo => '되돌리기';
+
+  @override
+  String commonItemCount(int count) {
+    return '$count개';
+  }
+
+  @override
+  String macroShort(String carbs, String protein, String fat) {
+    return '탄 ${carbs}g · 단 ${protein}g · 지 ${fat}g';
+  }
+
+  @override
+  String get entrySheetTitle => '식사 기록하기';
+
+  @override
+  String entrySheetTitleForDate(String date) {
+    return '$date 기록 추가';
+  }
+
+  @override
+  String get entryCamera => '사진 찍어 기록';
+
+  @override
+  String get entryCameraSubtitle => 'AI가 음식과 영양 정보를 추정하고, 저장 전에 확인할 수 있어요';
+
+  @override
+  String get entryGallery => '앨범에서 선택';
+
+  @override
+  String get entryGallerySubtitle => '찍어둔 음식 사진으로 기록해요';
+
+  @override
+  String get entrySearch => '검색 · 직접 입력';
+
+  @override
+  String get entrySearchSubtitle => '음식 이름으로 찾거나 영양 정보를 직접 입력해요 · 오프라인에서도 가능';
+
+  @override
+  String get entryPhotoUnavailable => '사진 인식은 AI 서버 연결 후 사용할 수 있어요';
+
+  @override
+  String get dashboardLogMeal => '식사 기록';
+
+  @override
+  String get reviewTitle => '기록 확인';
+
+  @override
+  String get reviewAnalyzingTitle => '사진 분석 중';
+
+  @override
+  String get reviewFailedTitle => '음식을 인식하지 못했어요';
+
+  @override
+  String get reviewAnalyzingMessage => '음식과 영양 정보를 추정하고 있어요';
+
+  @override
+  String get reviewAnalyzingHint =>
+      '보통 5~15초 걸려요. 기다리기 어렵다면 직접 입력으로 전환할 수 있어요.';
+
+  @override
+  String get reviewSwitchToManual => '직접 입력으로 전환';
+
+  @override
+  String get reviewCancelAnalysis => '분석 취소';
+
+  @override
+  String get reviewRetry => '다시 분석';
+
+  @override
+  String get reviewSearchAdd => '검색해서 추가';
+
+  @override
+  String get reviewAddManual => '직접 추가';
+
+  @override
+  String get reviewNeedsReview => 'AI 추정치예요. 음식 이름과 양이 맞는지 확인한 뒤 저장해 주세요.';
+
+  @override
+  String get reviewLowConfidence => '확인 필요';
+
+  @override
+  String reviewConfidence(int percent) {
+    return 'AI 신뢰도 $percent%';
+  }
+
+  @override
+  String get reviewFoodsSection => '음식';
+
+  @override
+  String get reviewNoDrafts => '추가된 음식이 없어요. 직접 추가하거나 검색해 보세요.';
+
+  @override
+  String get reviewNameHint => '음식 이름';
+
+  @override
+  String get reviewCarbsLabel => '탄수(g)';
+
+  @override
+  String get reviewProteinLabel => '단백질(g)';
+
+  @override
+  String get reviewFatLabel => '지방(g)';
+
+  @override
+  String get reviewPortion => '양';
+
+  @override
+  String reviewPortionTotal(String kcal) {
+    return '$kcal kcal로 저장돼요';
+  }
+
+  @override
+  String get reviewDateTime => '날짜 · 시간';
+
+  @override
+  String reviewDateSemantics(String date) {
+    return '기록 날짜 $date';
+  }
+
+  @override
+  String reviewSave(int count, String kcal) {
+    return '$count개 저장 · $kcal kcal';
+  }
+
+  @override
+  String reviewSaved(int count) {
+    return '$count개 음식을 기록했어요';
+  }
+
+  @override
+  String get reviewLeaveTitle => '기록을 취소할까요?';
+
+  @override
+  String get reviewLeaveMessage => '분석 결과와 입력한 내용은 저장되지 않아요.';
+
+  @override
+  String get reviewLeaveConfirm => '나가기';
+
+  @override
+  String get reviewLeaveStay => '계속 작성';
+
+  @override
+  String get reviewRemoveItem => '항목 삭제';
+
+  @override
+  String get reviewSelectItem => '저장할 항목 선택';
+
+  @override
+  String get reviewPhotoSemantics => '촬영한 음식 사진';
+
+  @override
+  String get addMealManualEntry => '직접 입력';
+
+  @override
+  String get addMealOfflineHint => 'AI 서버 미연결 상태에서는 내장 음식 DB와 직접 입력을 사용할 수 있어요';
+
+  @override
+  String addMealSelectedSummary(int count, String kcal) {
+    return '$count개 선택 · $kcal kcal';
+  }
+
+  @override
+  String addMealRemoveTooltip(String name) {
+    return '$name 빼기';
+  }
+
+  @override
+  String addMealAddTooltip(String name) {
+    return '$name 추가';
+  }
+
+  @override
+  String get addMealRecentTitle => '최근 기록한 음식';
+
+  @override
+  String get addMealSuggestedTitle => '추천 음식';
+
+  @override
+  String get mealDetailAiRecognized => 'AI 인식';
+
+  @override
+  String mealDetailServing(String serving) {
+    return '기준량 $serving';
+  }
+
+  @override
+  String get mealDetailLogAgain => '다시 기록';
+
+  @override
+  String get mealDetailLoggedAgain => '지금 시간으로 다시 기록했어요';
+
+  @override
+  String dailyKcalLeft(String goal, String amount) {
+    return '목표 $goal kcal · $amount kcal 남음';
+  }
+
+  @override
+  String dailyKcalOver(String goal, String amount) {
+    return '목표 $goal kcal · $amount kcal 초과';
+  }
+
+  @override
+  String dailyIntakeSemantics(String kcal, String remaining, String status) {
+    return '오늘 $kcal 킬로칼로리 섭취. $remaining. 상태 $status';
+  }
+
+  @override
+  String dailyMacroSemantics(String label, String grams, int percent) {
+    return '$label $grams그램, 칼로리 비중 $percent퍼센트';
+  }
+
+  @override
+  String get dailyLogFirstMeal => '첫 식사 기록하기';
+
+  @override
+  String get waterTitle => '수분';
+
+  @override
+  String waterSemantics(String amount, String goal) {
+    return '수분 $amount밀리리터, 목표 $goal밀리리터';
+  }
+
+  @override
+  String waterSemanticsNoGoal(String amount) {
+    return '수분 $amount밀리리터';
+  }
+
+  @override
+  String get waterAddGlass => '물 한 잔(250ml) 추가';
+
+  @override
+  String get waterRemoveGlass => '물 한 잔 빼기';
+
+  @override
+  String get reportPrevious => '이전 기간';
+
+  @override
+  String get reportNext => '다음 기간';
+
+  @override
+  String get reportToday => '오늘';
+
+  @override
+  String get reportSummaryTitle => '기간 요약';
+
+  @override
+  String reportLoggedDays(int recorded, int total) {
+    return '$recorded/$total일 기록';
+  }
+
+  @override
+  String reportGoalOver(String goal, String amount) {
+    return '목표 $goal kcal · $amount kcal 초과';
+  }
+
+  @override
+  String reportGoalLeft(String goal, String amount) {
+    return '목표 $goal kcal · $amount kcal 남음';
+  }
+
+  @override
+  String reportGoalElapsedNote(int days) {
+    return '목표는 지금까지 지난 $days일 기준이에요';
+  }
+
+  @override
+  String get reportDailyAverage => '기록일 평균';
+
+  @override
+  String get reportMealTypeDayTitle => '끼니별 섭취';
+
+  @override
+  String get reportDailyTrend => '일별 추이';
+
+  @override
+  String reportGoalLine(String goal) {
+    return '목표 $goal';
+  }
+
+  @override
+  String get reportTapDayHint => '막대를 누르면 그날 기록을 볼 수 있어요';
+
+  @override
+  String reportBarSemantics(String date, String kcal) {
+    return '$date $kcal';
+  }
+
+  @override
+  String get reportNoRecordsToShow => '표시할 기록이 없습니다';
+
+  @override
+  String get reportRecordedFoods => '기록된 음식';
+
+  @override
+  String get reportNoRecordsForPeriod => '이 기간에 기록이 없어요';
+
+  @override
+  String get reportAddForDay => '이 날짜에 기록 추가';
+
+  @override
+  String get reportShowLess => '접기';
+
+  @override
+  String reportShowAll(int count) {
+    return '모두 보기 ($count)';
+  }
+
+  @override
+  String get chatRetry => '다시 시도';
+
+  @override
+  String get chatOfflineAnswer => '오프라인 기본 답변';
+
+  @override
+  String get chatCopied => '답변을 복사했어요';
+
+  @override
+  String get chatStatusOnline => 'AI 연결됨';
+
+  @override
+  String get chatStatusOffline => '오프라인 모드';
+
+  @override
+  String get chatOfflineBanner =>
+      'AI 서버에 연결되지 않아 기본 팁으로 답변해요. 맞춤 코칭은 연결 후 이용할 수 있어요.';
+
+  @override
+  String get chatSend => '보내기';
+
+  @override
+  String get unitYears => '세';
+
+  @override
+  String get settingsTheme => '화면 테마';
+
+  @override
+  String get themeSubtitle => '앱 화면 밝기를 선택하세요';
+
+  @override
+  String get themeSystem => '시스템 설정 따르기';
+
+  @override
+  String get themeLight => '라이트';
+
+  @override
+  String get themeDark => '다크';
+
+  @override
+  String get settingsAiStatus => 'AI 기능 상태';
+
+  @override
+  String get aiStatusAvailable => '사용 가능';
+
+  @override
+  String get aiStatusUnavailable => '연결 안 됨';
+
+  @override
+  String get aiStatusChecking => '확인 중';
+
+  @override
+  String get aiStatusAvailableBody => '사진 인식, AI 영양 분석, AI 코치를 사용할 수 있어요.';
+
+  @override
+  String get aiStatusUnavailableBody =>
+      '지금은 AI 서버에 연결되지 않아요. 내장 음식 DB 검색, 직접 입력, 리포트는 그대로 사용할 수 있어요.';
+
+  @override
+  String get aiStatusDeveloperDetails => '개발자 정보 (디버그 빌드)';
+
+  @override
+  String get authDeleteAccount => '계정 삭제';
+
+  @override
+  String get authDeleteAccountTitle => '계정을 삭제할까요?';
+
+  @override
+  String get authDeleteAccountMessage =>
+      '계정과 클라우드에 저장된 프로필, 식단 기록, 사진이 영구 삭제되고 이 기기의 데이터도 초기화됩니다. 되돌릴 수 없습니다.';
+
+  @override
+  String get authDeleteAccountConfirm => '영구 삭제';
+
+  @override
+  String get authDeleteAccountDone => '계정이 삭제되었습니다';
+
+  @override
+  String get authDeleteAccountFailed =>
+      '계정을 삭제하지 못했습니다. 네트워크 연결을 확인한 뒤 다시 시도해주세요.';
+
+  @override
+  String get profileLatestLogBasis => '최근 기록 기준';
+
+  @override
+  String get weightTitle => '체중 기록';
+
+  @override
+  String get weightLog => '기록';
+
+  @override
+  String get weightLogTitle => '오늘 체중 기록';
+
+  @override
+  String weightDeltaFromStart(String delta) {
+    return '시작 대비 $delta kg';
+  }
+
+  @override
+  String get weightNoRecords => '아직 체중 기록이 없어요. 같은 시간대에 꾸준히 기록하면 추이를 볼 수 있어요.';
+
+  @override
+  String weightLastLogged(String date) {
+    return '마지막 기록 $date';
+  }
+
+  @override
+  String weightTrendSemantics(int count) {
+    return '최근 $count회 체중 추이 그래프';
+  }
+
+  @override
+  String get weightHistoryTitle => '체중 기록 내역';
+
+  @override
+  String get weightLogged => '체중을 기록했어요';
+
+  @override
+  String get weightDeleted => '체중 기록을 삭제했어요';
+
+  @override
+  String weightRecalculateSuggestion(String kcal) {
+    return '체중 변화로 권장 칼로리가 $kcal kcal로 바뀌었어요';
+  }
+
+  @override
+  String get weightRecalculateApply => '목표 갱신';
+
+  @override
+  String get onboardingGetStarted => '시작하기';
+
+  @override
+  String get onboardingDecreaseCalories => '목표 칼로리 50 kcal 낮추기';
+
+  @override
+  String get onboardingIncreaseCalories => '목표 칼로리 50 kcal 높이기';
+
+  @override
+  String onboardingResetRecommended(String kcal) {
+    return '권장값 $kcal kcal로 되돌리기';
+  }
+
+  @override
+  String onboardingTargetWeightDescription(String date) {
+    return '현재 체중의 약 5% 감량을 기본으로 $date까지 목표로 잡았어요. 조정할 수 있어요.';
+  }
+
+  @override
+  String get onboardingDecreaseTarget => '목표 체중 0.5kg 낮추기';
+
+  @override
+  String get onboardingIncreaseTarget => '목표 체중 0.5kg 높이기';
 }

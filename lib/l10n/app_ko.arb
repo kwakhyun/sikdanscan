@@ -11,10 +11,6 @@
   "commonNext": "다음",
   "commonBack": "뒤로가기",
   "commonDelete": "삭제",
-  "commonEdit": "수정",
-  "commonOnline": "온라인",
-  "commonLoading": "로딩 중",
-  "commonAnalyzing": "분석 중",
   "authCloudNotConfiguredTitle": "클라우드 동기화 미설정",
   "authCloudNotConfiguredSubtitle": "Supabase URL과 publishable key를 설정하면 계정 동기화를 사용할 수 있습니다.",
   "authCloudSignedOutTitle": "계정으로 데이터 동기화",
@@ -49,10 +45,7 @@
   "settingsTitle": "설정",
   "settingsEditProfile": "프로필 편집",
   "settingsGoal": "목표 설정",
-  "settingsNotifications": "알림 설정",
-  "settingsDarkMode": "다크 모드",
   "settingsLanguage": "언어",
-  "settingsApiStatus": "API 연결 상태",
   "settingsExportData": "데이터 내보내기",
   "settingsAppInfo": "앱 정보",
   "settingsResetData": "데이터 초기화",
@@ -61,28 +54,17 @@
   "languageSystem": "시스템 언어",
   "languageKorean": "한국어",
   "languageEnglish": "English",
-  "languageChanged": "언어 설정이 변경되었습니다",
   "exportSubject": "식단스캔 데이터 내보내기",
   "exportText": "식단스캔 앱 데이터가 첨부되었습니다.",
   "exportFailed": "데이터 내보내기 실패",
   "appInfoDescription": "AI 기반 식단 분석과 목표별 전략 코칭\n\n사진으로 식단을 기록하고 피부·감량·장 건강 등\n원하는 개선 방향에 맞춰 다음 식사를 설계하세요.",
-  "apiChecking": "프록시 상태를 확인하고 있습니다.",
-  "apiCheckFailed": "프록시 상태 확인 중 오류가 발생했습니다.",
   "apiRefresh": "새로고침",
   "apiOk": "확인",
-  "apiConnected": "연결됨",
-  "apiProxyRequired": "프록시 필요",
-  "apiCheckingShort": "확인 중",
-  "apiNotConfigured": "미설정",
-  "apiOffline": "오프라인",
-  "apiBuiltInDb": "내장 DB (80+ 음식)",
   "apiProxy": "식단스캔 API 프록시",
   "apiPublicFoodDb": "식약처 식품영양정보",
   "apiOpenAi": "OpenAI GPT 분석",
-  "apiBarcode": "바코드 검색 (Open Food Facts)",
-  "apiSecurityNote": "앱 .env에는 프록시 URL과 선택적 클라이언트 토큰만 두고, 외부 API 키는 서버에 보관하세요.",
   "resetTitle": "데이터 초기화",
-  "resetMessage": "모든 데이터가 삭제됩니다.\n이 작업은 되돌릴 수 없습니다.\n\n정말 초기화하시겠습니까?",
+  "resetMessage": "이 기기의 프로필, 식단·체중·수분 기록, AI 코치 대화가 모두 삭제됩니다. 로그인 중이라면 로그아웃되며, 클라우드에 백업된 데이터는 계정에 그대로 남습니다.\n\n정말 초기화하시겠습니까?",
   "resetAction": "초기화",
   "resetDone": "데이터가 초기화되었습니다",
   "profileFallbackNeedsSetup": "설정 필요",
@@ -111,27 +93,14 @@
   "profileSave": "저장하기",
   "profileValidationError": "모든 항목을 올바르게 입력해주세요",
   "profileUpdated": "프로필이 업데이트되었습니다",
-  "dashboardCapture": "촬영",
-  "dashboardCaptureNow": "바로 촬영",
-  "dashboardCaptureNowSubtitle": "카메라로 음식 사진을 찍고 즉시 분석합니다",
-  "dashboardPickPhoto": "사진 선택",
-  "dashboardPickPhotoSubtitle": "앨범의 음식 사진을 선택해 분석합니다",
   "dashboardProxyRequired": "사진 인식은 식단스캔 API 프록시 연결 후 사용할 수 있습니다",
   "dashboardNoFoodFound": "사진에서 음식을 찾을 수 없습니다. 다시 촬영하거나 직접 검색해 주세요",
   "dashboardRecognitionError": "사진 인식 중 오류가 발생했습니다",
   "dashboardCameraFallback": "카메라를 사용할 수 없어 앨범에서 사진을 선택해주세요",
   "dashboardPhotoPermissionError": "사진을 불러올 수 없습니다. 카메라/사진 권한을 확인해주세요",
-  "dashboardAddedEstimated": "추정 결과를 오늘 기록에 추가했습니다",
-  "dashboardAddedAnalyzed": "분석 결과를 오늘 기록에 추가했습니다",
   "addMealTitle": "식단 추가",
   "addMealSearchError": "검색 중 오류가 발생했습니다",
-  "addMealRecognitionAdded": "인식 결과를 선택 목록에 추가했습니다. 저장 전 확인해 주세요",
-  "addMealRecognitionTitle": "사진으로 자동 인식",
-  "addMealRecognitionSubtitle": "음식 사진을 찍으면 영양 정보를 추정해 선택 목록에 추가합니다",
-  "addMealAnalyzingPhoto": "사진을 분석하고 있습니다",
-  "addMealRecognitionResult": "사진 인식 결과",
   "addMealSearchHint": "음식을 검색하세요 (예: 김치찌개, 아사이볼, 연어 포케)",
-  "addMealSelectedFoods": "선택된 음식",
   "addMealRetry": "다시 시도",
   "addMealNoSearchResults": "검색 결과가 없습니다",
   "addMealSourceBuiltInDb": "내장 데이터베이스",
@@ -144,14 +113,12 @@
   "dailyFat": "지방",
   "dailyRecords": "오늘 기록",
   "dailyNoRecords": "아직 기록된 음식이 없습니다",
-  "strategyEmptyTitle": "첫 식사를 스캔해 전략을 시작하세요",
-  "strategyEmptyPrimary": "음식 사진을 촬영하면 목표별 코칭이 생성됩니다.",
+  "strategyEmptyTitle": "첫 식사를 기록해 전략을 시작하세요",
+  "strategyEmptyPrimary": "음식 사진을 찍거나 검색해 기록하면 목표별 코칭이 생성됩니다.",
   "reportTitle": "섭취 리포트",
   "reportDay": "일일",
   "reportWeek": "주간",
   "reportMonth": "월간",
-  "reportDailySubtitle": "하루 섭취 상태",
-  "reportWeeklySubtitle": "7일 섭취 흐름",
   "chatTitle": "식단스캔 AI 코치",
   "chatTyping": "답변 작성 중...",
   "chatClearTitle": "대화 초기화",
@@ -175,11 +142,11 @@
   "onboardingReviewTitle": "이 기준으로 시작합니다",
   "onboardingReviewSubtitle": "나중에 프로필에서 언제든 다시 조정할 수 있습니다.",
   "onboardingStartFlow": "맞춤 플로우 시작",
-  "onboardingBenefitQuickTitle": "30초 안에 간편 가입",
-  "onboardingBenefitQuickDescription": "이름과 기준 정보만 입력하면 바로 시작합니다.",
+  "onboardingBenefitQuickTitle": "30초 만에 시작",
+  "onboardingBenefitQuickDescription": "목표와 기본 정보만 입력하면 바로 기록을 시작합니다.",
   "onboardingBenefitCalorieTitle": "일일 칼로리 자동 산정",
   "onboardingBenefitCalorieDescription": "현재 체중, 키, 나이, 활동량으로 기준을 계산합니다.",
-  "onboardingBenefitCoachTitle": "목표별 AI 코칭",
+  "onboardingBenefitCoachTitle": "목표별 전략 · AI 코칭",
   "onboardingBenefitCoachDescription": "사용자가 원하는 개선 방향에 맞춰 식단 전략을 제공합니다.",
   "onboardingNickname": "닉네임",
   "onboardingNicknameHint": "예: 지현",
@@ -200,8 +167,6 @@
   "goalTargetWeight": "목표 체중",
   "goalCalorieTarget": "일일 칼로리 목표",
   "goalWaterTarget": "수분 목표",
-  "goalStepTarget": "걸음 목표",
-  "goalStepSuffix": "걸음",
   "goalSettingsDone": "목표 설정 완료",
   "goalActivityTitle": "활동량",
   "goalRecommendation": "추천",
@@ -230,14 +195,6 @@
   "activityLight": "가벼운 활동",
   "activityModerate": "보통 활동",
   "activityActive": "활동적",
-  "addMealRecognizedCount": "{count}개 음식을 인식해 선택 목록에 추가했습니다",
-  "@addMealRecognizedCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "addMealAiHint": "DB에 없는 음식은 AI가 자동으로 영양 정보를 분석합니다",
   "addMealAiAnalyzing": "AI가 영양 정보를 분석하고 있어요...",
   "addMealSourceAiResults": "AI 영양 분석 결과",
@@ -246,12 +203,10 @@
   "mealTypeLunch": "점심",
   "mealTypeDinner": "저녁",
   "mealTypeSnack": "간식",
-  "mealDetailTitle": "기록 상세",
   "mealDetailMealType": "식사 유형",
   "mealDetailPortion": "분량 조절",
-  "mealDetailPortionHint": "실제 먹은 양에 맞춰 칼로리와 영양소를 다시 계산합니다",
+  "mealDetailPortionHint": "처음 저장한 1인분을 기준으로 칼로리와 영양소를 다시 계산합니다",
   "mealDetailDeleteTitle": "기록 삭제",
-  "mealDetailDeleteMessage": "이 식사 기록을 삭제할까요? 되돌릴 수 없습니다.",
   "mealDetailDeleted": "기록을 삭제했습니다",
   "mealDetailUpdated": "기록을 수정했습니다",
   "commonError": "오류가 발생했습니다. 다시 시도해주세요",
@@ -315,5 +270,516 @@
   "proxyStatusInvalidToken": "프록시 인증 토큰을 확인해주세요.",
   "proxyStatusHealthMissing": "프록시 헬스체크 엔드포인트를 찾을 수 없습니다.",
   "proxyStatusServerError": "프록시 서버가 정상 응답하지 않습니다.",
-  "proxyStatusUnreachable": "프록시에 연결할 수 없습니다."
+  "proxyStatusUnreachable": "프록시에 연결할 수 없습니다.",
+  "strategyMetaLabel": "목표 전략 · 기록 {count}개 반영",
+  "@strategyMetaLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "strategyEmptySummary": "{goal} 목표에 맞춰 오늘 식단의 강점과 보완점을 정리해 드려요.",
+  "@strategyEmptySummary": {
+    "placeholders": {
+      "goal": {
+        "type": "String"
+      }
+    }
+  },
+  "strategyTipPhotoAngle": "음식이 잘 보이도록 위에서 촬영",
+  "strategyTipReviewBeforeSave": "저장 전 음식명과 양 확인",
+  "strategyWeightLossOverTitle": "남은 식사는 가볍게 보정하세요",
+  "strategyWeightLossOnTrackTitle": "감량 흐름은 유지 중입니다",
+  "strategyWeightLossOverSummary": "오늘 목표 칼로리를 넘겼습니다. 다음 식사는 포만감 높은 단백질과 채소 중심이 좋습니다.",
+  "strategyWeightLossOnTrackSummary": "현재 섭취량은 목표 범위 안입니다. 단백질을 채우면 야식 가능성을 줄일 수 있습니다.",
+  "strategyWeightLossAddProtein": "다음 식사에 닭가슴살, 달걀, 두부 중 하나를 추가하세요.",
+  "strategyWeightLossVeggiesFirst": "탄수화물 추가보다 채소와 수분을 먼저 보강하세요.",
+  "strategyActionSkipFriedSauce": "튀김·소스류는 다음 식사에서 제외",
+  "strategyActionLightProteinMeal": "남은 식사는 400kcal 안쪽의 단백질 식사로 조정",
+  "strategyActionWalkAppetite": "식사 후 10분 걷기로 혈당과 식욕 변동 완화",
+  "strategySkinFixTitle": "피부 목표 기준 보정이 필요합니다",
+  "strategySkinGoodTitle": "피부 친화적인 흐름입니다",
+  "strategySkinHighCarbSummary": "탄수화물 비중이 높아 다음 식사는 혈당 변동을 줄이는 조합이 좋습니다.",
+  "strategySkinBalancedSummary": "오늘 식단은 한쪽으로 치우치지 않았습니다. 항산화 식품을 더하면 좋습니다.",
+  "strategySkinPrimary": "다음 식사는 생선·두부·달걀 + 녹황색 채소 조합을 우선하세요.",
+  "strategyActionNoCreamy": "기름진 메뉴와 크림 소스는 오늘 추가하지 않기",
+  "strategyActionNoSugarDrinks": "디저트·당 음료 대신 물 또는 무가당 차 선택",
+  "strategyActionVitaminC": "비타민 C가 있는 과일은 한 번에 소량만 추가",
+  "strategyDigestionHeavyTitle": "소화 부담을 낮춰야 합니다",
+  "strategyDigestionGoodTitle": "장 건강 루틴을 이어가세요",
+  "strategyDigestionHeavySummary": "지방 비중이 높으면 더부룩함이 생길 수 있습니다. 다음 식사는 담백하게 보정하세요.",
+  "strategyDigestionGoodSummary": "오늘은 수분과 식이섬유를 더하기 좋은 상태입니다.",
+  "strategyDigestionPrimary": "채소 반 접시와 물 500ml를 다음 식사 전후로 나눠 보강하세요.",
+  "strategyActionSolidsOverBroth": "국물보다 건더기 중심으로 선택",
+  "strategyActionFermented": "요거트, 김치, 나물류 중 하나 추가",
+  "strategyActionSkipFattyMeat": "튀김·기름진 고기는 다음 식사에서 제외",
+  "strategyEnergyCarbTitle": "오후 에너지 변동을 줄이세요",
+  "strategyEnergyGoodTitle": "컨디션 유지에 좋은 균형입니다",
+  "strategyEnergyLowSummary": "섭취량이 낮아 오후 집중력 저하가 올 수 있습니다.",
+  "strategyEnergyGoodSummary": "끼니 균형을 유지하면 피로감과 간식 욕구를 줄일 수 있습니다.",
+  "strategyEnergyAddProtein": "단백질 간식 또는 달걀/두부를 추가하세요.",
+  "strategyEnergyPairCarbs": "다음 식사는 탄수화물 단독보다 단백질과 함께 구성하세요.",
+  "strategyActionWaterOverSweet": "단 음료 대신 물 또는 아메리카노 선택",
+  "strategyActionSmartSnack": "간식은 견과류 소량이나 그릭요거트로 선택",
+  "strategyActionStretch": "식후 5분 스트레칭으로 졸림 완화",
+  "strategyMuscleLowTitle": "단백질 보강이 우선입니다",
+  "strategyMuscleCloseTitle": "단백질 목표에 가까워지고 있습니다",
+  "strategyMuscleSummary": "오늘 단백질은 {protein}g, 목표는 {goal}g입니다.",
+  "@strategyMuscleSummary": {
+    "placeholders": {
+      "protein": {
+        "type": "String"
+      },
+      "goal": {
+        "type": "String"
+      }
+    }
+  },
+  "strategyMuscleAddProtein": "다음 식사에 단백질 {gap}g 보강을 목표로 하세요.",
+  "@strategyMuscleAddProtein": {
+    "placeholders": {
+      "gap": {
+        "type": "String"
+      }
+    }
+  },
+  "strategyMuscleRecovery": "운동 후에는 수분과 탄수화물을 소량 함께 보강하세요.",
+  "strategyActionLeanProtein": "닭가슴살·생선·두부·그릭요거트 중 하나 선택",
+  "strategyActionPreWorkoutSnack": "섭취량이 낮으니 운동 전후 간식을 추가",
+  "strategyActionSpreadProtein": "단백질은 한 끼에 몰지 말고 나눠 섭취",
+  "strategyGlucoseCarbTitle": "탄수화물 속도 조절이 필요합니다",
+  "strategyGlucoseGoodTitle": "혈당 안정 흐름입니다",
+  "strategyGlucoseCarbSummary": "탄수화물 비중이 높습니다. 다음 식사는 식사 순서와 단백질 보강이 중요합니다.",
+  "strategyGlucoseGoodSummary": "현재 비율은 급격한 변동을 줄이기 좋은 편입니다.",
+  "strategyGlucosePrimary": "다음 식사는 채소 → 단백질 → 탄수화물 순서로 드세요.",
+  "strategyActionAddProteinSide": "밥/면 단독 식사는 피하고 단백질 반찬 추가",
+  "strategyActionWalk10": "식후 10분 걷기",
+  "strategyActionNoDessert": "단 음료와 디저트는 오늘 추가하지 않기",
+  "strategyBalancedGoodTitle": "균형이 좋은 하루입니다",
+  "strategyBalancedFixTitle": "한쪽으로 치우친 영양소를 보정하세요",
+  "strategyBalancedGoodSummary": "현재 칼로리와 탄단지 흐름이 안정적입니다.",
+  "strategyBalancedFixSummary": "다음 식사에서 부족한 축을 보강하면 하루 균형이 좋아집니다.",
+  "strategyBalancedPrimary": "다음 식사는 단백질, 채소, 탄수화물을 한 접시에 함께 구성하세요.",
+  "strategyActionLogWater": "물 섭취도 함께 기록",
+  "strategyActionReviewRecords": "오늘 기록을 한 번 확인",
+  "strategyFactorCalories": "칼로리 범위",
+  "strategyFactorProtein": "단백질 충족",
+  "strategyFactorFat": "지방 비중",
+  "strategyFactorCarbs": "탄수화물 비중",
+  "strategyFactorBalance": "탄단지 균형",
+  "strategyFactorVolume": "식사량",
+  "strategyFactorConsistency": "기록 유지",
+  "strategyDetailTitle": "오늘의 목표 전략",
+  "strategyRuleBasedNote": "오늘 기록한 칼로리와 탄단지 비율을 목표 기준과 비교해 계산한 결과입니다. 의학적 진단이 아닙니다.",
+  "strategyScoreTitle": "점수 기준",
+  "strategyScoreSemantics": "목표 점수 100점 만점에 {score}점",
+  "@strategyScoreSemantics": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "strategyNextMeal": "다음 식사 제안",
+  "strategyTips": "실천 팁",
+  "strategyAskCoach": "AI 코치에게 물어보기",
+  "strategyAskCoachPrompt": "오늘 기록을 보고 다음 식사로 무엇을 먹으면 좋을지 알려줘",
+  "strategyOpenDetail": "전략 자세히 보기",
+  "commonClose": "닫기",
+  "commonClear": "지우기",
+  "commonUndo": "되돌리기",
+  "commonItemCount": "{count}개",
+  "@commonItemCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "macroShort": "탄 {carbs}g · 단 {protein}g · 지 {fat}g",
+  "@macroShort": {
+    "placeholders": {
+      "carbs": {
+        "type": "String"
+      },
+      "protein": {
+        "type": "String"
+      },
+      "fat": {
+        "type": "String"
+      }
+    }
+  },
+  "entrySheetTitle": "식사 기록하기",
+  "entrySheetTitleForDate": "{date} 기록 추가",
+  "@entrySheetTitleForDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "entryCamera": "사진 찍어 기록",
+  "entryCameraSubtitle": "AI가 음식과 영양 정보를 추정하고, 저장 전에 확인할 수 있어요",
+  "entryGallery": "앨범에서 선택",
+  "entryGallerySubtitle": "찍어둔 음식 사진으로 기록해요",
+  "entrySearch": "검색 · 직접 입력",
+  "entrySearchSubtitle": "음식 이름으로 찾거나 영양 정보를 직접 입력해요 · 오프라인에서도 가능",
+  "entryPhotoUnavailable": "사진 인식은 AI 서버 연결 후 사용할 수 있어요",
+  "dashboardLogMeal": "식사 기록",
+  "reviewTitle": "기록 확인",
+  "reviewAnalyzingTitle": "사진 분석 중",
+  "reviewFailedTitle": "음식을 인식하지 못했어요",
+  "reviewAnalyzingMessage": "음식과 영양 정보를 추정하고 있어요",
+  "reviewAnalyzingHint": "보통 5~15초 걸려요. 기다리기 어렵다면 직접 입력으로 전환할 수 있어요.",
+  "reviewSwitchToManual": "직접 입력으로 전환",
+  "reviewCancelAnalysis": "분석 취소",
+  "reviewRetry": "다시 분석",
+  "reviewSearchAdd": "검색해서 추가",
+  "reviewAddManual": "직접 추가",
+  "reviewNeedsReview": "AI 추정치예요. 음식 이름과 양이 맞는지 확인한 뒤 저장해 주세요.",
+  "reviewLowConfidence": "확인 필요",
+  "reviewConfidence": "AI 신뢰도 {percent}%",
+  "@reviewConfidence": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "reviewFoodsSection": "음식",
+  "reviewNoDrafts": "추가된 음식이 없어요. 직접 추가하거나 검색해 보세요.",
+  "reviewNameHint": "음식 이름",
+  "reviewCarbsLabel": "탄수(g)",
+  "reviewProteinLabel": "단백질(g)",
+  "reviewFatLabel": "지방(g)",
+  "reviewPortion": "양",
+  "reviewPortionTotal": "{kcal} kcal로 저장돼요",
+  "@reviewPortionTotal": {
+    "placeholders": {
+      "kcal": {
+        "type": "String"
+      }
+    }
+  },
+  "reviewDateTime": "날짜 · 시간",
+  "reviewDateSemantics": "기록 날짜 {date}",
+  "@reviewDateSemantics": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "reviewSave": "{count}개 저장 · {kcal} kcal",
+  "@reviewSave": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "kcal": {
+        "type": "String"
+      }
+    }
+  },
+  "reviewSaved": "{count}개 음식을 기록했어요",
+  "@reviewSaved": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "reviewLeaveTitle": "기록을 취소할까요?",
+  "reviewLeaveMessage": "분석 결과와 입력한 내용은 저장되지 않아요.",
+  "reviewLeaveConfirm": "나가기",
+  "reviewLeaveStay": "계속 작성",
+  "reviewRemoveItem": "항목 삭제",
+  "reviewSelectItem": "저장할 항목 선택",
+  "reviewPhotoSemantics": "촬영한 음식 사진",
+  "addMealManualEntry": "직접 입력",
+  "addMealOfflineHint": "AI 서버 미연결 상태에서는 내장 음식 DB와 직접 입력을 사용할 수 있어요",
+  "addMealSelectedSummary": "{count}개 선택 · {kcal} kcal",
+  "@addMealSelectedSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "kcal": {
+        "type": "String"
+      }
+    }
+  },
+  "addMealRemoveTooltip": "{name} 빼기",
+  "@addMealRemoveTooltip": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "addMealAddTooltip": "{name} 추가",
+  "@addMealAddTooltip": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "addMealRecentTitle": "최근 기록한 음식",
+  "addMealSuggestedTitle": "추천 음식",
+  "mealDetailAiRecognized": "AI 인식",
+  "mealDetailServing": "기준량 {serving}",
+  "@mealDetailServing": {
+    "placeholders": {
+      "serving": {
+        "type": "String"
+      }
+    }
+  },
+  "mealDetailLogAgain": "다시 기록",
+  "mealDetailLoggedAgain": "지금 시간으로 다시 기록했어요",
+  "dailyKcalLeft": "목표 {goal} kcal · {amount} kcal 남음",
+  "@dailyKcalLeft": {
+    "placeholders": {
+      "goal": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "dailyKcalOver": "목표 {goal} kcal · {amount} kcal 초과",
+  "@dailyKcalOver": {
+    "placeholders": {
+      "goal": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "dailyIntakeSemantics": "오늘 {kcal} 킬로칼로리 섭취. {remaining}. 상태 {status}",
+  "@dailyIntakeSemantics": {
+    "placeholders": {
+      "kcal": {
+        "type": "String"
+      },
+      "remaining": {
+        "type": "String"
+      },
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "dailyMacroSemantics": "{label} {grams}그램, 칼로리 비중 {percent}퍼센트",
+  "@dailyMacroSemantics": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "grams": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "dailyLogFirstMeal": "첫 식사 기록하기",
+  "waterTitle": "수분",
+  "waterSemantics": "수분 {amount}밀리리터, 목표 {goal}밀리리터",
+  "@waterSemantics": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "goal": {
+        "type": "String"
+      }
+    }
+  },
+  "waterSemanticsNoGoal": "수분 {amount}밀리리터",
+  "@waterSemanticsNoGoal": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "waterAddGlass": "물 한 잔(250ml) 추가",
+  "waterRemoveGlass": "물 한 잔 빼기",
+  "reportPrevious": "이전 기간",
+  "reportNext": "다음 기간",
+  "reportToday": "오늘",
+  "reportSummaryTitle": "기간 요약",
+  "reportLoggedDays": "{recorded}/{total}일 기록",
+  "@reportLoggedDays": {
+    "placeholders": {
+      "recorded": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "reportGoalOver": "목표 {goal} kcal · {amount} kcal 초과",
+  "@reportGoalOver": {
+    "placeholders": {
+      "goal": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "reportGoalLeft": "목표 {goal} kcal · {amount} kcal 남음",
+  "@reportGoalLeft": {
+    "placeholders": {
+      "goal": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "reportGoalElapsedNote": "목표는 지금까지 지난 {days}일 기준이에요",
+  "@reportGoalElapsedNote": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "reportDailyAverage": "기록일 평균",
+  "reportMealTypeDayTitle": "끼니별 섭취",
+  "reportDailyTrend": "일별 추이",
+  "reportGoalLine": "목표 {goal}",
+  "@reportGoalLine": {
+    "placeholders": {
+      "goal": {
+        "type": "String"
+      }
+    }
+  },
+  "reportTapDayHint": "막대를 누르면 그날 기록을 볼 수 있어요",
+  "reportBarSemantics": "{date} {kcal}",
+  "@reportBarSemantics": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "kcal": {
+        "type": "String"
+      }
+    }
+  },
+  "reportNoRecordsToShow": "표시할 기록이 없습니다",
+  "reportRecordedFoods": "기록된 음식",
+  "reportNoRecordsForPeriod": "이 기간에 기록이 없어요",
+  "reportAddForDay": "이 날짜에 기록 추가",
+  "reportShowLess": "접기",
+  "reportShowAll": "모두 보기 ({count})",
+  "@reportShowAll": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatRetry": "다시 시도",
+  "chatOfflineAnswer": "오프라인 기본 답변",
+  "chatCopied": "답변을 복사했어요",
+  "chatStatusOnline": "AI 연결됨",
+  "chatStatusOffline": "오프라인 모드",
+  "chatOfflineBanner": "AI 서버에 연결되지 않아 기본 팁으로 답변해요. 맞춤 코칭은 연결 후 이용할 수 있어요.",
+  "chatSend": "보내기",
+  "unitYears": "세",
+  "settingsTheme": "화면 테마",
+  "themeSubtitle": "앱 화면 밝기를 선택하세요",
+  "themeSystem": "시스템 설정 따르기",
+  "themeLight": "라이트",
+  "themeDark": "다크",
+  "settingsAiStatus": "AI 기능 상태",
+  "aiStatusAvailable": "사용 가능",
+  "aiStatusUnavailable": "연결 안 됨",
+  "aiStatusChecking": "확인 중",
+  "aiStatusAvailableBody": "사진 인식, AI 영양 분석, AI 코치를 사용할 수 있어요.",
+  "aiStatusUnavailableBody": "지금은 AI 서버에 연결되지 않아요. 내장 음식 DB 검색, 직접 입력, 리포트는 그대로 사용할 수 있어요.",
+  "aiStatusDeveloperDetails": "개발자 정보 (디버그 빌드)",
+  "authDeleteAccount": "계정 삭제",
+  "authDeleteAccountTitle": "계정을 삭제할까요?",
+  "authDeleteAccountMessage": "계정과 클라우드에 저장된 프로필, 식단 기록, 사진이 영구 삭제되고 이 기기의 데이터도 초기화됩니다. 되돌릴 수 없습니다.",
+  "authDeleteAccountConfirm": "영구 삭제",
+  "authDeleteAccountDone": "계정이 삭제되었습니다",
+  "authDeleteAccountFailed": "계정을 삭제하지 못했습니다. 네트워크 연결을 확인한 뒤 다시 시도해주세요.",
+  "profileLatestLogBasis": "최근 기록 기준",
+  "weightTitle": "체중 기록",
+  "weightLog": "기록",
+  "weightLogTitle": "오늘 체중 기록",
+  "weightDeltaFromStart": "시작 대비 {delta} kg",
+  "@weightDeltaFromStart": {
+    "placeholders": {
+      "delta": {
+        "type": "String"
+      }
+    }
+  },
+  "weightNoRecords": "아직 체중 기록이 없어요. 같은 시간대에 꾸준히 기록하면 추이를 볼 수 있어요.",
+  "weightLastLogged": "마지막 기록 {date}",
+  "@weightLastLogged": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "weightTrendSemantics": "최근 {count}회 체중 추이 그래프",
+  "@weightTrendSemantics": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "weightHistoryTitle": "체중 기록 내역",
+  "weightLogged": "체중을 기록했어요",
+  "weightDeleted": "체중 기록을 삭제했어요",
+  "weightRecalculateSuggestion": "체중 변화로 권장 칼로리가 {kcal} kcal로 바뀌었어요",
+  "@weightRecalculateSuggestion": {
+    "placeholders": {
+      "kcal": {
+        "type": "String"
+      }
+    }
+  },
+  "weightRecalculateApply": "목표 갱신",
+  "onboardingGetStarted": "시작하기",
+  "onboardingDecreaseCalories": "목표 칼로리 50 kcal 낮추기",
+  "onboardingIncreaseCalories": "목표 칼로리 50 kcal 높이기",
+  "onboardingResetRecommended": "권장값 {kcal} kcal로 되돌리기",
+  "@onboardingResetRecommended": {
+    "placeholders": {
+      "kcal": {
+        "type": "String"
+      }
+    }
+  },
+  "onboardingTargetWeightDescription": "현재 체중의 약 5% 감량을 기본으로 {date}까지 목표로 잡았어요. 조정할 수 있어요.",
+  "@onboardingTargetWeightDescription": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "onboardingDecreaseTarget": "목표 체중 0.5kg 낮추기",
+  "onboardingIncreaseTarget": "목표 체중 0.5kg 높이기"
 }

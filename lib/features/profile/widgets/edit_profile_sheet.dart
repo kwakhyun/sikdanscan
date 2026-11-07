@@ -1,15 +1,25 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:uuid/uuid.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../data/services/meal_image_store.dart';
 import '../../../l10n/app_localizations_context.dart';
 import '../../../providers/app_providers.dart';
+import '../../meal/widgets/photo_picker.dart';
+import 'weight_card.dart';
+
+Future<void> showEditProfileSheet(BuildContext context) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useRootNavigator: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (_) => const EditProfileSheet(),
+  );
+}
 
 class EditProfileSheet extends ConsumerStatefulWidget {
   const EditProfileSheet({super.key});
@@ -24,7 +34,6 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
   late TextEditingController _heightController;
   late TextEditingController _weightController;
   late String _gender;
-  final _imagePicker = ImagePicker();
   String? _avatarImagePath;
   bool _isPickingAvatar = false;
 
@@ -141,9 +150,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
                     l10n.profileAge,
                     _ageController,
                     TextInputType.number,
-                    suffix: Localizations.localeOf(context).languageCode == 'en'
-                        ? 'y'
-                        : '세',
+                    suffix: l10n.unitYears,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -200,13 +207,6 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
                 onPressed: _save,
                 child: Text(
                   l10n.profileSave,
@@ -246,11 +246,6 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
           keyboardType: keyboardType,
           decoration: InputDecoration(
             suffixText: suffix,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.primary, width: 2),
-            ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 14,
@@ -305,7 +300,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
                   _PhotoActionTile(
                     icon: Icons.delete_outline_rounded,
                     title: context.l10n.profilePhotoDelete,
-                    color: AppColors.error,
+                    color: AppColors.errorText,
                     onTap: () {
                       Navigator.pop(sheetContext);
                       setState(() => _avatarImagePath = null);
@@ -321,108 +316,70 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
 
   Future<void> _pickAvatar(ImageSource source) async {
     setState(() => _isPickingAvatar = true);
-
     try {
-      final effectiveSource = _effectiveImageSource(source);
-      if (effectiveSource != source) {
-        _showMessage(context.l10n.dashboardCameraFallback);
-      }
-
-      final picked = await _imagePicker.pickImage(
-        source: effectiveSource,
-        maxWidth: 720,
-        imageQuality: 82,
-      );
+      final picked = await PhotoPicker.pick(context, source, maxWidth: 720);
       if (picked == null) return;
-
-      final persistedPath = await _persistAvatarImage(picked);
-      if (!mounted) return;
-      setState(() => _avatarImagePath = persistedPath);
-    } on PlatformException {
-      if (!mounted) return;
-      _showMessage(context.l10n.dashboardPhotoPermissionError);
-    } finally {
-      if (mounted) {
-        setState(() => _isPickingAvatar = false);
-      }
-    }
-  }
-
-  ImageSource _effectiveImageSource(ImageSource source) {
-    if (source == ImageSource.camera &&
-        !_imagePicker.supportsImageSource(ImageSource.camera) &&
-        _imagePicker.supportsImageSource(ImageSource.gallery)) {
-      return ImageSource.gallery;
-    }
-    return source;
-  }
-
-  Future<String> _persistAvatarImage(XFile picked) async {
-    try {
-      final directory = await getApplicationDocumentsDirectory();
-      final imageDirectory = Directory('${directory.path}/profile_images');
-      if (!await imageDirectory.exists()) {
-        await imageDirectory.create(recursive: true);
-      }
-
-      final extension = _imageExtension(picked.path);
-      final fileName = 'avatar_${const Uuid().v4()}$extension';
-      final targetPath = '${imageDirectory.path}/$fileName';
-      await File(picked.path).copy(targetPath);
-      return targetPath;
-    } catch (_) {
-      return picked.path;
-    }
-  }
-
-  String _imageExtension(String path) {
-    final lower = path.toLowerCase();
-    if (lower.endsWith('.png')) return '.png';
-    if (lower.endsWith('.webp')) return '.webp';
-    if (lower.endsWith('.heic')) return '.heic';
-    return '.jpg';
-  }
-
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
-    );
-  }
-
-  void _save() {
-    final name = _nameController.text.trim();
-    final age = int.tryParse(_ageController.text);
-    final height = double.tryParse(_heightController.text);
-    final weight = double.tryParse(_weightController.text);
-
-    if (name.isEmpty || age == null || height == null || weight == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.profileValidationError)),
+      final stored = await MealImageStore.persist(
+        picked.path,
+        folder: MealImageStore.profileFolder,
+        prefix: 'avatar',
       );
+      if (!mounted) return;
+      setState(() => _avatarImagePath = stored);
+    } finally {
+      if (mounted) setState(() => _isPickingAvatar = false);
+    }
+  }
+
+  Future<void> _save() async {
+    final l10n = context.l10n;
+    final name = _nameController.text.trim();
+    final age = int.tryParse(_ageController.text.trim());
+    final height = double.tryParse(_heightController.text.trim());
+    final weight = double.tryParse(_weightController.text.trim());
+
+    if (name.isEmpty ||
+        age == null ||
+        age < 10 ||
+        age > 100 ||
+        height == null ||
+        height < 100 ||
+        height > 230 ||
+        weight == null ||
+        weight < 30 ||
+        weight > 250) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.profileValidationError)));
       return;
     }
 
     final profile = ref.read(userProfileProvider);
-    ref
+    final weightChanged =
+        (weight - ref.read(currentWeightProvider)).abs() >= 0.05;
+    await ref
         .read(userProfileProvider.notifier)
         .updateProfile(
           profile.copyWith(
             name: name,
             age: age,
             height: height,
-            currentWeight: weight,
             gender: _gender,
             avatarImagePath: _avatarImagePath,
           ),
         );
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(context.l10n.profileUpdated),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+    if (!mounted) return;
+
+    final navigator = Navigator.of(context);
+    if (weightChanged) {
+      // Logging keeps the weight trend and offers a calorie target update.
+      await logWeight(context, ref, weight);
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.profileUpdated)));
+    }
+    navigator.pop();
   }
 }
 
@@ -439,8 +396,8 @@ class _ProfilePhotoEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final path = imagePath;
-    final hasImage = path != null && File(path).existsSync();
+    final file = MealImageStore.resolveFile(imagePath);
+    final hasImage = file != null;
 
     return GestureDetector(
       onTap: isLoading ? null : onTap,
@@ -459,10 +416,10 @@ class _ProfilePhotoEditor extends StatelessWidget {
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: hasImage
-                    ? Image.file(File(path), fit: BoxFit.cover)
-                    : const Icon(
+                    ? Image.file(file, fit: BoxFit.cover)
+                    : Icon(
                         Icons.person_rounded,
-                        color: AppColors.primary,
+                        color: context.colorPrimaryText,
                         size: 42,
                       ),
               ),
@@ -473,7 +430,7 @@ class _ProfilePhotoEditor extends StatelessWidget {
                   width: 30,
                   height: 30,
                   decoration: BoxDecoration(
-                    color: AppColors.primary,
+                    color: AppColors.primaryStrong,
                     shape: BoxShape.circle,
                     border: Border.all(color: context.colorSurface, width: 3),
                   ),
@@ -499,10 +456,10 @@ class _ProfilePhotoEditor extends StatelessWidget {
             hasImage
                 ? context.l10n.profilePhotoChange
                 : context.l10n.profilePhotoAdd,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w800,
-              color: AppColors.primary,
+              color: context.colorPrimaryText,
             ),
           ),
         ],
@@ -516,7 +473,7 @@ class _PhotoActionTile extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.onTap,
-    this.color = AppColors.primary,
+    this.color = AppColors.primaryStrong,
   });
 
   final IconData icon;
@@ -543,7 +500,9 @@ class _PhotoActionTile extends StatelessWidget {
         style: TextStyle(
           fontSize: 15,
           fontWeight: FontWeight.w800,
-          color: color == AppColors.error ? color : context.colorTextPrimary,
+          color: color == AppColors.errorText
+              ? color
+              : context.colorTextPrimary,
         ),
       ),
       trailing: Icon(
@@ -569,36 +528,43 @@ class _GenderChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : context.colorSurfaceVariant,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : context.colorBorder,
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? AppColors.primaryStrong
+                : context.colorSurfaceVariant,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? AppColors.primaryStrong : context.colorBorder,
+            ),
           ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? Colors.white : context.colorTextSecondary,
-              size: 20,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
                 color: isSelected ? Colors.white : context.colorTextSecondary,
+                size: 20,
               ),
-            ),
-          ],
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: isSelected ? Colors.white : context.colorTextSecondary,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
