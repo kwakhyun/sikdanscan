@@ -1189,9 +1189,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reviewPortion => 'Portion';
 
   @override
-  String reviewPortionTotal(String kcal) {
-    return 'Saved as $kcal kcal';
+  String reviewPerPortion(String kcal) {
+    return '$kcal kcal per 1× portion';
   }
+
+  @override
+  String get resumeCaptureTitle => 'You have an unsaved meal';
+
+  @override
+  String get resumeCaptureBody =>
+      'Pick up the photo analysis and edits from before the app closed.';
+
+  @override
+  String get resumeCaptureContinue => 'Continue';
+
+  @override
+  String get resumeCaptureDiscard => 'Discard';
 
   @override
   String get reviewDateTime => 'Date & time';

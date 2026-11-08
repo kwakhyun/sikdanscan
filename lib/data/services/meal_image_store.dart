@@ -127,6 +127,37 @@ class MealImageStore {
     }
   }
 
+  /// Deletes stored photos that nothing references any more (e.g. the app
+  /// was killed during a capture). Files younger than [minAge] are kept, so
+  /// a capture in progress is never touched.
+  static Future<int> sweepOrphans(
+    Set<String> keep, {
+    Duration minAge = const Duration(days: 1),
+  }) async {
+    final documents = _documentsPath;
+    if (documents == null) return 0;
+    final kept = {for (final path in keep) normalizeForStorage(path)};
+    final now = DateTime.now();
+    var removed = 0;
+    for (final folder in _knownFolders) {
+      try {
+        final directory = Directory('$documents/$folder');
+        if (!await directory.exists()) continue;
+        await for (final entity in directory.list()) {
+          if (entity is! File) continue;
+          final relative = '$folder/${entity.uri.pathSegments.last}';
+          if (kept.contains(relative)) continue;
+          if (now.difference(await entity.lastModified()) < minAge) continue;
+          await entity.delete();
+          removed++;
+        }
+      } catch (_) {
+        // Best effort.
+      }
+    }
+    return removed;
+  }
+
   /// Detects JPEG, PNG or WebP from the file header. Image pickers re-encode
   /// resized photos but can keep the original name (e.g. `scaled_x.heic`
   /// holding JPEG bytes), so the name alone is not reliable.

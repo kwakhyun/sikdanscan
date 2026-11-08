@@ -176,6 +176,7 @@ class ChatMessagesNotifier extends StateNotifier<List<ChatMessage>> {
       );
     } finally {
       // A newer conversation (after clear) manages its own loading state.
+      // Reset and account switches re-create chatLoadingProvider itself.
       if (generation == _generation) _setLoading(false);
     }
   }

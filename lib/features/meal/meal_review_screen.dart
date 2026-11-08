@@ -478,10 +478,21 @@ class _DraftCardState extends ConsumerState<_DraftCard> {
     super.initState();
     final draft = widget.draft;
     _name = TextEditingController(text: draft.name);
-    _kcal = TextEditingController(text: _number(draft.calories));
-    _carbs = TextEditingController(text: _number(draft.carbs));
-    _protein = TextEditingController(text: _number(draft.protein));
-    _fat = TextEditingController(text: _number(draft.fat));
+    // Like the record edit sheet, the fields show what is eaten at the
+    // chosen portion; the draft keeps the 1× values.
+    _kcal = TextEditingController(text: _number(draft.scaledCalories));
+    _carbs = TextEditingController(text: _number(draft.scaledCarbs));
+    _protein = TextEditingController(text: _number(draft.scaledProtein));
+    _fat = TextEditingController(text: _number(draft.scaledFat));
+  }
+
+  void _setPortion(double portion) {
+    _update((d) => d.copyWith(portion: portion));
+    final draft = widget.draft.copyWith(portion: portion);
+    _kcal.text = _number(draft.scaledCalories);
+    _carbs.text = _number(draft.scaledCarbs);
+    _protein.text = _number(draft.scaledProtein);
+    _fat.text = _number(draft.scaledFat);
   }
 
   @override
@@ -597,8 +608,9 @@ class _DraftCardState extends ConsumerState<_DraftCard> {
                     controller: _kcal,
                     label: 'kcal',
                     integer: true,
-                    onChanged: (value) =>
-                        _update((d) => d.copyWith(calories: value.round())),
+                    onChanged: (value) => _update(
+                      (d) => d.copyWith(calories: (value / d.portion).round()),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -607,7 +619,7 @@ class _DraftCardState extends ConsumerState<_DraftCard> {
                     controller: _carbs,
                     label: l10n.reviewCarbsLabel,
                     onChanged: (value) =>
-                        _update((d) => d.copyWith(carbs: value.toDouble())),
+                        _update((d) => d.copyWith(carbs: value / d.portion)),
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -616,7 +628,7 @@ class _DraftCardState extends ConsumerState<_DraftCard> {
                     controller: _protein,
                     label: l10n.reviewProteinLabel,
                     onChanged: (value) =>
-                        _update((d) => d.copyWith(protein: value.toDouble())),
+                        _update((d) => d.copyWith(protein: value / d.portion)),
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -625,7 +637,7 @@ class _DraftCardState extends ConsumerState<_DraftCard> {
                     controller: _fat,
                     label: l10n.reviewFatLabel,
                     onChanged: (value) =>
-                        _update((d) => d.copyWith(fat: value.toDouble())),
+                        _update((d) => d.copyWith(fat: value / d.portion)),
                   ),
                 ),
               ],
@@ -655,8 +667,7 @@ class _DraftCardState extends ConsumerState<_DraftCard> {
                               label: Text(portionLabel(option)),
                               selected: draft.portion == option,
                               visualDensity: VisualDensity.compact,
-                              onSelected: (_) =>
-                                  _update((d) => d.copyWith(portion: option)),
+                              onSelected: (_) => _setPortion(option),
                             ),
                           ),
                       ],
@@ -670,8 +681,8 @@ class _DraftCardState extends ConsumerState<_DraftCard> {
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
               child: Text(
-                l10n.reviewPortionTotal(
-                  AppFormat.integer(draft.scaledCalories, context.localeTag),
+                l10n.reviewPerPortion(
+                  AppFormat.integer(draft.calories, context.localeTag),
                 ),
                 style: AppTextStyles.caption.copyWith(
                   color: context.colorSecondaryText,

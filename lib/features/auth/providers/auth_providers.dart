@@ -4,9 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../data/services/meal_image_store.dart';
 import '../../../data/services/supabase_backend_service.dart';
 import '../../../providers/service_providers.dart';
-import '../../chat/providers/chat_providers.dart';
-import '../../dashboard/providers/daily_health_providers.dart';
-import '../../meal/providers/meal_capture_providers.dart';
+import '../../../providers/user_session.dart';
 import '../../meal/providers/meal_providers.dart';
 import '../../profile/providers/profile_providers.dart';
 
@@ -109,22 +107,54 @@ class SupabaseAuthController extends StateNotifier<AsyncValue<void>> {
     });
   }
 
-  /// Manual "sync now": retries failed uploads, then merges both ways. The
-  /// device's profile is the one being edited, so it is uploaded.
+  /// Manual "sync now": retries failed uploads, then merges both ways.
   Future<void> syncLocalToRemote() async {
-    await _run(() => _syncWithAccount(preferRemoteProfile: false));
+    await _run(_mergeAfterSignIn);
   }
 
-  Future<void> _mergeAfterSignIn() =>
-      _syncWithAccount(preferRemoteProfile: true);
+  /// Quietly brings in what changed in the account since the last pull
+  /// (other devices' meals, deletions and profile edits). Runs on app start
+  /// and resume, at most every few minutes, and never switches accounts.
+  Future<void> pullAccountChanges({bool force = false}) async {
+    final service = _service;
+    final user = service.isConfigured ? service.currentUser : null;
+    if (user == null || _pulling) return;
+    final storage = _ref.read(localStorageServiceProvider);
+    if (storage.getLocalDataOwner() != user.id) return;
+    final now = DateTime.now();
+    final last = _lastPull;
+    if (!force && last != null && now.difference(last) < pullInterval) return;
 
-  /// Brings the device and the signed-in account together.
-  ///
-  /// Data that was never tied to an account (or belongs to this account) is
-  /// merged by record id and uploaded. Data that belongs to a *different*
-  /// account is not uploaded: it is replaced by this account's data, so one
-  /// person's meals never end up in someone else's account.
-  Future<void> _syncWithAccount({required bool preferRemoteProfile}) async {
+    _pulling = true;
+    _lastPull = now;
+    try {
+      await _reconcileProfile(preferRemote: false);
+      final meals = _ref.read(mealRecordsProvider.notifier);
+      await meals.flushPendingSync();
+      final cursor = storage.getMealPullCursor();
+      // A little overlap covers writes committed out of order.
+      final snapshot = await service.fetchMealSnapshot(
+        changedSince: cursor?.subtract(const Duration(minutes: 2)),
+      );
+      final result = await meals.mergeWithRemote(
+        snapshot.records,
+        remoteDeleted: snapshot.deleted,
+        uploadLocalOnly: cursor == null,
+      );
+      await meals.uploadRecords(result.toUpload);
+      await _saveCursor(snapshot.cursor);
+    } catch (_) {
+      // Offline or not migrated yet: the next resume tries again.
+    } finally {
+      _pulling = false;
+    }
+  }
+
+  static const pullInterval = Duration(minutes: 3);
+  bool _pulling = false;
+  DateTime? _lastPull;
+
+  Future<void> _mergeAfterSignIn() async {
     final service = _service;
     final user = service.currentUser;
     if (!service.isConfigured || user == null) return;
@@ -134,55 +164,94 @@ class SupabaseAuthController extends StateNotifier<AsyncValue<void>> {
     if (owner != null && owner != user.id) {
       await _replaceLocalDataWithAccount();
     } else {
-      final localProfile = _ref.read(userProfileProvider);
-      final remoteProfile = preferRemoteProfile
-          ? await service.fetchProfile()
-          : null;
-      if (remoteProfile != null && remoteProfile.onboardingCompleted) {
-        await _ref
-            .read(userProfileProvider.notifier)
-            .updateProfile(remoteProfile);
-      } else if (localProfile.onboardingCompleted) {
-        await service.upsertProfile(localProfile);
-      }
+      // Data that was never tied to an account adopts the account's profile
+      // when it has one; this account's own data is reconciled newer-wins.
+      await _reconcileProfile(preferRemote: owner == null);
       await _mergeMeals();
     }
     await storage.setLocalDataOwner(user.id);
+    _lastPull = DateTime.now();
+  }
+
+  /// Newer-wins between the device profile and the account profile, using
+  /// this device's last edit time and the server time of the account copy.
+  Future<void> _reconcileProfile({required bool preferRemote}) async {
+    final service = _service;
+    final storage = _ref.read(localStorageServiceProvider);
+    final notifier = _ref.read(userProfileProvider.notifier);
+    final local = _ref.read(userProfileProvider);
+    final localEditedAt = storage.getProfileEditedAt();
+    final remote = await service.fetchProfileSnapshot();
+    final remoteProfile = remote?.profile;
+    final remoteTime = remote?.updatedAt;
+
+    final remoteUsable =
+        remoteProfile != null && remoteProfile.onboardingCompleted;
+    final remoteIsNewer =
+        remoteUsable &&
+        (preferRemote ||
+            !local.onboardingCompleted ||
+            localEditedAt == null ||
+            (remoteTime != null && remoteTime.isAfter(localEditedAt)));
+
+    if (remoteIsNewer) {
+      await notifier.applyRemote(remoteProfile, remoteTime);
+    } else if (local.onboardingCompleted &&
+        (remote == null ||
+            storage.profileSyncPending ||
+            remoteTime == null ||
+            localEditedAt == null ||
+            localEditedAt.isAfter(remoteTime))) {
+      await service.upsertProfile(local);
+      await storage.setProfileSyncPending(false);
+    }
   }
 
   /// Merges by record id so meals logged before signing in are kept and
-  /// uploaded instead of being replaced by the account's records.
+  /// uploaded instead of being replaced by the account's records, and meals
+  /// deleted in the account are not brought back.
   Future<void> _mergeMeals() async {
     final meals = _ref.read(mealRecordsProvider.notifier);
     await meals.flushPendingSync();
-    final remoteMeals = await _service.fetchMealRecords();
-    final result = await meals.mergeWithRemote(remoteMeals);
+    final snapshot = await _service.fetchMealSnapshot();
+    final result = await meals.mergeWithRemote(
+      snapshot.records,
+      remoteDeleted: snapshot.deleted,
+    );
     await meals.uploadRecords(result.toUpload);
+    await _saveCursor(snapshot.cursor);
+  }
+
+  Future<void> _saveCursor(DateTime? cursor) async {
+    if (cursor == null) return;
+    final storage = _ref.read(localStorageServiceProvider);
+    final previous = storage.getMealPullCursor();
+    if (previous == null || cursor.isAfter(previous)) {
+      await storage.setMealPullCursor(cursor);
+    }
   }
 
   Future<void> _replaceLocalDataWithAccount() async {
     final service = _service;
-    final remoteProfile = await service.fetchProfile();
-    final remoteMeals = await service.fetchMealRecords();
+    final remote = await service.fetchProfileSnapshot();
+    final snapshot = await service.fetchMealSnapshot();
 
     await _ref.read(mealRecordsProvider.notifier).clearPendingSync();
     await _ref.read(localStorageServiceProvider).clearUserData();
     await MealImageStore.clearAll();
-    _ref
-      ..invalidate(mealCaptureProvider)
-      ..invalidate(mealRecordsProvider)
-      ..invalidate(weightRecordsProvider)
-      ..invalidate(dailyHealthProvider)
-      ..invalidate(chatMessagesProvider)
-      ..invalidate(userProfileProvider);
+    invalidateUserScopedState(_ref);
 
-    if (remoteMeals.isNotEmpty) {
-      await _ref.read(mealRecordsProvider.notifier).replaceAll(remoteMeals);
+    if (snapshot.records.isNotEmpty) {
+      await _ref
+          .read(mealRecordsProvider.notifier)
+          .replaceAll(snapshot.records);
     }
+    await _saveCursor(snapshot.cursor);
+    final remoteProfile = remote?.profile;
     if (remoteProfile != null && remoteProfile.onboardingCompleted) {
       await _ref
           .read(userProfileProvider.notifier)
-          .updateProfile(remoteProfile);
+          .applyRemote(remoteProfile, remote?.updatedAt);
     }
   }
 

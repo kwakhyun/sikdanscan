@@ -113,6 +113,11 @@ class SupabaseBackendService {
   }
 
   Future<UserProfile?> fetchProfile() async {
+    return (await fetchProfileSnapshot())?.profile;
+  }
+
+  /// The account's profile and when the server last stored it.
+  Future<RemoteProfile?> fetchProfileSnapshot() async {
     final userId = _requireUserId();
     final row = await _requireClient()
         .from('profiles')
@@ -121,7 +126,11 @@ class SupabaseBackendService {
         .maybeSingle();
     if (row == null) return null;
 
-    return _profileFromRow(Map<String, dynamic>.from(row));
+    final data = Map<String, dynamic>.from(row);
+    return RemoteProfile(
+      profile: _profileFromRow(data),
+      updatedAt: _readDateTime(data['updated_at'])?.toUtc(),
+    );
   }
 
   Future<void> upsertMealRecord(MealRecord record) async {
@@ -138,10 +147,24 @@ class SupabaseBackendService {
     DateTime? from,
     DateTime? to,
   }) async {
+    final snapshot = await fetchMealSnapshot(from: from, to: to);
+    return snapshot.records;
+  }
+
+  /// Active records plus deletion tombstones. With [changedSince] (a server
+  /// time from an earlier snapshot's [RemoteMealSnapshot.cursor]) only rows
+  /// written after it are returned.
+  Future<RemoteMealSnapshot> fetchMealSnapshot({
+    DateTime? from,
+    DateTime? to,
+    DateTime? changedSince,
+  }) async {
     final client = _requireClient();
     final userId = _requireUserId();
     const pageSize = 1000;
     final records = <String, MealRecord>{};
+    final deleted = <String, DateTime>{};
+    DateTime? cursor;
     var offset = 0;
     while (true) {
       var query = client.from('meal_records').select().eq('user_id', userId);
@@ -151,25 +174,51 @@ class SupabaseBackendService {
       if (to != null) {
         query = query.lt('date', to.toUtc().toIso8601String());
       }
+      if (changedSince != null) {
+        query = query.gt(
+          'server_updated_at',
+          changedSince.toUtc().toIso8601String(),
+        );
+      }
       final rows = await query
           .order('date', ascending: false)
           .order('id', ascending: true)
           .range(offset, offset + pageSize - 1);
       if (rows.isEmpty) break;
-      for (final row in rows.whereType<Map>()) {
-        final record = _mealRecordFromRow(Map<String, dynamic>.from(row));
-        records[record.id] = record;
+      for (final raw in rows.whereType<Map>()) {
+        final row = Map<String, dynamic>.from(raw);
+        final record = _mealRecordFromRow(row);
+        final serverTime = _readDateTime(row['server_updated_at']);
+        if (serverTime != null &&
+            (cursor == null || serverTime.isAfter(cursor))) {
+          cursor = serverTime;
+        }
+        final deletedAt = _readDateTime(row['deleted_at']);
+        if (deletedAt != null) {
+          deleted[record.id] = (record.updatedAt ?? deletedAt).toUtc();
+          records.remove(record.id);
+        } else {
+          records[record.id] = record;
+          deleted.remove(record.id);
+        }
       }
       offset += rows.length;
     }
-    return records.values.toList(growable: false);
+    return RemoteMealSnapshot(
+      records: records.values.toList(growable: false),
+      deleted: deleted,
+      cursor: cursor,
+    );
   }
 
-  Future<void> deleteMealRecord(String id) async {
+  /// Marks the record deleted (a tombstone, see [fetchMealSnapshot]). The
+  /// server skips it if the row was edited after [deletedAt].
+  Future<void> deleteMealRecord(String id, {DateTime? deletedAt}) async {
     final userId = _requireUserId();
+    final at = (deletedAt ?? DateTime.now()).toUtc().toIso8601String();
     await _requireClient()
         .from('meal_records')
-        .delete()
+        .update({'deleted_at': at, 'updated_at': at})
         .eq('user_id', userId)
         .eq('id', id);
   }
@@ -354,6 +403,9 @@ class SupabaseBackendService {
       'recognition_confidence': record.recognitionConfidence,
       'memo': record.memo,
       'portion': record.effectivePortion,
+      // Writing a record (undo, an edit after a deletion elsewhere) clears
+      // its tombstone; the server keeps the newer of the two.
+      'deleted_at': null,
       'updated_at': (record.updatedAt ?? DateTime.now())
           .toUtc()
           .toIso8601String(),
@@ -428,6 +480,27 @@ class SupabaseBackendService {
     if (value is! String || value.isEmpty) return null;
     return DateTime.tryParse(value);
   }
+}
+
+/// Meal rows of the account: active [records], [deleted] tombstones (id ->
+/// deletion edit time) and the newest server write time ([cursor]).
+class RemoteMealSnapshot {
+  const RemoteMealSnapshot({
+    required this.records,
+    this.deleted = const {},
+    this.cursor,
+  });
+
+  final List<MealRecord> records;
+  final Map<String, DateTime> deleted;
+  final DateTime? cursor;
+}
+
+class RemoteProfile {
+  const RemoteProfile({required this.profile, this.updatedAt});
+
+  final UserProfile profile;
+  final DateTime? updatedAt;
 }
 
 class SupabaseNotConfiguredException implements Exception {

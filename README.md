@@ -17,7 +17,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-iOS%20%7C%20Android-2DD4A8?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Tests-236%20passed-brightgreen?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Tests-244%20passed-brightgreen?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Dart%20Files-115-blue?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Dart%20Lines-31.9k-blue?style=for-the-badge" />
 </p>
@@ -80,6 +80,7 @@
 - confidence/needsReview 기반으로 확인이 필요한 항목을 강조
 - 저장된 기록은 편집 시트에서 이름·영양소·양·끼니·시간 수정, `다시 기록`, 삭제 후 되돌리기 지원
 - 양 조절은 저장 시점의 1인분 기준으로 재계산되어 반복 수정해도 누적되지 않음
+- 분석 중이거나 확인 중이던 기록은 앱이 종료돼도 보관되어 데일리 화면에서 `이어서 확인` 가능 (Android 카메라 중 앱이 종료된 경우 사진도 복구)
 - 촬영 이미지는 앱 문서 디렉터리에 **상대경로**로 보관 (iOS 컨테이너 경로 변경에도 유지), 저장 시 사진의 GPS 위치 정보를 제거하고 로그인 시 Supabase Storage에 업로드
 
 ### 🤖 AI 코치 (챗봇)
@@ -98,7 +99,7 @@
 - 피부 개선, 체중 감량, 장 건강, 컨디션, 단백질 보강, 혈당 안정 등 개선 방향 설정
 - AI 기능 상태 (사용자용 요약, 프록시 세부 정보는 디버그 빌드에서만), AI 데이터 사용 동의/철회, 개인정보 처리방침 링크(`SIKDANSCAN_PRIVACY_POLICY_URL` 설정 시)
 - 화면 테마 — 시스템 설정 따르기 / 라이트 / 다크, 언어 — 시스템 언어 / 한국어 / English
-- 계정 동기화: 저장은 기기에 먼저 반영하고 서버 전송은 백그라운드 큐로 처리, 로그인 시 기기 기록과 계정 기록을 id 기준 병합(다른 계정의 기기 데이터는 업로드하지 않고 교체), 실패한 작업은 재시도 큐에 보관
+- 계정 동기화: 저장은 기기에 먼저 반영하고 서버 전송은 백그라운드 큐로 처리, 로그인 시 기기 기록과 계정 기록을 id 기준 병합(다른 계정의 기기 데이터는 업로드하지 않고 교체), 다른 기기에서 삭제한 기록은 되살리지 않음(삭제 표시), 앱 시작·복귀 시 변경분만 자동으로 가져오기, 프로필은 더 최근 수정이 우선, 실패한 작업은 재시도 큐에 보관
 - 앱 내 계정 삭제 (클라우드 데이터·사진 영구 삭제), 데이터 내보내기 (JSON), 기기 데이터 초기화
 
 ---
@@ -122,7 +123,7 @@
 | **Icons**            | flutter_lucide                                            |
 | **Localization**     | Flutter gen-l10n — 한국어/영어, 시스템 언어/수동 선택 지원 |
 | **Code Generation**  | Freezed, json_serializable, build_runner                  |
-| **Testing**          | flutter_test — 236개 단위·위젯·서버 테스트                 |
+| **Testing**          | flutter_test — 244개 단위·위젯·서버 테스트                 |
 | **CI/CD**            | GitHub Actions — build_runner, format, analyze, test, Android release APK |
 | **Architecture**     | Feature-first + Service Layer + Typed Model Layer         |
 
@@ -229,7 +230,7 @@ lib/l10n/                               # Flutter gen-l10n 다국어 리소스
 ├── app_localizations_context.dart      # context.l10n / enum label helper
 └── generated/                          # AppLocalizations generated files
 
-test/                                   # 236개 테스트
+test/                                   # 244개 테스트
 ├── models/                             # 모델 단위 테스트 (4개 파일, 27개 테스트)
 ├── services/                           # 서비스 단위 테스트 (5개 파일, 64개 테스트)
 ├── providers/                          # 프로바이더 테스트 (2개 파일, 39개 테스트)
@@ -448,7 +449,7 @@ SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
 ## 🧪 테스트 및 빌드
 
 ```bash
-flutter test        # 전체 236개 테스트 실행
+flutter test        # 전체 244개 테스트 실행
 dart analyze        # 앱 정적 분석 (0 issues)
 dart analyze server # 서버 정적 분석 (0 issues)
 dart run build_runner build
@@ -461,10 +462,10 @@ flutter build ios --release --no-codesign
 | -------------- | ------- | --------- | --------------------------------------------- |
 | **모델**       | 4       | 28        | JSON 직렬화/역직렬화, 개선 목표, BMI, 날짜 계산 |
 | **서비스**     | 6       | 74        | 음식 검색/캐시/프록시 파싱, 사진 인식 locale payload·사용자용 오류 문구, AI 멀티턴/폴백/오프라인·타임아웃 판정/재시도 횟수, 이미지 상대경로·레거시 경로 복구, Supabase row 매핑 |
-| **프로바이더** | 4       | 80        | CRUD, 백그라운드 동기화 큐(업로드 중 삭제·수정, 사진 공유 업로드, 되돌리기), 계정 병합·다른 계정 데이터 보호, 오늘/리포트 날짜 분리, 리포트 계산, 양 재계산, 기록 확인 플로우, 대화 저장·재시도·늦은 응답 무시, AI 데이터 동의, 사진 GPS 제거, 테마/언어, 목표별 전략(ko/en) |
+| **프로바이더** | 4       | 88        | CRUD, 백그라운드 동기화 큐(업로드 중 삭제·수정, 사진 공유 업로드, 되돌리기), 계정 병합·다른 계정 데이터 보호, 오늘/리포트 날짜 분리, 리포트 계산, 양 재계산, 기록 확인 플로우, 대화 저장·재시도·늦은 응답 무시, AI 데이터 동의, 사진 GPS 제거, 테마/언어, 목표별 전략(ko/en) |
 | **서버**       | 2       | 35        | 프록시 헬스체크, readiness, metrics, 인증, CORS, 본문 제한, rate limit, 이미지 payload 검증, 대화 기록 검증, 코치 프롬프트 |
 | **위젯**       | 1       | 19        | 온보딩(소셜 로그인 노출, 인라인 검증, 감량 목표 입력 회귀), 데일리·기록 시트·수분, 기록 확인 저장, 기록 편집/되돌리기, 리포트, 설정·AI 데이터 동의/철회, AI 코치 오프라인 |
-| **합계**       | **17**  | **236**   | **All passed ✅**                             |
+| **합계**       | **17**  | **244**   | **All passed ✅**                             |
 
 ## 🚢 운영 배포 체크리스트
 

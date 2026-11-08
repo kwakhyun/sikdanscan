@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -10,6 +12,7 @@ import 'core/theme/app_theme.dart';
 import 'data/services/local_storage_service.dart';
 import 'data/services/meal_image_store.dart';
 import 'data/services/supabase_bootstrap.dart';
+import 'features/meal/widgets/photo_picker.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'providers/app_providers.dart';
 import 'shared/widgets/meal_thumbnail.dart';
@@ -78,14 +81,59 @@ class SikdanScanApp extends ConsumerStatefulWidget {
   ConsumerState<SikdanScanApp> createState() => _SikdanScanAppState();
 }
 
-class _SikdanScanAppState extends ConsumerState<SikdanScanApp> {
+class _SikdanScanAppState extends ConsumerState<SikdanScanApp>
+    with WidgetsBindingObserver {
   late final AppLifecycleListener _lifecycleListener;
 
   @override
   void initState() {
     super.initState();
     _lifecycleListener = AppLifecycleListener(onResume: _onResume);
+    WidgetsBinding.instance.addObserver(this);
     _recordSignedInOwner();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _pullAccount();
+      _recoverLostPhoto();
+      _sweepOrphanPhotos();
+    });
+  }
+
+  /// A meal photo taken while Android destroyed the app is analysed now.
+  Future<void> _recoverLostPhoto() async {
+    final photo = await PhotoPicker.retrieveLostMealPhoto();
+    if (photo == null || !mounted) return;
+    final stored = await MealImageStore.persist(photo.path);
+    if (!mounted) return;
+    unawaited(ref.read(mealCaptureProvider.notifier).startFromImage(stored));
+    unawaited(ref.read(appRouterProvider).push(AppRoutes.mealReview));
+  }
+
+  /// Removes photos left behind by flows that never finished.
+  Future<void> _sweepOrphanPhotos() async {
+    final keep = <String>{
+      for (final meal in ref.read(mealRecordsProvider))
+        if (meal.imageUrl != null) meal.imageUrl!,
+      if (ref.read(mealCaptureProvider).imagePath case final path?) path,
+      if (ref.read(userProfileProvider).avatarImagePath case final path?) path,
+    };
+    await MealImageStore.sweepOrphans(keep);
+  }
+
+  /// Brings in changes made on other devices (throttled, signed-in only).
+  void _pullAccount() {
+    if (!mounted) return;
+    ref
+        .read(supabaseAuthControllerProvider.notifier)
+        .pullAccountChanges()
+        .catchError((Object _) {});
+  }
+
+  /// With the "system language" preference the UI follows a device language
+  /// change at once; the language sent to the AI and used for search and
+  /// coach context must follow too.
+  @override
+  void didChangeLocales(List<Locale>? locales) {
+    ref.invalidate(resolvedLanguageCodeProvider);
   }
 
   /// Installs from before data ownership was tracked: data on a device that
@@ -103,13 +151,17 @@ class _SikdanScanAppState extends ConsumerState<SikdanScanApp> {
   /// the device was offline.
   void _onResume() {
     ref.read(todayDateProvider.notifier).refresh();
+    ref.read(currentHourProvider.notifier).refresh();
     ref.read(mealRecordsProvider.notifier).flushPendingSync();
+    ref.read(userProfileProvider.notifier).retryPendingSync();
+    _pullAccount();
     // Signed photo URLs may have expired while the app was in background.
     ref.invalidate(signedMealImageUrlProvider);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _lifecycleListener.dispose();
     super.dispose();
   }

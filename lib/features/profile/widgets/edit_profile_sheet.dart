@@ -334,7 +334,12 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
   Future<void> _pickAvatar(ImageSource source) async {
     setState(() => _isPickingAvatar = true);
     try {
-      final picked = await PhotoPicker.pick(context, source, maxWidth: 720);
+      final picked = await PhotoPicker.pick(
+        context,
+        source,
+        maxWidth: 720,
+        purpose: PhotoPicker.avatarPurpose,
+      );
       if (picked == null) return;
       final stored = await MealImageStore.persist(
         picked.path,

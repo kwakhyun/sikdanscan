@@ -11,6 +11,10 @@ class LocalStorageService {
   static const String _chatHistoryKey = 'chat_history';
   static const String _pendingMealSyncKey = 'pending_meal_sync';
   static const String _localDataOwnerKey = 'local_data_owner';
+  static const String _mealPullCursorKey = 'meal_pull_cursor';
+  static const String _profileEditedAtKey = 'profile_edited_at';
+  static const String _profileSyncPendingKey = 'profile_sync_pending';
+  static const String _captureDraftKey = 'capture_draft';
 
   LocalStorageService();
 
@@ -157,6 +161,67 @@ class LocalStorageService {
   /// Clears the signed-in person's records (profile, weights, meals, water,
   /// coach conversation, sync queue) but keeps device preferences such as
   /// theme and language. Used when another account signs in on this device.
+  /// Unfinished meal review (see MealCaptureController).
+  Map<String, dynamic>? getCaptureDraft() {
+    final raw = _readableBox(_settingsBox)?.get(_captureDraftKey);
+    if (raw == null) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      return decoded is Map ? Map<String, dynamic>.from(decoded) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> saveCaptureDraft(Map<String, dynamic> draft) async {
+    await _writableBox(_settingsBox).put(_captureDraftKey, jsonEncode(draft));
+  }
+
+  Future<void> clearCaptureDraft() async {
+    await _readableBox(_settingsBox)?.delete(_captureDraftKey);
+  }
+
+  /// Server time of the newest meal row already pulled from the account.
+  DateTime? getMealPullCursor() => _readTime(_mealPullCursorKey);
+
+  Future<void> setMealPullCursor(DateTime? value) =>
+      _writeTime(_mealPullCursorKey, value);
+
+  /// When the profile was last changed on this device (or the server time
+  /// of the copy taken from the account), for newer-wins profile sync.
+  DateTime? getProfileEditedAt() => _readTime(_profileEditedAtKey);
+
+  Future<void> setProfileEditedAt(DateTime? value) =>
+      _writeTime(_profileEditedAtKey, value);
+
+  /// A profile change has not reached the account yet.
+  bool get profileSyncPending {
+    try {
+      return getSetting<bool>(_profileSyncPendingKey) ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> setProfileSyncPending(bool value) => value
+      ? saveSetting(_profileSyncPendingKey, true)
+      : removeSetting(_profileSyncPendingKey);
+
+  DateTime? _readTime(String key) {
+    try {
+      final value = getSetting<String>(key);
+      return value == null ? null : DateTime.tryParse(value)?.toUtc();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _writeTime(String key, DateTime? value) {
+    return value == null
+        ? removeSetting(key)
+        : saveSetting(key, value.toUtc().toIso8601String());
+  }
+
   Future<void> clearUserData() async {
     await Future.wait([
       for (final name in const [
@@ -169,7 +234,14 @@ class LocalStorageService {
     ]);
     final settings = _readableBox(_settingsBox);
     if (settings != null) {
-      await settings.deleteAll(const [_chatHistoryKey, _pendingMealSyncKey]);
+      await settings.deleteAll(const [
+        _chatHistoryKey,
+        _pendingMealSyncKey,
+        _mealPullCursorKey,
+        _profileEditedAtKey,
+        _profileSyncPendingKey,
+        _captureDraftKey,
+      ]);
     }
   }
 

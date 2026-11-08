@@ -9,6 +9,7 @@ import '../../providers/app_providers.dart';
 import '../meal/widgets/meal_entry_sheet.dart';
 import 'widgets/daily_intake_overview_card.dart';
 import 'widgets/goal_strategy_card.dart';
+import 'widgets/resume_capture_card.dart';
 import 'widgets/water_card.dart';
 
 /// Daily tab: today's goal strategy, intake, food log and hydration.
@@ -48,6 +49,7 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  const ResumeCaptureCard(),
                   const GoalStrategyCard(),
                   const SizedBox(height: 14),
                   const DailyIntakeOverviewCard(),

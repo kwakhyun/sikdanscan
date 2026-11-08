@@ -15,9 +15,12 @@ final mealStrategyProvider = Provider<MealStrategy>((ref) {
   final profile = ref.watch(userProfileProvider);
   final weight = ref.watch(currentWeightProvider);
   final meals = ref.watch(todayMealsProvider);
+  // The logging factor compares with the meals expected by this hour.
+  final hour = ref.watch(currentHourProvider);
   return MealStrategyBuilder.build(
     profile: weight > 0 ? profile.copyWith(currentWeight: weight) : profile,
     meals: meals,
+    now: hour,
   );
 });
 

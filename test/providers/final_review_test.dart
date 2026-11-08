@@ -54,7 +54,7 @@ class _Remote {
       log.add('upsert ${meal.id}');
       upserted.add(meal);
     },
-    remoteDelete: (String id) async => log.add('delete $id'),
+    remoteDelete: (String id, DateTime _) async => log.add('delete $id'),
     imageUploader: (MealRecord meal) async {
       log.add('upload ${meal.id}');
       final gate = uploadGate;
@@ -83,12 +83,19 @@ User _user(String id) => User(
 );
 
 class _FakeBackend extends SupabaseBackendService {
-  _FakeBackend({required this.user, this.remoteMeals = const []})
-    : super(config: SupabaseConfig());
+  _FakeBackend({
+    required this.user,
+    this.remoteMeals = const [],
+    this.remoteDeleted = const {},
+    this.remoteProfile,
+  }) : super(config: SupabaseConfig());
 
-  final User user;
+  final User? user;
   final List<MealRecord> remoteMeals;
+  final Map<String, DateTime> remoteDeleted;
+  final RemoteProfile? remoteProfile;
   final upserts = <String>[];
+  final deletes = <String>[];
   final profileUpserts = <UserProfile>[];
 
   @override
@@ -98,24 +105,26 @@ class _FakeBackend extends SupabaseBackendService {
   User? get currentUser => user;
 
   @override
-  Future<UserProfile?> fetchProfile() async => null;
+  Future<RemoteProfile?> fetchProfileSnapshot() async => remoteProfile;
 
   @override
   Future<void> upsertProfile(UserProfile profile) async =>
       profileUpserts.add(profile);
 
   @override
-  Future<List<MealRecord>> fetchMealRecords({
+  Future<RemoteMealSnapshot> fetchMealSnapshot({
     DateTime? from,
     DateTime? to,
-  }) async => remoteMeals;
+    DateTime? changedSince,
+  }) async => RemoteMealSnapshot(records: remoteMeals, deleted: remoteDeleted);
 
   @override
   Future<void> upsertMealRecord(MealRecord record) async =>
       upserts.add(record.id);
 
   @override
-  Future<void> deleteMealRecord(String id) async {}
+  Future<void> deleteMealRecord(String id, {DateTime? deletedAt}) async =>
+      deletes.add(id);
 
   @override
   Future<String> uploadMealImage({
@@ -348,6 +357,181 @@ void main() {
     });
   });
 
+  group('Deletions across devices', () {
+    test('a meal deleted in the account is removed, not re-uploaded', () async {
+      await LocalStorageService().setLocalDataOwner('user-a');
+      final deletedAt = DateTime.utc(2026, 5, 2);
+      final backend = _FakeBackend(
+        user: _user('user-a'),
+        remoteDeleted: {'gone': deletedAt},
+      );
+      final container = ProviderContainer(
+        overrides: [supabaseBackendServiceProvider.overrideWithValue(backend)],
+      );
+      addTearDown(container.dispose);
+      await LocalStorageService().saveMealRecords([
+        _meal('gone').copyWith(updatedAt: DateTime.utc(2026, 5, 1)).toJson(),
+        _meal(
+          'edited-later',
+        ).copyWith(updatedAt: DateTime.utc(2026, 5, 3)).toJson(),
+      ]);
+
+      await container
+          .read(supabaseAuthControllerProvider.notifier)
+          .mergeAfterSignIn();
+
+      final ids = container.read(mealRecordsProvider).map((m) => m.id);
+      expect(ids, ['edited-later']);
+      expect(backend.upserts, isNot(contains('gone')));
+    });
+
+    test('an edit made after the deletion elsewhere wins', () {
+      final result = MealRecordsNotifier.mergeRecords(
+        local: [
+          _meal('kept').copyWith(updatedAt: DateTime.utc(2026, 5, 3)),
+          _meal('local-only'),
+        ],
+        remote: const [],
+        remoteDeleted: {'kept': DateTime.utc(2026, 5, 2)},
+        uploadLocalOnly: false,
+      );
+      expect(
+        result.merged.map((m) => m.id),
+        containsAll(['kept', 'local-only']),
+      );
+      // A partial (changes-only) pull does not upload untouched local rows.
+      expect(result.toUpload.map((m) => m.id), ['kept']);
+    });
+
+    test('a delete made while signed out waits for the account', () async {
+      await LocalStorageService().setLocalDataOwner('user-a');
+      final backend = _FakeBackend(user: null);
+      final container = ProviderContainer(
+        overrides: [supabaseBackendServiceProvider.overrideWithValue(backend)],
+      );
+      addTearDown(container.dispose);
+      final meals = container.read(mealRecordsProvider.notifier);
+      await meals.replaceAll([_meal('old')]);
+
+      await meals.removeMeal('old');
+      await meals.syncIdle;
+
+      final pending = LocalStorageService().getPendingMealSync();
+      expect(pending.single['op'], 'delete');
+      expect(pending.single['at'], isNotNull);
+    });
+  });
+
+  group('Profile sync', () {
+    UserProfile onboarded(String name) => UserProfile.defaultProfile().copyWith(
+      name: name,
+      onboardingCompleted: true,
+    );
+
+    test('a newer edit on this device is uploaded', () async {
+      await LocalStorageService().setLocalDataOwner('user-a');
+      final backend = _FakeBackend(
+        user: _user('user-a'),
+        remoteProfile: RemoteProfile(
+          profile: onboarded('remote'),
+          updatedAt: DateTime.utc(2026, 5, 1),
+        ),
+      );
+      final container = ProviderContainer(
+        overrides: [supabaseBackendServiceProvider.overrideWithValue(backend)],
+      );
+      addTearDown(container.dispose);
+      await container
+          .read(userProfileProvider.notifier)
+          .updateProfile(onboarded('local'));
+      await LocalStorageService().setProfileEditedAt(DateTime.utc(2026, 5, 2));
+
+      await container
+          .read(supabaseAuthControllerProvider.notifier)
+          .mergeAfterSignIn();
+
+      expect(container.read(userProfileProvider).name, 'local');
+      expect(backend.profileUpserts.last.name, 'local');
+    });
+
+    test('a newer account copy replaces an older device copy', () async {
+      await LocalStorageService().setLocalDataOwner('user-a');
+      final backend = _FakeBackend(
+        user: _user('user-a'),
+        remoteProfile: RemoteProfile(
+          profile: onboarded('remote'),
+          updatedAt: DateTime.utc(2026, 5, 3),
+        ),
+      );
+      final container = ProviderContainer(
+        overrides: [supabaseBackendServiceProvider.overrideWithValue(backend)],
+      );
+      addTearDown(container.dispose);
+      await container
+          .read(userProfileProvider.notifier)
+          .updateProfile(onboarded('local'));
+      await LocalStorageService().setProfileEditedAt(DateTime.utc(2026, 5, 2));
+      backend.profileUpserts.clear();
+
+      await container
+          .read(supabaseAuthControllerProvider.notifier)
+          .mergeAfterSignIn();
+
+      expect(container.read(userProfileProvider).name, 'remote');
+      expect(backend.profileUpserts, isEmpty);
+    });
+  });
+
+  group('Interrupted capture', () {
+    test('an unfinished review comes back after a restart', () async {
+      final first = ProviderContainer();
+      first
+          .read(mealCaptureProvider.notifier)
+          .startManual(
+            foods: [
+              FoodItem(
+                name: '비빔밥',
+                calories: 650,
+                carbs: 90,
+                protein: 20,
+                fat: 18,
+              ),
+            ],
+          );
+      first.read(mealCaptureProvider.notifier).setMealType(MealType.dinner);
+      await Future<void>.delayed(Duration.zero);
+      first.dispose();
+
+      final second = ProviderContainer();
+      addTearDown(second.dispose);
+      final restored = second.read(mealCaptureProvider);
+      expect(restored.status, MealCaptureStatus.review);
+      expect(restored.drafts.single.name, '비빔밥');
+      expect(restored.mealType, MealType.dinner);
+
+      second.read(mealCaptureProvider.notifier).reset();
+      await Future<void>.delayed(Duration.zero);
+      expect(LocalStorageService().getCaptureDraft(), isNull);
+    });
+
+    test('an analysis cut off by the system is offered as a retry', () async {
+      await LocalStorageService().saveCaptureDraft({
+        'status': 'analyzing',
+        'imagePath': 'meal_images/meal_1.jpg',
+        'drafts': <Object>[],
+        'mealType': 'lunch',
+        'dateTime': DateTime.utc(2026, 5, 1, 3).toIso8601String(),
+      });
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final restored = container.read(mealCaptureProvider);
+      expect(restored.status, MealCaptureStatus.failed);
+      expect(restored.error, MealCaptureError.recognitionFailed);
+      expect(restored.imagePath, 'meal_images/meal_1.jpg');
+    });
+  });
+
   group('Dates', () {
     test('the report date follows today across midnight until changed', () {
       var now = DateTime(2026, 5, 1, 23, 59);
@@ -511,6 +695,31 @@ void main() {
       );
       expect(MealImageStore.extensionForContentType('image/jpeg'), 'jpg');
       expect(MealImageStore.sniffContentType([1, 2, 3]), isNull);
+    });
+
+    test('orphan photos are swept, referenced and recent ones kept', () async {
+      final dir = await Directory.systemTemp.createTemp('image_sweep');
+      addTearDown(() => dir.delete(recursive: true));
+      MealImageStore.debugSetDocumentsPath(dir.path);
+      addTearDown(() => MealImageStore.debugSetDocumentsPath(null));
+      final folder = Directory('${dir.path}/meal_images')..createSync();
+      final old = DateTime.now().subtract(const Duration(days: 3));
+      final used = File('${folder.path}/used.jpg')
+        ..writeAsBytesSync([1])
+        ..setLastModifiedSync(old);
+      final orphan = File('${folder.path}/orphan.jpg')
+        ..writeAsBytesSync([1])
+        ..setLastModifiedSync(old);
+      final fresh = File('${folder.path}/fresh.jpg')..writeAsBytesSync([1]);
+
+      final removed = await MealImageStore.sweepOrphans({
+        'meal_images/used.jpg',
+      });
+
+      expect(removed, 1);
+      expect(used.existsSync(), isTrue);
+      expect(orphan.existsSync(), isFalse);
+      expect(fresh.existsSync(), isTrue);
     });
 
     test('clearAll removes stored photos', () async {

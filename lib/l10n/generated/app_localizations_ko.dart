@@ -1105,9 +1105,21 @@ class AppLocalizationsKo extends AppLocalizations {
   String get reviewPortion => '양';
 
   @override
-  String reviewPortionTotal(String kcal) {
-    return '$kcal kcal로 저장돼요';
+  String reviewPerPortion(String kcal) {
+    return '1인분(1×) 기준 $kcal kcal';
   }
+
+  @override
+  String get resumeCaptureTitle => '확인하지 않은 식사 기록이 있어요';
+
+  @override
+  String get resumeCaptureBody => '앱이 닫히기 전의 사진 분석과 입력 내용을 이어서 확인할 수 있어요.';
+
+  @override
+  String get resumeCaptureContinue => '이어서 확인';
+
+  @override
+  String get resumeCaptureDiscard => '버리기';
 
   @override
   String get reviewDateTime => '날짜 · 시간';

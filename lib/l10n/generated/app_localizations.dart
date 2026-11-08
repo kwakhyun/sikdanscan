@@ -2186,11 +2186,35 @@ abstract class AppLocalizations {
   /// **'양'**
   String get reviewPortion;
 
-  /// No description provided for @reviewPortionTotal.
+  /// No description provided for @reviewPerPortion.
   ///
   /// In ko, this message translates to:
-  /// **'{kcal} kcal로 저장돼요'**
-  String reviewPortionTotal(String kcal);
+  /// **'1인분(1×) 기준 {kcal} kcal'**
+  String reviewPerPortion(String kcal);
+
+  /// No description provided for @resumeCaptureTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'확인하지 않은 식사 기록이 있어요'**
+  String get resumeCaptureTitle;
+
+  /// No description provided for @resumeCaptureBody.
+  ///
+  /// In ko, this message translates to:
+  /// **'앱이 닫히기 전의 사진 분석과 입력 내용을 이어서 확인할 수 있어요.'**
+  String get resumeCaptureBody;
+
+  /// No description provided for @resumeCaptureContinue.
+  ///
+  /// In ko, this message translates to:
+  /// **'이어서 확인'**
+  String get resumeCaptureContinue;
+
+  /// No description provided for @resumeCaptureDiscard.
+  ///
+  /// In ko, this message translates to:
+  /// **'버리기'**
+  String get resumeCaptureDiscard;
 
   /// No description provided for @reviewDateTime.
   ///

@@ -8,6 +8,7 @@ import '../../../data/models/meal_record.dart';
 import '../../../data/models/persisted_model_decoder.dart';
 import '../../../data/services/local_storage_service.dart';
 import '../../../data/services/meal_image_store.dart';
+import '../../../data/services/supabase_backend_service.dart';
 import '../../../providers/service_providers.dart';
 
 final mealRecordsProvider =
@@ -20,10 +21,19 @@ final mealRecordsProvider =
           if (!service.isConfigured || service.currentUser == null) return;
           await service.upsertMealRecord(meal);
         },
-        remoteDelete: (id) async {
+        remoteDelete: (id, deletedAt) async {
           final service = ref.read(supabaseBackendServiceProvider);
-          if (!service.isConfigured || service.currentUser == null) return;
-          await service.deleteMealRecord(id);
+          if (!service.isConfigured) return;
+          if (service.currentUser == null) {
+            // A deletion of an account's meal made while signed out must
+            // reach the account on the next sign-in, or the merge would
+            // bring the meal back. Guest data has nothing to delete remotely.
+            if (storage.getLocalDataOwner() != null) {
+              throw const SupabaseAuthRequiredException();
+            }
+            return;
+          }
+          await service.deleteMealRecord(id, deletedAt: deletedAt);
         },
         imageUploader: (meal) async {
           final service = ref.read(supabaseBackendServiceProvider);
@@ -75,7 +85,7 @@ class MealRecordsNotifier extends StateNotifier<List<MealRecord>> {
   MealRecordsNotifier(
     this._storage, {
     Future<void> Function(MealRecord)? remoteUpsert,
-    Future<void> Function(String)? remoteDelete,
+    Future<void> Function(String id, DateTime deletedAt)? remoteDelete,
     Future<String?> Function(MealRecord)? imageUploader,
     Future<void> Function(String storagePath)? remoteDeleteImage,
     DateTime Function()? clock,
@@ -88,7 +98,7 @@ class MealRecordsNotifier extends StateNotifier<List<MealRecord>> {
 
   final LocalStorageService _storage;
   final Future<void> Function(MealRecord)? _remoteUpsert;
-  final Future<void> Function(String)? _remoteDelete;
+  final Future<void> Function(String id, DateTime deletedAt)? _remoteDelete;
   final Future<String?> Function(MealRecord)? _imageUploader;
   final Future<void> Function(String storagePath)? _remoteDeleteImage;
   final DateTime Function() _clock;
@@ -215,15 +225,29 @@ class MealRecordsNotifier extends StateNotifier<List<MealRecord>> {
       .whereType<String>()
       .toSet();
 
-  /// Merges [remote] with local records by id, keeping the newer copy of each
-  /// and never dropping local-only records. Returns what must be uploaded.
-  Future<MealMergeResult> mergeWithRemote(List<MealRecord> remote) async {
+  /// Merges [remote] with local records by id, keeping the newer copy of each.
+  /// Meals deleted in the account ([remoteDeleted]) are removed here unless
+  /// edited locally after the deletion. With [uploadLocalOnly] (a full
+  /// snapshot) records missing remotely are uploaded; for a partial snapshot
+  /// of recent changes they are simply kept. Returns what must be uploaded.
+  Future<MealMergeResult> mergeWithRemote(
+    List<MealRecord> remote, {
+    Map<String, DateTime> remoteDeleted = const {},
+    bool uploadLocalOnly = true,
+  }) async {
+    final before = state;
     final result = mergeRecords(
-      local: state,
+      local: before,
       remote: remote,
       pendingDeleteIds: pendingDeleteIds,
+      remoteDeleted: remoteDeleted,
+      uploadLocalOnly: uploadLocalOnly,
     );
     await _commit(result.merged);
+    final kept = {for (final meal in result.merged) meal.id};
+    for (final meal in before) {
+      if (!kept.contains(meal.id)) await purgeOrphanImage(meal.imageUrl);
+    }
     return result;
   }
 
@@ -231,11 +255,27 @@ class MealRecordsNotifier extends StateNotifier<List<MealRecord>> {
     required List<MealRecord> local,
     required List<MealRecord> remote,
     Set<String> pendingDeleteIds = const {},
+    Map<String, DateTime> remoteDeleted = const {},
+    bool uploadLocalOnly = true,
   }) {
     final epoch = DateTime.fromMillisecondsSinceEpoch(0);
     final localById = {for (final meal in local) meal.id: meal};
     final merged = <String, MealRecord>{};
     final toUpload = <MealRecord>[];
+
+    for (final entry in remoteDeleted.entries) {
+      final localMeal = localById[entry.key];
+      if (localMeal == null) continue;
+      final editedAfter = localMeal.updatedAt?.isAfter(entry.value) ?? false;
+      if (editedAfter) {
+        // Edited here after it was deleted elsewhere: the edit wins.
+        merged[localMeal.id] = localMeal;
+        toUpload.add(localMeal);
+      } else {
+        // Deleted in the account: drop it here as well.
+        localById.remove(localMeal.id);
+      }
+    }
 
     for (final remoteMeal in remote) {
       if (pendingDeleteIds.contains(remoteMeal.id)) continue;
@@ -259,9 +299,12 @@ class MealRecordsNotifier extends StateNotifier<List<MealRecord>> {
     }
 
     for (final localMeal in local) {
-      if (merged.containsKey(localMeal.id)) continue;
+      if (merged.containsKey(localMeal.id) ||
+          !localById.containsKey(localMeal.id)) {
+        continue;
+      }
       merged[localMeal.id] = localMeal;
-      toUpload.add(localMeal);
+      if (uploadLocalOnly) toUpload.add(localMeal);
     }
 
     final records = merged.values.toList()
@@ -313,8 +356,11 @@ class MealRecordsNotifier extends StateNotifier<List<MealRecord>> {
     if (operation['op'] == 'delete') {
       final remoteDelete = _remoteDelete;
       if (remoteDelete == null) return;
+      final at = operation['at'];
+      final deletedAt =
+          (at is String ? DateTime.tryParse(at) : null) ?? _stamp();
       try {
-        await remoteDelete(id);
+        await remoteDelete(id, deletedAt);
         await _removePending(id, token);
       } catch (_) {
         // Stays queued.
@@ -413,8 +459,15 @@ class MealRecordsNotifier extends StateNotifier<List<MealRecord>> {
     final pending = _readPending()
       ..removeWhere((operation) => ids.contains(operation['id']));
     final base = DateTime.now().microsecondsSinceEpoch;
+    final at = _stamp().toIso8601String();
     for (final id in ids) {
-      pending.add({'op': op, 'id': id, 'v': '$base-${_opCounter++}'});
+      pending.add({
+        'op': op,
+        'id': id,
+        'v': '$base-${_opCounter++}',
+        // Edit time of a deletion, so the server can tell it from later edits.
+        if (op == 'delete') 'at': at,
+      });
     }
     try {
       await _storage.savePendingMealSync(pending);
@@ -469,6 +522,46 @@ class TodayDateNotifier extends StateNotifier<DateTime> {
       nextMidnight.difference(now) + const Duration(seconds: 1),
       refresh,
     );
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+}
+
+/// The current hour, for values that depend on the time of day (e.g. which
+/// meals are expected by now). Ticks on the hour and on app resume.
+final currentHourProvider =
+    StateNotifierProvider<CurrentHourNotifier, DateTime>(
+      (ref) => CurrentHourNotifier(),
+    );
+
+class CurrentHourNotifier extends StateNotifier<DateTime> {
+  CurrentHourNotifier({DateTime Function()? clock})
+    : _clock = clock ?? DateTime.now,
+      super(_hourOf((clock ?? DateTime.now)())) {
+    _schedule();
+  }
+
+  final DateTime Function() _clock;
+  Timer? _timer;
+
+  static DateTime _hourOf(DateTime time) =>
+      DateTime(time.year, time.month, time.day, time.hour);
+
+  void refresh() {
+    final hour = _hourOf(_clock());
+    if (hour != state) state = hour;
+    _schedule();
+  }
+
+  void _schedule() {
+    _timer?.cancel();
+    final now = _clock();
+    final next = DateTime(now.year, now.month, now.day, now.hour + 1);
+    _timer = Timer(next.difference(now) + const Duration(seconds: 1), refresh);
   }
 
   @override

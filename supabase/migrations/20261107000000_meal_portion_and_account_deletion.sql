@@ -5,7 +5,17 @@
 alter table public.meal_records
   add column if not exists portion numeric(6, 3) not null default 1
     check (portion > 0),
-  add column if not exists image_storage_path text;
+  add column if not exists image_storage_path text,
+  -- Deletions are kept as tombstones so another device that still has the
+  -- meal does not upload it again; an upsert with deleted_at = null (undo,
+  -- or an edit made after the deletion) brings it back.
+  add column if not exists deleted_at timestamptz,
+  -- Server clock of the last write, used by devices to fetch only changes.
+  add column if not exists server_updated_at timestamptz not null
+    default now();
+
+create index if not exists meal_records_user_server_updated_idx
+on public.meal_records (user_id, server_updated_at);
 
 -- Last writer wins by edit time. Devices sync in the background and can
 -- retry an older change after a newer one from another device reached the
@@ -24,6 +34,7 @@ begin
   elsif old.updated_at is not null and new.updated_at < old.updated_at then
     return null;
   end if;
+  new.server_updated_at = now();
   return new;
 end;
 $$;

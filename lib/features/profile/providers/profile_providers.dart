@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 
@@ -44,17 +46,44 @@ class UserProfileNotifier extends StateNotifier<UserProfile> {
     await _commit(state.copyWith(currentWeight: weight));
   }
 
-  Future<void> _commit(UserProfile nextState) async {
+  /// Takes the account's copy without sending it back, remembering the
+  /// server time as this device's edit time.
+  Future<void> applyRemote(
+    UserProfile profile,
+    DateTime? remoteUpdatedAt,
+  ) async {
+    await _commit(profile, editedAt: remoteUpdatedAt, sync: false);
+    _setSyncPending(false);
+  }
+
+  /// Sends a change that could not be uploaded earlier.
+  Future<void> retryPendingSync() async {
+    if (!_readSyncPending()) return;
+    await _tryRemoteSync(state);
+  }
+
+  /// Saves locally first and uploads in the background; a failed upload is
+  /// retried later and reconciled newer-wins with the account.
+  Future<void> _commit(
+    UserProfile nextState, {
+    DateTime? editedAt,
+    bool sync = true,
+  }) async {
     final previousState = state;
     state = nextState;
 
     try {
       await _storage.saveUserProfile(nextState.toJson());
-      await _tryRemoteSync(nextState);
     } catch (_) {
       state = previousState;
       rethrow;
     }
+    try {
+      await _storage.setProfileEditedAt(editedAt ?? DateTime.now().toUtc());
+    } catch (_) {
+      // Only the newer-wins comparison is affected.
+    }
+    if (sync) unawaited(_tryRemoteSync(nextState));
   }
 
   Future<void> _tryRemoteSync(UserProfile profile) async {
@@ -63,9 +92,27 @@ class UserProfileNotifier extends StateNotifier<UserProfile> {
 
     try {
       await remoteSync(profile);
+      _setSyncPending(false);
     } catch (_) {
       // Local persistence remains the source of truth when remote sync fails.
+      _setSyncPending(true);
     }
+  }
+
+  bool _readSyncPending() {
+    try {
+      return _storage.profileSyncPending;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  void _setSyncPending(bool value) {
+    try {
+      unawaited(
+        _storage.setProfileSyncPending(value).catchError((Object _) {}),
+      );
+    } catch (_) {}
   }
 }
 

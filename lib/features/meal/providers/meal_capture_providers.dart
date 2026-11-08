@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -70,6 +72,43 @@ class MealDraft {
   final FoodSource source;
   final bool selected;
   final double portion;
+
+  Map<String, dynamic> toJson() => {
+    'key': key,
+    'name': name,
+    'calories': calories,
+    'carbs': carbs,
+    'protein': protein,
+    'fat': fat,
+    if (servingSize != null) 'servingSize': servingSize,
+    if (confidence != null) 'confidence': confidence,
+    'source': source.name,
+    'selected': selected,
+    'portion': portion,
+  };
+
+  static MealDraft? fromJson(Map<String, dynamic> json) {
+    final key = json['key'];
+    final name = json['name'];
+    if (key is! String || name is! String) return null;
+    double number(Object? value) => value is num ? value.toDouble() : 0;
+    return MealDraft(
+      key: key,
+      name: name,
+      calories: number(json['calories']).round(),
+      carbs: number(json['carbs']),
+      protein: number(json['protein']),
+      fat: number(json['fat']),
+      servingSize: json['servingSize'] as String?,
+      confidence: (json['confidence'] as num?)?.toDouble(),
+      source: FoodSource.values.firstWhere(
+        (source) => source.name == json['source'],
+        orElse: () => FoodSource.localDb,
+      ),
+      selected: json['selected'] != false,
+      portion: number(json['portion']) > 0 ? number(json['portion']) : 1.0,
+    );
+  }
 
   bool get isValid => name.trim().isNotEmpty;
   bool get isLowConfidence =>
@@ -210,7 +249,94 @@ final mealCaptureProvider =
     });
 
 class MealCaptureController extends StateNotifier<MealCaptureState> {
-  MealCaptureController(this._ref) : super(MealCaptureState.initial());
+  MealCaptureController(this._ref) : super(_restore(_ref));
+
+  /// Brings back an unfinished review after the app was closed or killed by
+  /// the system (e.g. while the camera app was open), so a finished, billed
+  /// analysis and the stored photo are not lost. An analysis that was still
+  /// running is offered again as a retry.
+  static MealCaptureState _restore(Ref ref) {
+    try {
+      final json = ref.read(localStorageServiceProvider).getCaptureDraft();
+      if (json == null) return MealCaptureState.initial();
+      final status = MealCaptureStatus.values.firstWhere(
+        (value) => value.name == json['status'],
+        orElse: () => MealCaptureStatus.idle,
+      );
+      final drafts = [
+        for (final raw in (json['drafts'] as List? ?? const []))
+          if (raw is Map) MealDraft.fromJson(Map<String, dynamic>.from(raw)),
+      ].whereType<MealDraft>().toList();
+      final imagePath = json['imagePath'] as String?;
+      final dateTime =
+          DateTime.tryParse(json['dateTime'] as String? ?? '')?.toLocal() ??
+          DateTime.now();
+      if (status == MealCaptureStatus.idle ||
+          (drafts.isEmpty && imagePath == null)) {
+        return MealCaptureState.initial();
+      }
+      final interrupted = status == MealCaptureStatus.analyzing;
+      return MealCaptureState(
+        status: interrupted ? MealCaptureStatus.failed : status,
+        imagePath: imagePath,
+        drafts: drafts,
+        summary: json['summary'] as String?,
+        warning: json['warning'] as String?,
+        confidence: (json['confidence'] as num?)?.toDouble(),
+        needsReview: json['needsReview'] == true,
+        error: interrupted
+            ? MealCaptureError.recognitionFailed
+            : MealCaptureError.values.firstWhere(
+                (value) => value.name == json['error'],
+                orElse: () => MealCaptureError.none,
+              ),
+        mealType: MealType.values.firstWhere(
+          (value) => value.name == json['mealType'],
+          orElse: () => MealType.fromTime(dateTime),
+        ),
+        dateTime: dateTime,
+      );
+    } catch (_) {
+      return MealCaptureState.initial();
+    }
+  }
+
+  @override
+  set state(MealCaptureState value) {
+    super.state = value;
+    _persist(value);
+  }
+
+  void _persist(MealCaptureState value) {
+    final storage = _ref.read(localStorageServiceProvider);
+    final worthKeeping =
+        value.status != MealCaptureStatus.idle &&
+        !value.saving &&
+        (value.drafts.isNotEmpty || value.imagePath != null);
+    try {
+      unawaited(
+        (worthKeeping
+                ? storage.saveCaptureDraft({
+                    'status': value.status.name,
+                    'imagePath': value.imagePath,
+                    'drafts': [
+                      for (final draft in value.drafts) draft.toJson(),
+                    ],
+                    'summary': value.summary,
+                    'warning': value.warning,
+                    'confidence': value.confidence,
+                    'needsReview': value.needsReview,
+                    'error': value.error.name,
+                    'mealType': value.mealType.name,
+                    'dateTime': value.dateTime.toUtc().toIso8601String(),
+                  })
+                : storage.clearCaptureDraft())
+            .catchError((Object _) {}),
+      );
+    } catch (_) {
+      // Storage unavailable (tests): the flow works in memory.
+    }
+  }
 
   static const _uuid = Uuid();
 

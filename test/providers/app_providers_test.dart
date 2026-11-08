@@ -323,7 +323,7 @@ void main() {
       final notifier = MealRecordsNotifier(
         LocalStorageService(),
         remoteUpsert: (meal) async => upserts.add(meal.id),
-        remoteDelete: (id) async => deletes.add(id),
+        remoteDelete: (id, _) async => deletes.add(id),
       );
       final date = DateTime(2026, 1, 1);
 
