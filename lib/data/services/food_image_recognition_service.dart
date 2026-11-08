@@ -7,6 +7,7 @@ import 'package:dio/dio.dart';
 import '../../core/constants/api_constants.dart';
 import '../models/food_recognition_result.dart';
 import 'api_service.dart';
+import 'meal_image_store.dart';
 import 'proxy_client_config.dart';
 
 class FoodImageRecognitionService {
@@ -105,40 +106,8 @@ class FoodImageRecognitionService {
     return 'image/jpeg';
   }
 
-  String? _mimeTypeFromBytes(Uint8List bytes) {
-    if (bytes.length >= 12 &&
-        bytes[0] == 0x89 &&
-        bytes[1] == 0x50 &&
-        bytes[2] == 0x4E &&
-        bytes[3] == 0x47) {
-      return 'image/png';
-    }
-    if (bytes.length >= 3 &&
-        bytes[0] == 0xFF &&
-        bytes[1] == 0xD8 &&
-        bytes[2] == 0xFF) {
-      return 'image/jpeg';
-    }
-    if (bytes.length >= 12 &&
-        String.fromCharCodes(bytes.sublist(0, 4)) == 'RIFF' &&
-        String.fromCharCodes(bytes.sublist(8, 12)) == 'WEBP') {
-      return 'image/webp';
-    }
-    if (bytes.length >= 12 &&
-        String.fromCharCodes(bytes.sublist(4, 8)) == 'ftyp') {
-      final brand = String.fromCharCodes(bytes.sublist(8, 12)).toLowerCase();
-      if (brand == 'heic' ||
-          brand == 'heix' ||
-          brand == 'hevc' ||
-          brand == 'hevx' ||
-          brand == 'heif' ||
-          brand == 'mif1' ||
-          brand == 'msf1') {
-        return 'image/heic';
-      }
-    }
-    return null;
-  }
+  String? _mimeTypeFromBytes(Uint8List bytes) =>
+      MealImageStore.sniffContentType(bytes);
 
   String? _normalizeMimeType(String mimeType) {
     final normalized = mimeType.toLowerCase().trim();
@@ -196,16 +165,13 @@ class FoodImageRecognitionService {
       return switch (apiError.code) {
         'NO_CONNECTION' =>
           english
-              ? 'Cannot reach the SikdanScan API proxy. Check your connection and the proxy status.'
-              : '식단스캔 API 프록시에 연결할 수 없습니다. 로컬 프록시 실행 상태를 확인해주세요.',
+              ? "Can't reach the photo analysis service. Check your internet connection or enter the food manually."
+              : '사진 분석 서비스에 연결할 수 없어요. 인터넷 연결을 확인하거나 음식을 직접 입력해 주세요.',
         'TIMEOUT' =>
           english
               ? 'Photo recognition timed out. Please try again shortly.'
               : '사진 인식 요청 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.',
-        'UNAUTHORIZED' =>
-          english
-              ? 'Check the SikdanScan API proxy auth token.'
-              : '식단스캔 API 프록시 인증 토큰을 확인해주세요.',
+        'UNAUTHORIZED' => _unavailableMessage(english),
         'RATE_LIMIT' =>
           english
               ? 'Too many requests. Please try again in a moment.'
@@ -216,33 +182,36 @@ class FoodImageRecognitionService {
                 proxyMessage,
                 english: english,
               ) ??
-              proxyMessage ??
-              (english
-                  ? 'An error occurred during photo recognition.'
-                  : '사진 인식 중 오류가 발생했습니다.'),
+              _genericMessage(english),
       };
     }
 
+    // Raw server text (often English and technical) is never shown to users.
     return _serverStatusErrorMessage(
           statusCode,
           proxyMessage,
           english: english,
         ) ??
-        proxyMessage ??
-        (english
-            ? 'An error occurred during photo recognition.'
-            : '사진 인식 중 오류가 발생했습니다.');
+        _genericMessage(english);
   }
+
+  String _genericMessage(bool english) => english
+      ? "Couldn't analyze the photo. Try again or enter the food manually."
+      : '사진을 분석하지 못했어요. 다시 시도하거나 음식을 직접 입력해 주세요.';
+
+  /// Server-side configuration problems (auth token, API key, model) are
+  /// for operators; users only learn that the feature is unavailable now.
+  String _unavailableMessage(bool english) => english
+      ? 'Photo analysis is unavailable right now. Please enter the food manually.'
+      : '지금은 사진 분석을 사용할 수 없어요. 음식을 직접 입력해 주세요.';
 
   String? _serverStatusErrorMessage(
     int? statusCode,
     String? proxyMessage, {
     required bool english,
   }) {
-    if (statusCode == 401 || statusCode == 403) {
-      return english
-          ? 'Check the SikdanScan API proxy auth token.'
-          : '식단스캔 API 프록시 인증 토큰을 확인해주세요.';
+    if (statusCode == 401 || statusCode == 403 || statusCode == 503) {
+      return _unavailableMessage(english);
     }
     if (statusCode == 400 || statusCode == 422) {
       return _imageRequestErrorMessage(proxyMessage, english: english);
@@ -252,15 +221,10 @@ class FoodImageRecognitionService {
           ? 'The image is too large. Please try another photo.'
           : '이미지 용량이 너무 큽니다. 다른 사진으로 다시 시도해주세요.';
     }
-    if (statusCode == 503) {
-      return english
-          ? 'OPENAI_API_KEY is not configured on the proxy server.'
-          : '프록시 서버에 OPENAI_API_KEY가 설정되어 있지 않습니다.';
-    }
     if (statusCode == 502) {
       return english
-          ? 'The AI image analysis server is not responding. Please try again shortly.'
-          : 'AI 이미지 분석 서버가 정상 응답하지 않습니다. 잠시 후 다시 시도해주세요.';
+          ? 'The photo analysis service is not responding. Please try again shortly.'
+          : '사진 분석 서비스가 응답하지 않아요. 잠시 후 다시 시도해 주세요.';
     }
     if (statusCode == 504) {
       return english
@@ -285,9 +249,7 @@ class FoodImageRecognitionService {
           : '지원하지 않는 이미지 형식입니다. JPG 또는 PNG 사진으로 다시 선택해주세요.';
     }
     if (lower.contains('model') || lower.contains('vision')) {
-      return english
-          ? 'Check the AI image analysis model configuration.'
-          : 'AI 이미지 분석 모델 설정을 확인해주세요.';
+      return _unavailableMessage(english);
     }
     return english
         ? 'Could not analyze the photo. Try a clear JPG/PNG photo of the food.'

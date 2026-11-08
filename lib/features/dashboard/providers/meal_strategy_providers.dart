@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/meal_record.dart';
 import '../../../data/models/user_profile.dart';
+import '../../../l10n/app_localizations_context.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../meal/providers/meal_providers.dart';
 import '../../profile/providers/profile_providers.dart';
@@ -67,6 +68,7 @@ class MealStrategyBuilder {
   static MealStrategy build({
     required UserProfile profile,
     required List<MealRecord> meals,
+    DateTime? now,
   }) {
     if (meals.isEmpty) {
       final goal = profile.wellnessGoal;
@@ -74,7 +76,7 @@ class MealStrategyBuilder {
         goal: goal,
         score: 0,
         title: (l) => l.strategyEmptyTitle,
-        summary: (l) => l.strategyEmptySummary(_goalLabel(goal, l)),
+        summary: (l) => l.strategyEmptySummary(goal.labelOf(l)),
         primaryAction: (l) => l.strategyEmptyPrimary,
         actions: [
           (l) => l.strategyTipPhotoAngle,
@@ -97,6 +99,7 @@ class MealStrategyBuilder {
     final calorieProgress = calories / profile.dailyCalorieGoal.clamp(1, 10000);
     final goalProtein = proteinGoal(profile);
     final proteinGap = goalProtein - protein;
+    final logging = _loggingProgress(meals, now ?? DateTime.now());
 
     return switch (profile.wellnessGoal) {
       WellnessGoal.weightLoss => _weightLoss(
@@ -105,17 +108,57 @@ class MealStrategyBuilder {
         fatRatio,
       ),
       WellnessGoal.skinHealth => _skinHealth(carbRatio, proteinGap, fatRatio),
-      WellnessGoal.digestion => _digestion(carbs, fatRatio),
+      WellnessGoal.digestion => _digestion(carbs, fatRatio, logging),
       WellnessGoal.energy => _energy(carbRatio, proteinGap, calorieProgress),
-      WellnessGoal.muscle => _muscle(protein, goalProtein, calorieProgress),
-      WellnessGoal.glucose => _glucose(carbRatio, proteinRatio),
+      WellnessGoal.muscle => _muscle(
+        protein,
+        goalProtein,
+        calorieProgress,
+        logging,
+      ),
+      WellnessGoal.glucose => _glucose(carbRatio, proteinRatio, logging),
       WellnessGoal.balanced => _balanced(
         calorieProgress,
         carbRatio,
         proteinRatio,
         fatRatio,
+        logging,
       ),
     };
+  }
+
+  /// Share (0–1) of the main meals expected by this time of day that have
+  /// been logged: breakfast until 11:00, plus lunch until 17:00, then dinner.
+  static double _loggingProgress(List<MealRecord> meals, DateTime now) {
+    final expected = now.hour < 11 ? 1 : (now.hour < 17 ? 2 : 3);
+    final mainMeals = meals
+        .map((meal) => meal.mealType)
+        .where((type) => type != MealType.snack)
+        .toSet()
+        .length;
+    // A snack-only log still counts as one logged meal.
+    final logged = mainMeals == 0 && meals.isNotEmpty ? 1 : mainMeals;
+    return (logged / expected).clamp(0.0, 1.0);
+  }
+
+  static StrategyFactor _consistency(double progress, int max) {
+    return StrategyFactor(
+      label: (l) => l.strategyFactorConsistency,
+      earned: (max * progress).round(),
+      max: max,
+    );
+  }
+
+  /// The goal's main rule sets the level; an otherwise good day with an
+  /// unmet factor is shown as "watch" so the badge matches the breakdown.
+  static StrategyAlertLevel _level(
+    StrategyAlertLevel primary,
+    List<StrategyFactor> factors,
+  ) {
+    if (primary != StrategyAlertLevel.good) return primary;
+    return factors.every((factor) => factor.isMet)
+        ? StrategyAlertLevel.good
+        : StrategyAlertLevel.watch;
   }
 
   /// Daily protein target in grams for the profile's goal.
@@ -125,18 +168,6 @@ class MealStrategyBuilder {
       WellnessGoal.weightLoss => profile.currentWeight * 1.3,
       WellnessGoal.skinHealth => profile.currentWeight * 1.1,
       _ => profile.currentWeight * 1.0,
-    };
-  }
-
-  static String _goalLabel(WellnessGoal goal, AppLocalizations l10n) {
-    return switch (goal) {
-      WellnessGoal.balanced => l10n.goalBalanced,
-      WellnessGoal.weightLoss => l10n.goalWeightLoss,
-      WellnessGoal.skinHealth => l10n.goalSkinHealth,
-      WellnessGoal.digestion => l10n.goalDigestion,
-      WellnessGoal.energy => l10n.goalEnergy,
-      WellnessGoal.muscle => l10n.goalMuscle,
-      WellnessGoal.glucose => l10n.goalGlucose,
     };
   }
 
@@ -180,9 +211,10 @@ class MealStrategyBuilder {
         if (overTarget) (l) => l.strategyActionLightProteinMeal,
         (l) => l.strategyActionWalkAppetite,
       ],
-      alertLevel: overTarget
-          ? StrategyAlertLevel.urgent
-          : StrategyAlertLevel.good,
+      alertLevel: _level(
+        overTarget ? StrategyAlertLevel.urgent : StrategyAlertLevel.good,
+        factors,
+      ),
     );
   }
 
@@ -216,19 +248,26 @@ class MealStrategyBuilder {
         if (highCarb) (l) => l.strategyActionNoSugarDrinks,
         (l) => l.strategyActionVitaminC,
       ],
-      alertLevel: highCarb || highFat
-          ? StrategyAlertLevel.watch
-          : StrategyAlertLevel.good,
+      alertLevel: _level(
+        highCarb || highFat
+            ? StrategyAlertLevel.watch
+            : StrategyAlertLevel.good,
+        factors,
+      ),
     );
   }
 
-  static MealStrategy _digestion(double carbs, double fatRatio) {
+  static MealStrategy _digestion(
+    double carbs,
+    double fatRatio,
+    double logging,
+  ) {
     final heavyFat = fatRatio > 0.38;
     final lowVolume = carbs < 80;
     final factors = [
       _factor((l) => l.strategyFactorFat, !heavyFat, 42, 18),
       _factor((l) => l.strategyFactorVolume, !lowVolume, 28, 18),
-      _factor((l) => l.strategyFactorConsistency, true, 30, 30),
+      _consistency(logging, 30),
     ];
 
     return MealStrategy(
@@ -247,7 +286,10 @@ class MealStrategyBuilder {
         (l) => l.strategyActionFermented,
         if (heavyFat) (l) => l.strategyActionSkipFattyMeat,
       ],
-      alertLevel: heavyFat ? StrategyAlertLevel.watch : StrategyAlertLevel.good,
+      alertLevel: _level(
+        heavyFat ? StrategyAlertLevel.watch : StrategyAlertLevel.good,
+        factors,
+      ),
     );
   }
 
@@ -283,9 +325,12 @@ class MealStrategyBuilder {
         (l) => l.strategyActionSmartSnack,
         (l) => l.strategyActionStretch,
       ],
-      alertLevel: carbHeavy || tooLow
-          ? StrategyAlertLevel.watch
-          : StrategyAlertLevel.good,
+      alertLevel: _level(
+        carbHeavy || tooLow
+            ? StrategyAlertLevel.watch
+            : StrategyAlertLevel.good,
+        factors,
+      ),
     );
   }
 
@@ -293,6 +338,7 @@ class MealStrategyBuilder {
     double protein,
     double goalProtein,
     double calorieProgress,
+    double logging,
   ) {
     final gap = goalProtein - protein;
     final lowProtein = gap > 20;
@@ -300,7 +346,7 @@ class MealStrategyBuilder {
     final factors = [
       _factor((l) => l.strategyFactorProtein, !lowProtein, 50, 20),
       _factor((l) => l.strategyFactorVolume, !tooLowCalories, 25, 12),
-      _factor((l) => l.strategyFactorConsistency, true, 25, 25),
+      _consistency(logging, 25),
     ];
     final proteinText = protein.toStringAsFixed(0);
     final goalText = goalProtein.toStringAsFixed(0);
@@ -322,19 +368,24 @@ class MealStrategyBuilder {
         if (tooLowCalories) (l) => l.strategyActionPreWorkoutSnack,
         (l) => l.strategyActionSpreadProtein,
       ],
-      alertLevel: lowProtein
-          ? StrategyAlertLevel.watch
-          : StrategyAlertLevel.good,
+      alertLevel: _level(
+        lowProtein ? StrategyAlertLevel.watch : StrategyAlertLevel.good,
+        factors,
+      ),
     );
   }
 
-  static MealStrategy _glucose(double carbRatio, double proteinRatio) {
+  static MealStrategy _glucose(
+    double carbRatio,
+    double proteinRatio,
+    double logging,
+  ) {
     final carbHeavy = carbRatio > 0.55;
     final lowProtein = proteinRatio < 0.18;
     final factors = [
       _factor((l) => l.strategyFactorCarbs, !carbHeavy, 45, 18),
       _factor((l) => l.strategyFactorProtein, !lowProtein, 35, 16),
-      _factor((l) => l.strategyFactorConsistency, true, 20, 20),
+      _consistency(logging, 20),
     ];
 
     return MealStrategy(
@@ -353,9 +404,10 @@ class MealStrategyBuilder {
         (l) => l.strategyActionWalk10,
         (l) => l.strategyActionNoDessert,
       ],
-      alertLevel: carbHeavy
-          ? StrategyAlertLevel.watch
-          : StrategyAlertLevel.good,
+      alertLevel: _level(
+        carbHeavy ? StrategyAlertLevel.watch : StrategyAlertLevel.good,
+        factors,
+      ),
     );
   }
 
@@ -364,6 +416,7 @@ class MealStrategyBuilder {
     double carbRatio,
     double proteinRatio,
     double fatRatio,
+    double logging,
   ) {
     final balancedMacros =
         carbRatio >= 0.35 &&
@@ -374,7 +427,7 @@ class MealStrategyBuilder {
     final factors = [
       _factor((l) => l.strategyFactorCalories, calorieProgress <= 1.05, 34, 18),
       _factor((l) => l.strategyFactorBalance, balancedMacros, 43, 22),
-      _factor((l) => l.strategyFactorConsistency, true, 23, 23),
+      _consistency(logging, 23),
     ];
 
     return MealStrategy(
@@ -392,9 +445,10 @@ class MealStrategyBuilder {
         (l) => l.strategyActionLogWater,
         (l) => l.strategyActionReviewRecords,
       ],
-      alertLevel: balancedMacros
-          ? StrategyAlertLevel.good
-          : StrategyAlertLevel.watch,
+      alertLevel: _level(
+        balancedMacros ? StrategyAlertLevel.good : StrategyAlertLevel.watch,
+        factors,
+      ),
     );
   }
 }

@@ -35,6 +35,9 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
   late TextEditingController _weightController;
   late String _gender;
   String? _avatarImagePath;
+  String? _initialAvatarPath;
+  bool _saving = false;
+  bool _saved = false;
   bool _isPickingAvatar = false;
 
   @override
@@ -46,15 +49,23 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
     _heightController = TextEditingController(
       text: profile.height.toStringAsFixed(0),
     );
+    // Same source the save compares against, so an untouched field never
+    // logs a new weight.
+    final weight = ref.read(currentWeightProvider);
     _weightController = TextEditingController(
-      text: profile.currentWeight.toStringAsFixed(1),
+      text: (weight > 0 ? weight : profile.currentWeight).toStringAsFixed(1),
     );
     _gender = profile.gender;
     _avatarImagePath = profile.avatarImagePath;
+    _initialAvatarPath = profile.avatarImagePath;
   }
 
   @override
   void dispose() {
+    // A photo picked but never saved is not referenced anywhere.
+    if (!_saved && _avatarImagePath != _initialAvatarPath) {
+      MealImageStore.delete(_avatarImagePath);
+    }
     _nameController.dispose();
     _ageController.dispose();
     _heightController.dispose();
@@ -207,14 +218,20 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
-                onPressed: _save,
-                child: Text(
-                  l10n.profileSave,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                onPressed: _saving ? null : _save,
+                child: _saving
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2.4),
+                      )
+                    : Text(
+                        l10n.profileSave,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
               ),
             ),
           ],
@@ -300,10 +317,10 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
                   _PhotoActionTile(
                     icon: Icons.delete_outline_rounded,
                     title: context.l10n.profilePhotoDelete,
-                    color: AppColors.errorText,
+                    destructive: true,
                     onTap: () {
                       Navigator.pop(sheetContext);
-                      setState(() => _avatarImagePath = null);
+                      _replaceAvatar(null);
                     },
                   ),
               ],
@@ -325,13 +342,25 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
         prefix: 'avatar',
       );
       if (!mounted) return;
-      setState(() => _avatarImagePath = stored);
+      _replaceAvatar(stored);
     } finally {
       if (mounted) setState(() => _isPickingAvatar = false);
     }
   }
 
+  /// Swaps the pending avatar, deleting an earlier unsaved pick.
+  void _replaceAvatar(String? next) {
+    final previous = _avatarImagePath;
+    if (previous != null &&
+        previous != _initialAvatarPath &&
+        previous != next) {
+      MealImageStore.delete(previous);
+    }
+    setState(() => _avatarImagePath = next);
+  }
+
   Future<void> _save() async {
+    if (_saving) return;
     final l10n = context.l10n;
     final name = _nameController.text.trim();
     final age = int.tryParse(_ageController.text.trim());
@@ -354,32 +383,51 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
       return;
     }
 
-    final profile = ref.read(userProfileProvider);
-    final weightChanged =
-        (weight - ref.read(currentWeightProvider)).abs() >= 0.05;
-    await ref
-        .read(userProfileProvider.notifier)
-        .updateProfile(
-          profile.copyWith(
-            name: name,
-            age: age,
-            height: height,
-            gender: _gender,
-            avatarImagePath: _avatarImagePath,
-          ),
-        );
-    if (!mounted) return;
+    setState(() => _saving = true);
+    try {
+      final profile = ref.read(userProfileProvider);
+      final weightChanged =
+          (weight - ref.read(currentWeightProvider)).abs() >= 0.05;
+      await ref
+          .read(userProfileProvider.notifier)
+          .updateProfile(
+            profile.copyWith(
+              name: name,
+              age: age,
+              height: height,
+              gender: _gender,
+              avatarImagePath: _avatarImagePath,
+            ),
+          );
+      _saved = true;
+      if (_initialAvatarPath != null &&
+          _initialAvatarPath != _avatarImagePath) {
+        MealImageStore.delete(_initialAvatarPath);
+      }
+      if (!mounted) return;
 
-    final navigator = Navigator.of(context);
-    if (weightChanged) {
-      // Logging keeps the weight trend and offers a calorie target update.
-      await logWeight(context, ref, weight);
-    } else {
+      if (weightChanged) {
+        // Logging keeps the weight trend and offers a calorie target update.
+        await logWeight(
+          context,
+          ref,
+          weight,
+          previousRecommendation: profile.recommendedDailyCalorieGoal,
+          previousWaterRecommendation: profile.recommendedWaterGoalMl,
+        );
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.profileUpdated)));
+      }
+      if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _saving = false);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(l10n.profileUpdated)));
+      ).showSnackBar(SnackBar(content: Text(l10n.commonError)));
     }
-    navigator.pop();
   }
 }
 
@@ -473,16 +521,19 @@ class _PhotoActionTile extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.onTap,
-    this.color = AppColors.primaryStrong,
+    this.destructive = false,
   });
 
   final IconData icon;
   final String title;
   final VoidCallback onTap;
-  final Color color;
+  final bool destructive;
 
   @override
   Widget build(BuildContext context) {
+    final color = destructive
+        ? context.colorErrorText
+        : context.colorPrimaryText;
     return ListTile(
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 2),
@@ -500,9 +551,7 @@ class _PhotoActionTile extends StatelessWidget {
         style: TextStyle(
           fontSize: 15,
           fontWeight: FontWeight.w800,
-          color: color == AppColors.errorText
-              ? color
-              : context.colorTextPrimary,
+          color: destructive ? color : context.colorTextPrimary,
         ),
       ),
       trailing: Icon(

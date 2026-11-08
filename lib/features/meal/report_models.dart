@@ -19,7 +19,13 @@ class ReportPeriod {
     return switch (range) {
       ReportRange.day => ReportPeriod(range: range, start: day, end: day),
       ReportRange.week => () {
-        final start = day.subtract(Duration(days: day.weekday - 1));
+        // Calendar arithmetic: subtracting 24h blocks lands on 23:00 of the
+        // previous day when a DST change falls inside the week.
+        final start = DateTime(
+          day.year,
+          day.month,
+          day.day - (day.weekday - 1),
+        );
         return ReportPeriod(
           range: range,
           start: start,

@@ -169,6 +169,61 @@ void main() {
       expect(sent.last, {'role': 'assistant', 'content': 'turn 13'});
     });
 
+    test('a slow answer is a retryable error, not offline', () async {
+      final service = AiChatService(
+        proxyBaseUrl: 'https://proxy.example.com',
+        apiService: FakeApiService(
+          postError: DioException(
+            requestOptions: RequestOptions(path: '/v1/chat'),
+            type: DioExceptionType.receiveTimeout,
+            error: ApiError(message: 'timeout', code: 'TIMEOUT'),
+          ),
+        ),
+      );
+
+      await expectLater(
+        service.reply(userMessage: 'hi'),
+        throwsA(isA<DioException>()),
+      );
+    });
+
+    test('an unreachable server answers with offline tips', () async {
+      final service = AiChatService(
+        proxyBaseUrl: 'https://proxy.example.com',
+        apiService: FakeApiService(
+          postError: DioException(
+            requestOptions: RequestOptions(path: '/v1/chat'),
+            type: DioExceptionType.connectionError,
+            error: ApiError(message: 'offline', code: 'NO_CONNECTION'),
+          ),
+        ),
+      );
+
+      final reply = await service.reply(userMessage: '운동 추천해줘');
+      expect(reply.isFallback, isTrue);
+      expect(reply.quotaExceeded, isFalse);
+    });
+
+    test(
+      'chat retries once, waits past the proxy timeout and caps length',
+      () async {
+        final fakeApi = FakeApiService(postData: {'content': 'ok'});
+        final service = AiChatService(
+          proxyBaseUrl: 'https://proxy.example.com',
+          apiService: fakeApi,
+        );
+
+        await service.reply(userMessage: 'a' * 5000);
+
+        expect(fakeApi.lastMaxRetries, 1);
+        expect(fakeApi.lastReceiveTimeout, AiChatService.chatReceiveTimeout);
+        expect(
+          ((fakeApi.lastData as Map)['message'] as String).length,
+          AiChatService.maxMessageLength,
+        );
+      },
+    );
+
     test('reply throws on server errors so the UI can offer retry', () async {
       final service = AiChatService(
         proxyBaseUrl: 'https://proxy.example.com',
@@ -184,13 +239,16 @@ void main() {
 }
 
 class FakeApiService implements ApiService {
-  FakeApiService({this.postData});
+  FakeApiService({this.postData, this.postError});
 
   final Object? postData;
+  final Object? postError;
   String? lastBaseUrl;
   String? lastPath;
   Map<String, dynamic>? lastHeaders;
   dynamic lastData;
+  int? lastMaxRetries;
+  Duration? lastReceiveTimeout;
 
   @override
   Dio get dio => Dio();
@@ -216,11 +274,16 @@ class FakeApiService implements ApiService {
     Map<String, dynamic>? headers,
     CancelToken? cancelToken,
     int? maxRetries,
+    Duration? receiveTimeout,
   }) async {
     lastBaseUrl = baseUrl;
     lastPath = path;
     lastHeaders = headers;
     lastData = data;
+    lastMaxRetries = maxRetries;
+    lastReceiveTimeout = receiveTimeout;
+    final error = postError;
+    if (error != null) throw error;
     return Response<T>(
       data: postData as T?,
       requestOptions: RequestOptions(path: '$baseUrl$path'),

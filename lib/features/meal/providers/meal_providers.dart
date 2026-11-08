@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/formatters.dart';
@@ -31,11 +32,17 @@ final mealRecordsProvider =
           }
           final file = MealImageStore.resolveFile(meal.imageUrl);
           if (file == null) return null;
+          final bytes = await file.readAsBytes();
+          final contentType =
+              MealImageStore.sniffContentType(bytes) ??
+              MealImageStore.contentTypeOf(file.path);
+          // The bucket accepts JPEG, PNG and WebP only.
+          if (contentType == 'image/heic') return null;
           return service.uploadMealImage(
             recordId: meal.id,
-            bytes: await file.readAsBytes(),
-            extension: MealImageStore.extensionOf(file.path),
-            contentType: MealImageStore.contentTypeOf(file.path),
+            bytes: bytes,
+            extension: MealImageStore.extensionForContentType(contentType),
+            contentType: contentType,
           );
         },
         remoteDeleteImage: (path) async {
@@ -56,6 +63,14 @@ class MealMergeResult {
   final List<MealRecord> toUpload;
 }
 
+/// Local-first meal log.
+///
+/// Every change is committed to the device first and returns right away.
+/// The matching remote operation is recorded in a persisted queue and run in
+/// the background, one operation at a time, so the UI never waits on the
+/// network and operations for one record never overlap or reorder. Failed
+/// operations stay queued and are retried by [flushPendingSync] (app resume,
+/// sign-in, manual sync, the next change).
 class MealRecordsNotifier extends StateNotifier<List<MealRecord>> {
   MealRecordsNotifier(
     this._storage, {
@@ -78,6 +93,11 @@ class MealRecordsNotifier extends StateNotifier<List<MealRecord>> {
   final Future<void> Function(String storagePath)? _remoteDeleteImage;
   final DateTime Function() _clock;
 
+  Future<void> _syncChain = Future.value();
+  Future<void>? _queuedDrain;
+  bool _drainQueued = false;
+  int _opCounter = 0;
+
   static List<MealRecord> _loadRecords(LocalStorageService storage) {
     final data = storage.getMealRecords();
     if (data.isNotEmpty) {
@@ -86,42 +106,69 @@ class MealRecordsNotifier extends StateNotifier<List<MealRecord>> {
     return const [];
   }
 
-  Future<void> addMeal(MealRecord meal) async {
-    final stamped = meal.copyWith(updatedAt: _clock());
-    await _commit([...state.where((m) => m.id != meal.id), stamped]);
-    await syncRecord(stamped);
+  /// Completes once every remote operation queued so far has run.
+  @visibleForTesting
+  Future<void> get syncIdle async {
+    Future<void> observed;
+    do {
+      observed = _syncChain;
+      await observed;
+    } while (!identical(observed, _syncChain));
   }
 
-  /// Re-inserts a record removed moments ago (snackbar undo).
+  Future<void> addMeal(MealRecord meal) => addMeals([meal]);
+
+  /// Saves several records in one local write (e.g. every food of a photo).
+  Future<void> addMeals(List<MealRecord> meals) async {
+    if (meals.isEmpty) return;
+    final now = _stamp();
+    final stamped = [for (final meal in meals) meal.copyWith(updatedAt: now)];
+    final ids = {for (final meal in stamped) meal.id};
+    await _commit([...state.where((m) => !ids.contains(m.id)), ...stamped]);
+    await _queuePending('upsert', ids);
+    unawaited(flushPendingSync());
+  }
+
+  /// Re-inserts a record removed moments ago (snackbar undo). Its cloud photo
+  /// is still there because [finalizeRemoval] only runs after the undo window.
   Future<void> restoreMeal(MealRecord meal) => addMeal(meal);
 
   Future<void> removeMeal(String id) async {
-    final removed = state.where((m) => m.id == id).toList();
+    if (!state.any((m) => m.id == id)) return;
     await _commit(state.where((m) => m.id != id).toList());
-    await _tryRemoteDelete(id);
-    for (final meal in removed) {
-      await _tryRemoteDeleteImage(meal.imageStoragePath);
-    }
+    await _queuePending('delete', {id});
+    unawaited(flushPendingSync());
+  }
+
+  /// Runs once a removal can no longer be undone: deletes the photo from the
+  /// device and from cloud storage when no remaining record uses it.
+  Future<void> finalizeRemoval(MealRecord meal) async {
+    if (!mounted || state.any((m) => m.id == meal.id)) return;
+    await purgeOrphanImage(meal.imageUrl);
+    _deleteRemoteImageIfUnused(meal.imageStoragePath);
   }
 
   Future<void> updateMeal(MealRecord meal) async {
     if (!state.any((m) => m.id == meal.id)) return;
-    final stamped = meal.copyWith(updatedAt: _clock());
+    final stamped = meal.copyWith(updatedAt: _stamp());
     await _commit([
       for (final m in state)
         if (m.id == meal.id) stamped else m,
     ]);
-    await syncRecord(stamped);
+    await _queuePending('upsert', {meal.id});
+    unawaited(flushPendingSync());
   }
 
   Future<void> clearDay(DateTime date) async {
     final removing = state.where((m) => m.date.isSameDay(date)).toList();
+    if (removing.isEmpty) return;
 
     await _commit(state.where((m) => !m.date.isSameDay(date)).toList());
-
+    await _queuePending('delete', {for (final meal in removing) meal.id});
+    unawaited(flushPendingSync());
     for (final meal in removing) {
-      await _tryRemoteDelete(meal.id);
-      await _tryRemoteDeleteImage(meal.imageStoragePath);
+      await purgeOrphanImage(meal.imageUrl);
+      _deleteRemoteImageIfUnused(meal.imageStoragePath);
     }
   }
 
@@ -136,54 +183,30 @@ class MealRecordsNotifier extends StateNotifier<List<MealRecord>> {
     if (!stillUsed) await MealImageStore.delete(imageUrl);
   }
 
-  /// Uploads the photo (once) and upserts [meal] remotely. Failures are queued
-  /// and retried by [flushPendingSync].
-  Future<void> syncRecord(MealRecord meal) async {
-    if (_remoteUpsert == null) return;
-
-    try {
-      var record = meal;
-      final uploader = _imageUploader;
-      if (uploader != null &&
-          record.imageStoragePath == null &&
-          record.imageUrl != null) {
-        final storagePath = await uploader(record);
-        if (storagePath != null) {
-          record = record.copyWith(imageStoragePath: storagePath);
-          if (state.any((m) => m.id == record.id)) {
-            await _commit([
-              for (final m in state)
-                if (m.id == record.id) record else m,
-            ]);
-          }
-        }
-      }
-      await _remoteUpsert(record);
-      await _removePending(meal.id);
-    } catch (_) {
-      await _queuePending('upsert', meal.id);
-    }
+  /// Queues [meals] for upload (e.g. after a sign-in merge) and waits until
+  /// the queue has been worked through once.
+  Future<void> uploadRecords(Iterable<MealRecord> meals) async {
+    final ids = {for (final meal in meals) meal.id};
+    if (ids.isEmpty) return;
+    await _queuePending('upsert', ids);
+    await flushPendingSync();
   }
 
-  /// Retries remote operations that failed earlier (e.g. while offline).
-  Future<void> flushPendingSync() async {
-    final pending = _readPending();
-    if (pending.isEmpty) return;
-
-    for (final operation in pending) {
-      final id = operation['id'] as String?;
-      if (id == null) continue;
-      if (operation['op'] == 'delete') {
-        await _tryRemoteDelete(id);
-      } else {
-        final meal = state.where((m) => m.id == id).firstOrNull;
-        if (meal == null) {
-          await _removePending(id);
-        } else {
-          await syncRecord(meal);
-        }
+  /// Works through the queued remote operations in order. Concurrent calls
+  /// share one pass that has not started yet; a call made while a pass is
+  /// running schedules another pass, so nothing queued is missed.
+  Future<void> flushPendingSync() {
+    if (_remoteUpsert == null && _remoteDelete == null) return Future.value();
+    final queued = _queuedDrain;
+    if (_drainQueued && queued != null) return queued;
+    _drainQueued = true;
+    return _queuedDrain = _enqueue(() async {
+      _drainQueued = false;
+      for (final operation in _readPending()) {
+        if (!mounted) return;
+        await _runOperation(operation);
       }
-    }
+    });
   }
 
   Set<String> get pendingDeleteIds => _readPending()
@@ -254,6 +277,12 @@ class MealRecordsNotifier extends StateNotifier<List<MealRecord>> {
     }
   }
 
+  /// Edit times are kept in UTC so a time zone or DST change on the device
+  /// does not reorder them.
+  DateTime _stamp() => _clock().toUtc();
+
+  MealRecord? _byId(String id) => state.where((m) => m.id == id).firstOrNull;
+
   Future<void> _commit(List<MealRecord> nextState) async {
     final previousState = state;
     state = nextState;
@@ -266,26 +295,110 @@ class MealRecordsNotifier extends StateNotifier<List<MealRecord>> {
     }
   }
 
-  Future<void> _tryRemoteDelete(String id) async {
-    final remoteDelete = _remoteDelete;
-    if (remoteDelete == null) return;
+  Future<void> _enqueue(Future<void> Function() job) {
+    final next = _syncChain.then((_) => job()).catchError((Object _) {});
+    _syncChain = next;
+    return next;
+  }
 
+  Future<void> _runOperation(Map<String, dynamic> operation) async {
+    final id = operation['id'];
+    if (id is! String) return;
+    final token = operation['v'];
+    // A newer operation for the same record replaced this one; the pass
+    // scheduled by that change handles it.
+    final current = _readPending().where((o) => o['id'] == id).firstOrNull;
+    if (current == null || current['v'] != token) return;
+
+    if (operation['op'] == 'delete') {
+      final remoteDelete = _remoteDelete;
+      if (remoteDelete == null) return;
+      try {
+        await remoteDelete(id);
+        await _removePending(id, token);
+      } catch (_) {
+        // Stays queued.
+      }
+      return;
+    }
+
+    final remoteUpsert = _remoteUpsert;
+    if (remoteUpsert == null) return;
+    final meal = _byId(id);
+    if (meal == null) {
+      await _removePending(id, token);
+      return;
+    }
     try {
-      await remoteDelete(id);
-      await _removePending(id);
+      final record = await _withUploadedImage(meal);
+      // Deleted while the photo was uploading: the queued delete wins.
+      if (record == null) return;
+      await remoteUpsert(record);
+      await _removePending(id, token);
     } catch (_) {
-      await _queuePending('delete', id);
+      // Stays queued.
     }
   }
 
-  Future<void> _tryRemoteDeleteImage(String? storagePath) async {
+  /// Uploads the record's photo if it has not been uploaded yet and returns
+  /// the *current* copy of the record with the storage path, or `null` when
+  /// the record was deleted meanwhile. The photo is optional: if its upload
+  /// fails, the row is still synced and the photo is retried next time.
+  Future<MealRecord?> _withUploadedImage(MealRecord meal) async {
+    final uploader = _imageUploader;
+    if (uploader == null ||
+        meal.imageStoragePath != null ||
+        meal.imageUrl == null) {
+      return meal;
+    }
+
+    // Foods saved from one photo share a single uploaded object.
+    final shared = state
+        .where((m) => m.imageUrl == meal.imageUrl && m.imageStoragePath != null)
+        .firstOrNull
+        ?.imageStoragePath;
+    String? storagePath = shared;
+    if (storagePath == null) {
+      try {
+        storagePath = await uploader(meal);
+      } catch (_) {
+        storagePath = null;
+      }
+    }
+    if (!mounted) return null;
+
+    final latest = _byId(meal.id);
+    if (latest == null) {
+      if (shared == null) _deleteRemoteImageIfUnused(storagePath);
+      return null;
+    }
+    if (storagePath == null || latest.imageStoragePath != null) return latest;
+
+    final updated = latest.copyWith(imageStoragePath: storagePath);
+    await _commit([
+      for (final m in state)
+        if (m.id == updated.id) updated else m,
+    ]);
+    return updated;
+  }
+
+  void _deleteRemoteImageIfUnused(String? storagePath) {
     final remoteDeleteImage = _remoteDeleteImage;
     if (remoteDeleteImage == null || storagePath == null) return;
-    try {
-      await remoteDeleteImage(storagePath);
-    } catch (_) {
-      // Orphaned storage objects are harmless and removed on account delete.
-    }
+    if (state.any((m) => m.imageStoragePath == storagePath)) return;
+    unawaited(
+      _enqueue(() async {
+        if (mounted && state.any((m) => m.imageStoragePath == storagePath)) {
+          return;
+        }
+        try {
+          await remoteDeleteImage(storagePath);
+        } catch (_) {
+          // Orphaned storage objects are harmless and removed on account
+          // deletion.
+        }
+      }),
+    );
   }
 
   List<Map<String, dynamic>> _readPending() {
@@ -296,10 +409,13 @@ class MealRecordsNotifier extends StateNotifier<List<MealRecord>> {
     }
   }
 
-  Future<void> _queuePending(String op, String id) async {
+  Future<void> _queuePending(String op, Set<String> ids) async {
     final pending = _readPending()
-      ..removeWhere((operation) => operation['id'] == id)
-      ..add({'op': op, 'id': id});
+      ..removeWhere((operation) => ids.contains(operation['id']));
+    final base = DateTime.now().microsecondsSinceEpoch;
+    for (final id in ids) {
+      pending.add({'op': op, 'id': id, 'v': '$base-${_opCounter++}'});
+    }
     try {
       await _storage.savePendingMealSync(pending);
     } catch (_) {
@@ -308,10 +424,15 @@ class MealRecordsNotifier extends StateNotifier<List<MealRecord>> {
     }
   }
 
-  Future<void> _removePending(String id) async {
+  /// Removes the queued operation for [id] if it is still the one that just
+  /// ran (identified by [token]); a newer operation is kept.
+  Future<void> _removePending(String id, Object? token) async {
     final pending = _readPending();
-    if (!pending.any((operation) => operation['id'] == id)) return;
-    pending.removeWhere((operation) => operation['id'] == id);
+    final before = pending.length;
+    pending.removeWhere(
+      (operation) => operation['id'] == id && operation['v'] == token,
+    );
+    if (pending.length == before) return;
     try {
       await _storage.savePendingMealSync(pending);
     } catch (_) {}
@@ -358,7 +479,17 @@ class TodayDateNotifier extends StateNotifier<DateTime> {
 }
 
 /// Anchor date of the Report tab (day / week / month navigation).
-final selectedDateProvider = StateProvider<DateTime>((ref) => DateTime.now());
+///
+/// Follows [todayDateProvider] across midnight while the user is looking at
+/// today, and stays put once they have moved to another day.
+final selectedDateProvider = StateProvider<DateTime>((ref) {
+  ref.listen<DateTime>(todayDateProvider, (previous, next) {
+    if (previous != null && ref.controller.state.isSameDay(previous)) {
+      ref.controller.state = next;
+    }
+  });
+  return ref.read(todayDateProvider);
+});
 
 List<MealRecord> _mealsOn(List<MealRecord> meals, DateTime date) {
   return meals.where((m) => m.date.isSameDay(date)).toList()

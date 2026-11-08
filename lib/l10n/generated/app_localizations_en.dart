@@ -298,7 +298,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dashboardProxyRequired =>
-      'Food recognition is available after connecting the SikdanScan API proxy';
+      'Photo analysis isn\'t available right now. Search or enter the food manually.';
 
   @override
   String get dashboardNoFoodFound =>
@@ -686,7 +686,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String reportMealTypeRecords(int count) {
-    return '$count records';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count records',
+      one: '1 record',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -724,12 +730,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String profileBasisRecommended(int kcal) {
-    return 'Goal $kcal kcal';
+    return 'Recommended $kcal kcal';
   }
 
   @override
   String profileBasisCurrent(int kcal) {
-    return 'Current $kcal kcal';
+    return 'Your goal $kcal kcal';
   }
 
   @override
@@ -774,7 +780,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String strategyMetaLabel(int count) {
-    return 'Goal strategy · $count logs reflected';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Goal strategy · $count logs reflected',
+      one: 'Goal strategy · 1 log reflected',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -1325,7 +1337,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String reportLoggedDays(int recorded, int total) {
-    return '$recorded/$total days logged';
+    String _temp0 = intl.Intl.pluralLogic(
+      total,
+      locale: localeName,
+      other: '$recorded/$total days logged',
+      one: '$recorded/1 day logged',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -1340,7 +1358,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String reportGoalElapsedNote(int days) {
-    return 'The goal counts the $days days so far';
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'The goal counts the $days days so far',
+      one: 'The goal counts today so far',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -1403,6 +1427,88 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get chatOfflineBanner =>
       'Not connected to the AI server, so answers are general tips. Personalized coaching works once connected.';
+
+  @override
+  String get chatStatusLimited => 'Request limit reached';
+
+  @override
+  String get chatStatusError => 'Connection unstable';
+
+  @override
+  String get chatLimitedBanner =>
+      'Too many requests right now, so answers are general tips. Try again in a moment.';
+
+  @override
+  String get goalDatePassed => 'Target date has passed · pick a new date';
+
+  @override
+  String get aiConsentTitle => 'Allow AI features';
+
+  @override
+  String get aiConsentIntro =>
+      'When you use photo analysis, AI food search or the AI coach, the data below is sent through the SikdanScan server to our AI provider (OpenAI). It is used only to generate the answer.';
+
+  @override
+  String get aiConsentItemPhoto =>
+      'Food photos you ask to analyze (location data removed)';
+
+  @override
+  String get aiConsentItemMeals =>
+      'Today\'s meal names, times and nutrition, plus your goals and weight';
+
+  @override
+  String get aiConsentItemChat =>
+      'Messages you send to the AI coach and the recent conversation';
+
+  @override
+  String get aiConsentRevokeNote =>
+      'You can withdraw anytime in Settings > AI data use. Without consent you can still enter food manually, use the built-in food list and get general tips.';
+
+  @override
+  String get aiConsentAgree => 'Agree and continue';
+
+  @override
+  String get aiConsentDecline => 'Not now';
+
+  @override
+  String get aiConsentRequired =>
+      'Photo analysis needs your consent to AI data use. Search or enter the food manually.';
+
+  @override
+  String get aiConsentSearchHint =>
+      'AI food analysis needs your consent to AI data use';
+
+  @override
+  String get aiConsentSearchAction => 'Allow';
+
+  @override
+  String get settingsAiConsent => 'AI data use';
+
+  @override
+  String get settingsAiConsentOn => 'Allowed';
+
+  @override
+  String get settingsAiConsentOff => 'Not allowed';
+
+  @override
+  String get aiConsentRevokeTitle => 'Withdraw consent to AI data use?';
+
+  @override
+  String get aiConsentRevokeMessage =>
+      'Photo analysis and AI food analysis will be unavailable, and the AI coach will answer with general tips.';
+
+  @override
+  String get aiConsentRevokeAction => 'Withdraw';
+
+  @override
+  String get settingsPrivacyPolicy => 'Privacy policy';
+
+  @override
+  String get chatStatusNeedsConsent => 'Consent needed';
+
+  @override
+  String get aiConsentChatBanner =>
+      'Allow AI data use for answers based on your logs. For now, answers are general tips.';
 
   @override
   String get chatSend => 'Send';

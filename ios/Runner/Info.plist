@@ -35,6 +35,8 @@
 				</array>
 			</dict>
 		</array>
+		<key>FlutterDeepLinkingEnabled</key>
+		<false/>
 		<key>NSCameraUsageDescription</key>
 		<string>음식 사진을 촬영해 식단과 영양 정보를 자동으로 기록하기 위해 카메라 접근이 필요합니다.</string>
 		<key>NSPhotoLibraryUsageDescription</key>

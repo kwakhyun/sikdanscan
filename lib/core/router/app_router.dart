@@ -73,7 +73,17 @@ GoRouter buildAppRouter({
     },
     // OAuth callbacks (sikdanscan://auth/callback) and unknown links are
     // handled by Supabase; just return to the app home.
-    onException: (context, state, router) => router.go(AppRoutes.dashboard),
+    onException: (context, state, router) {
+      // OAuth callbacks belong to supabase_flutter; if one still reaches the
+      // router, keep the user on the screen they started sign-in from.
+      final uri = state.uri;
+      final isAuthCallback = uri.host == 'auth' || uri.path == '/callback';
+      if (isAuthCallback &&
+          router.routerDelegate.currentConfiguration.isNotEmpty) {
+        return;
+      }
+      router.go(AppRoutes.dashboard);
+    },
     routes: [
       GoRoute(path: '/', redirect: (_, __) => AppRoutes.dashboard),
       GoRoute(

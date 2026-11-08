@@ -131,7 +131,7 @@ class _GoalSettingsSheetState extends ConsumerState<GoalSettingsSheet> {
               const TextInputType.numberWithOptions(decimal: true),
               suffix: 'kg',
               icon: Icons.flag_outlined,
-              color: AppColors.primaryStrong,
+              color: context.colorPrimaryText,
             ),
             const SizedBox(height: 16),
             _buildField(
@@ -151,7 +151,7 @@ class _GoalSettingsSheetState extends ConsumerState<GoalSettingsSheet> {
               TextInputType.number,
               suffix: 'ml',
               icon: Icons.water_drop_rounded,
-              color: AppColors.infoText,
+              color: context.colorInfoText,
             ),
             const SizedBox(height: 16),
             _buildDatePicker(),
@@ -182,10 +182,10 @@ class _GoalSettingsSheetState extends ConsumerState<GoalSettingsSheet> {
       children: [
         Row(
           children: [
-            const Icon(
+            Icon(
               Icons.directions_run_rounded,
               size: 16,
-              color: AppColors.primaryStrong,
+              color: context.colorPrimaryText,
             ),
             const SizedBox(width: 6),
             Text(
@@ -284,10 +284,10 @@ class _GoalSettingsSheetState extends ConsumerState<GoalSettingsSheet> {
       children: [
         Row(
           children: [
-            const Icon(
+            Icon(
               Icons.auto_awesome_rounded,
               size: 16,
-              color: AppColors.primaryStrong,
+              color: context.colorPrimaryText,
             ),
             const SizedBox(width: 6),
             Text(
@@ -423,7 +423,7 @@ class _GoalSettingsSheetState extends ConsumerState<GoalSettingsSheet> {
         if (_targetDate != null) ...[
           const SizedBox(height: 4),
           Text(
-            'D-${_targetDate!.difference(DateTime.now()).inDays}',
+            _dDayLabel(_targetDate!),
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
@@ -435,6 +435,16 @@ class _GoalSettingsSheetState extends ConsumerState<GoalSettingsSheet> {
     );
   }
 
+  /// Calendar days left ("D-12", "D-Day"), or a note once the date passed.
+  String _dDayLabel(DateTime target) {
+    final days = DateUtils.dateOnly(
+      target,
+    ).difference(DateUtils.dateOnly(DateTime.now())).inDays;
+    if (days < 0) return context.l10n.goalDatePassed;
+    if (days == 0) return 'D-Day';
+    return 'D-$days';
+  }
+
   String _formatDate(DateTime date) {
     return AppFormat.yearMonthDay(date, context.localeTag);
   }
@@ -444,12 +454,19 @@ class _GoalSettingsSheetState extends ConsumerState<GoalSettingsSheet> {
   }
 
   Future<void> _pickDate() async {
-    final now = DateTime.now();
+    final today = DateUtils.dateOnly(DateTime.now());
+    final maxDate = today.add(const Duration(days: 365));
+    final saved = _targetDate == null ? null : DateUtils.dateOnly(_targetDate!);
+    // A saved date can be in the past (e.g. the onboarding default after
+    // 90 days); the picker needs an initial date inside its range.
+    final initial = (saved == null || saved.isBefore(today))
+        ? today.add(const Duration(days: 30))
+        : saved;
     final picked = await showDatePicker(
       context: context,
-      initialDate: _targetDate ?? now.add(const Duration(days: 30)),
-      firstDate: now,
-      lastDate: now.add(const Duration(days: 365)),
+      initialDate: initial,
+      firstDate: today,
+      lastDate: initial.isAfter(maxDate) ? initial : maxDate,
     );
     if (picked != null) {
       setState(() => _targetDate = picked);
@@ -519,7 +536,7 @@ class _WellnessGoalChip extends StatelessWidget {
       avatar: AppSvgIcon(
         goal.iconAsset,
         size: 16,
-        color: selected ? Colors.white : AppColors.primaryStrong,
+        color: selected ? Colors.white : context.colorPrimaryText,
       ),
       label: Text(goal.labelOf(context.l10n)),
       labelStyle: TextStyle(
@@ -551,8 +568,17 @@ class _ActivityLevelTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: MergeSemantics(child: _buildTile(context)),
+    );
+  }
+
+  Widget _buildTile(BuildContext context) {
+    return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.all(13),
@@ -560,17 +586,19 @@ class _ActivityLevelTile extends StatelessWidget {
           color: selected ? context.colorPrimarySurface : context.colorSurface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: selected ? AppColors.primaryStrong : context.colorBorder,
+            color: selected ? context.colorPrimaryText : context.colorBorder,
           ),
         ),
         child: Row(
           children: [
-            Icon(
-              selected ? Icons.check_circle_rounded : Icons.circle_outlined,
-              color: selected
-                  ? AppColors.primaryStrong
-                  : context.colorTextTertiary,
-              size: 20,
+            ExcludeSemantics(
+              child: Icon(
+                selected ? Icons.check_circle_rounded : Icons.circle_outlined,
+                color: selected
+                    ? context.colorPrimaryText
+                    : context.colorTextTertiary,
+                size: 20,
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(

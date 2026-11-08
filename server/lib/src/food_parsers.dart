@@ -76,18 +76,21 @@ List<Map<String, dynamic>> parseAiFoodItems(String content) {
   }
 }
 
-Map<String, dynamic> parseAiFoodRecognition(String content) {
+Map<String, dynamic> parseAiFoodRecognition(
+  String content, {
+  String locale = 'ko',
+}) {
   try {
     final cleaned = cleanModelJson(content);
     final start = cleaned.indexOf('{');
     final end = cleaned.lastIndexOf('}');
     if (start == -1 || end == -1 || end < start) {
-      return _emptyRecognition(needsReview: true);
+      return emptyFoodRecognition(locale: locale);
     }
 
     final decoded = jsonDecode(cleaned.substring(start, end + 1));
     final map = asStringMap(decoded);
-    if (map == null) return _emptyRecognition(needsReview: true);
+    if (map == null) return emptyFoodRecognition(locale: locale);
 
     final items = asList(map['items'])
         ?.map(asStringMap)
@@ -129,7 +132,7 @@ Map<String, dynamic> parseAiFoodRecognition(String content) {
       'items': items ?? const [],
     };
   } catch (_) {
-    return _emptyRecognition(needsReview: true);
+    return emptyFoodRecognition(locale: locale);
   }
 }
 
@@ -143,12 +146,16 @@ String cleanModelJson(String content) {
   return cleaned;
 }
 
-Map<String, dynamic> _emptyRecognition({required bool needsReview}) {
+/// Result for a photo where no food could be read, with a warning in the
+/// request's language (the app shows it as the "no food found" message).
+Map<String, dynamic> emptyFoodRecognition({String locale = 'ko'}) {
   return {
     'summary': '',
     'confidence': 0.0,
-    'needsReview': needsReview,
-    'warning': '음식을 안정적으로 인식하지 못했습니다. 다시 촬영하거나 직접 검색해 주세요.',
+    'needsReview': true,
+    'warning': locale == 'en'
+        ? "We couldn't reliably recognize the food. Retake the photo or search manually."
+        : '음식을 안정적으로 인식하지 못했습니다. 다시 촬영하거나 직접 검색해 주세요.',
     'items': const [],
   };
 }

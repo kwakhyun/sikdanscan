@@ -103,7 +103,7 @@ void main() {
           isA<FoodImageRecognitionException>().having(
             (error) => error.message,
             'message',
-            contains('프록시'),
+            allOf(contains('인터넷 연결'), isNot(contains('프록시'))),
           ),
         ),
       );
@@ -201,6 +201,7 @@ class _FakeApiService implements ApiService {
     Map<String, dynamic>? headers,
     CancelToken? cancelToken,
     int? maxRetries,
+    Duration? receiveTimeout,
   }) async {
     postCount += 1;
     lastPostBaseUrl = baseUrl;

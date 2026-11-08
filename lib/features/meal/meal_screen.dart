@@ -138,17 +138,29 @@ class _PeriodNavigator extends ConsumerWidget {
       children: [
         IconButton.filledTonal(
           tooltip: l10n.reportPrevious,
-          onPressed: () => _setAnchor(ref, period.shift(-1).start),
+          onPressed: () => _step(ref, -1),
           icon: const Icon(Icons.chevron_left_rounded),
         ),
         const SizedBox(width: 8),
         Expanded(
           child: OutlinedButton.icon(
             onPressed: () async {
+              final initial = period.start.isAfter(today)
+                  ? today
+                  : period.start;
+              // The arrows can go further back than the picker's default
+              // range; never let firstDate pass initialDate.
+              final defaultFirst = DateTime(
+                today.year - 2,
+                today.month,
+                today.day,
+              );
               final picked = await showDatePicker(
                 context: context,
-                initialDate: period.start.isAfter(today) ? today : period.start,
-                firstDate: today.subtract(const Duration(days: 365 * 2)),
+                initialDate: initial,
+                firstDate: initial.isBefore(defaultFirst)
+                    ? initial
+                    : defaultFirst,
                 lastDate: today,
               );
               if (picked != null) _setAnchor(ref, picked);
@@ -156,16 +168,14 @@ class _PeriodNavigator extends ConsumerWidget {
             icon: const Icon(Icons.calendar_today_rounded, size: 18),
             label: FittedBox(
               fit: BoxFit.scaleDown,
-              child: Text(_title(period, locale)),
+              child: Text(_title(period, locale, today)),
             ),
           ),
         ),
         const SizedBox(width: 8),
         IconButton.filledTonal(
           tooltip: l10n.reportNext,
-          onPressed: isCurrent
-              ? null
-              : () => _setAnchor(ref, period.shift(1).start),
+          onPressed: isCurrent ? null : () => _step(ref, 1),
           icon: const Icon(Icons.chevron_right_rounded),
         ),
         if (!isCurrent) ...[
@@ -179,6 +189,36 @@ class _PeriodNavigator extends ConsumerWidget {
     );
   }
 
+  /// Moves the anchor by one period, keeping the same weekday / day of
+  /// month, so going back and forth returns to the same day and switching
+  /// to the Day view does not jump to a Monday or the 1st. Landing in the
+  /// current period selects today.
+  void _step(WidgetRef ref, int direction) {
+    final anchor = ref.read(selectedDateProvider).dateOnly;
+    final next = switch (period.range) {
+      ReportRange.day => DateTime(
+        anchor.year,
+        anchor.month,
+        anchor.day + direction,
+      ),
+      ReportRange.week => DateTime(
+        anchor.year,
+        anchor.month,
+        anchor.day + 7 * direction,
+      ),
+      ReportRange.month => () {
+        final lastDay = DateTime(anchor.year, anchor.month + direction + 1, 0);
+        return DateTime(
+          lastDay.year,
+          lastDay.month,
+          anchor.day > lastDay.day ? lastDay.day : anchor.day,
+        );
+      }(),
+    };
+    final target = ReportPeriod.from(range: period.range, anchorDate: next);
+    _setAnchor(ref, target.contains(today) ? today : next);
+  }
+
   void _setAnchor(WidgetRef ref, DateTime date) {
     final today = ref.read(todayDateProvider);
     ref.read(selectedDateProvider.notifier).state = date.isAfter(today)
@@ -186,11 +226,21 @@ class _PeriodNavigator extends ConsumerWidget {
         : date;
   }
 
-  static String _title(ReportPeriod period, String locale) {
+  /// The year is shown only when the period is not (entirely) in this year.
+  static String _title(ReportPeriod period, String locale, DateTime today) {
+    final showYear =
+        period.start.year != today.year || period.end.year != today.year;
     return switch (period.range) {
-      ReportRange.day => AppFormat.mediumDate(period.start, locale),
+      ReportRange.day =>
+        showYear
+            ? AppFormat.mediumDateWithYear(period.start, locale)
+            : AppFormat.mediumDate(period.start, locale),
       ReportRange.week =>
-        '${AppFormat.shortDate(period.start)} – ${AppFormat.shortDate(period.end)}',
+        showYear
+            ? '${AppFormat.numericDateWithYear(period.start, locale)} – '
+                  '${AppFormat.numericDateWithYear(period.end, locale)}'
+            : '${AppFormat.shortDate(period.start)} – '
+                  '${AppFormat.shortDate(period.end)}',
       ReportRange.month => AppFormat.monthYear(period.start, locale),
     };
   }
@@ -607,8 +657,12 @@ class _TrendCard extends StatelessWidget {
     );
   }
 
+  /// Labels the 1st, every 5th day and the last day, skipping a 5th that
+  /// sits right next to the last day (30 / 31 would overlap).
   static bool _showMonthLabel(DateTime day, ReportPeriod period) {
-    return day.day == 1 || day.day % 5 == 0 || day.isSameDay(period.end);
+    return day.day == 1 ||
+        day.isSameDay(period.end) ||
+        (day.day % 5 == 0 && period.end.day - day.day >= 3);
   }
 }
 
@@ -673,12 +727,15 @@ class _DayBar extends StatelessWidget {
               ),
               SizedBox(
                 height: 22,
-                child: Center(
+                // Day slots in the month view are narrower than a label;
+                // let the label extend evenly past both sides of its bar.
+                child: OverflowBox(
+                  maxWidth: double.infinity,
                   child: Text(
                     label,
                     maxLines: 1,
-                    overflow: TextOverflow.visible,
                     softWrap: false,
+                    textAlign: TextAlign.center,
                     style: AppTextStyles.micro.copyWith(
                       color: context.colorTextSecondary,
                     ),

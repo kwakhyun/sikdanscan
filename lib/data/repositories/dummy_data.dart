@@ -121,6 +121,7 @@ class DummyData {
     // ── 밥·곡류 ──
     {
       'name': '흰쌀밥 1공기',
+      'nameEn': 'Steamed white rice (1 bowl)',
       'calories': 300,
       'carbs': 66.0,
       'protein': 5.0,
@@ -129,6 +130,7 @@ class DummyData {
     },
     {
       'name': '현미밥 1공기',
+      'nameEn': 'Brown rice (1 bowl)',
       'calories': 260,
       'carbs': 56.0,
       'protein': 6.0,
@@ -137,6 +139,7 @@ class DummyData {
     },
     {
       'name': '잡곡밥 1공기',
+      'nameEn': 'Multigrain rice (1 bowl)',
       'calories': 280,
       'carbs': 60.0,
       'protein': 7.0,
@@ -145,6 +148,7 @@ class DummyData {
     },
     {
       'name': '볶음밥 1인분',
+      'nameEn': 'Fried rice (1 serving)',
       'calories': 450,
       'carbs': 65.0,
       'protein': 12.0,
@@ -153,6 +157,7 @@ class DummyData {
     },
     {
       'name': '김밥 1줄',
+      'nameEn': 'Gimbap (1 roll)',
       'calories': 380,
       'carbs': 55.0,
       'protein': 10.0,
@@ -161,6 +166,7 @@ class DummyData {
     },
     {
       'name': '비빔밥 1인분',
+      'nameEn': 'Bibimbap (1 serving)',
       'calories': 520,
       'carbs': 72.0,
       'protein': 18.0,
@@ -169,6 +175,7 @@ class DummyData {
     },
     {
       'name': '오트밀 1컵',
+      'nameEn': 'Oatmeal (1 cup)',
       'calories': 158,
       'carbs': 27.0,
       'protein': 6.0,
@@ -178,6 +185,7 @@ class DummyData {
     // ── 면류 ──
     {
       'name': '라면 1봉',
+      'nameEn': 'Instant ramen (1 pack)',
       'calories': 500,
       'carbs': 75.0,
       'protein': 10.0,
@@ -186,6 +194,7 @@ class DummyData {
     },
     {
       'name': '짜장면 1인분',
+      'nameEn': 'Jajangmyeon, black bean noodles (1 serving)',
       'calories': 650,
       'carbs': 85.0,
       'protein': 15.0,
@@ -194,6 +203,7 @@ class DummyData {
     },
     {
       'name': '짬뽕 1인분',
+      'nameEn': 'Jjamppong, spicy seafood noodles (1 serving)',
       'calories': 520,
       'carbs': 70.0,
       'protein': 20.0,
@@ -202,6 +212,7 @@ class DummyData {
     },
     {
       'name': '칼국수 1인분',
+      'nameEn': 'Kalguksu, knife-cut noodles (1 serving)',
       'calories': 420,
       'carbs': 65.0,
       'protein': 15.0,
@@ -210,6 +221,7 @@ class DummyData {
     },
     {
       'name': '냉면 1인분',
+      'nameEn': 'Naengmyeon, cold noodles (1 serving)',
       'calories': 480,
       'carbs': 80.0,
       'protein': 12.0,
@@ -218,6 +230,7 @@ class DummyData {
     },
     {
       'name': '파스타(토마토) 1인분',
+      'nameEn': 'Tomato pasta (1 serving)',
       'calories': 520,
       'carbs': 70.0,
       'protein': 16.0,
@@ -226,6 +239,7 @@ class DummyData {
     },
     {
       'name': '우동 1인분',
+      'nameEn': 'Udon (1 serving)',
       'calories': 400,
       'carbs': 60.0,
       'protein': 12.0,
@@ -235,6 +249,7 @@ class DummyData {
     // ── 고기·생선 ──
     {
       'name': '닭가슴살 100g',
+      'nameEn': 'Chicken breast 100g',
       'calories': 165,
       'carbs': 0.0,
       'protein': 31.0,
@@ -243,6 +258,7 @@ class DummyData {
     },
     {
       'name': '소고기(등심) 100g',
+      'nameEn': 'Beef sirloin 100g',
       'calories': 250,
       'carbs': 0.0,
       'protein': 26.0,
@@ -251,6 +267,7 @@ class DummyData {
     },
     {
       'name': '돼지고기(삼겹살) 100g',
+      'nameEn': 'Pork belly 100g',
       'calories': 330,
       'carbs': 0.0,
       'protein': 18.0,
@@ -259,6 +276,7 @@ class DummyData {
     },
     {
       'name': '연어 100g',
+      'nameEn': 'Salmon 100g',
       'calories': 208,
       'carbs': 0.0,
       'protein': 20.0,
@@ -267,6 +285,7 @@ class DummyData {
     },
     {
       'name': '고등어구이 1토막',
+      'nameEn': 'Grilled mackerel (1 piece)',
       'calories': 180,
       'carbs': 0.0,
       'protein': 20.0,
@@ -275,6 +294,7 @@ class DummyData {
     },
     {
       'name': '참치회 100g',
+      'nameEn': 'Tuna sashimi 100g',
       'calories': 130,
       'carbs': 0.0,
       'protein': 28.0,
@@ -283,6 +303,7 @@ class DummyData {
     },
     {
       'name': '새우 100g',
+      'nameEn': 'Shrimp 100g',
       'calories': 85,
       'carbs': 0.0,
       'protein': 18.0,
@@ -292,6 +313,7 @@ class DummyData {
     // ── 한식 반찬 ──
     {
       'name': '김치찌개 1인분',
+      'nameEn': 'Kimchi stew (1 serving)',
       'calories': 200,
       'carbs': 10.0,
       'protein': 14.0,
@@ -300,6 +322,7 @@ class DummyData {
     },
     {
       'name': '된장찌개 1인분',
+      'nameEn': 'Soybean paste stew (1 serving)',
       'calories': 150,
       'carbs': 12.0,
       'protein': 10.0,
@@ -308,6 +331,7 @@ class DummyData {
     },
     {
       'name': '순두부찌개 1인분',
+      'nameEn': 'Soft tofu stew (1 serving)',
       'calories': 180,
       'carbs': 8.0,
       'protein': 12.0,
@@ -316,6 +340,7 @@ class DummyData {
     },
     {
       'name': '제육볶음 1인분',
+      'nameEn': 'Spicy stir-fried pork (1 serving)',
       'calories': 350,
       'carbs': 15.0,
       'protein': 22.0,
@@ -324,6 +349,7 @@ class DummyData {
     },
     {
       'name': '불고기 1인분',
+      'nameEn': 'Bulgogi (1 serving)',
       'calories': 310,
       'carbs': 12.0,
       'protein': 28.0,
@@ -332,6 +358,7 @@ class DummyData {
     },
     {
       'name': '잡채 1인분',
+      'nameEn': 'Japchae, glass noodles (1 serving)',
       'calories': 270,
       'carbs': 35.0,
       'protein': 8.0,
@@ -340,6 +367,7 @@ class DummyData {
     },
     {
       'name': '김치 1접시',
+      'nameEn': 'Kimchi (1 side dish)',
       'calories': 25,
       'carbs': 4.0,
       'protein': 1.5,
@@ -348,6 +376,7 @@ class DummyData {
     },
     {
       'name': '계란찜 1인분',
+      'nameEn': 'Steamed egg (1 serving)',
       'calories': 120,
       'carbs': 2.0,
       'protein': 10.0,
@@ -356,6 +385,7 @@ class DummyData {
     },
     {
       'name': '시금치나물 1접시',
+      'nameEn': 'Seasoned spinach (1 side dish)',
       'calories': 35,
       'carbs': 3.0,
       'protein': 3.0,
@@ -364,6 +394,7 @@ class DummyData {
     },
     {
       'name': '콩나물무침 1접시',
+      'nameEn': 'Seasoned bean sprouts (1 side dish)',
       'calories': 40,
       'carbs': 4.0,
       'protein': 4.0,
@@ -373,6 +404,7 @@ class DummyData {
     // ── 분식·간식 ──
     {
       'name': '떡볶이 1인분',
+      'nameEn': 'Tteokbokki, spicy rice cakes (1 serving)',
       'calories': 380,
       'carbs': 70.0,
       'protein': 8.0,
@@ -381,6 +413,7 @@ class DummyData {
     },
     {
       'name': '순대 1인분',
+      'nameEn': 'Sundae, Korean sausage (1 serving)',
       'calories': 320,
       'carbs': 35.0,
       'protein': 14.0,
@@ -389,6 +422,7 @@ class DummyData {
     },
     {
       'name': '튀김(모듬) 1인분',
+      'nameEn': 'Assorted fritters (1 serving)',
       'calories': 400,
       'carbs': 40.0,
       'protein': 10.0,
@@ -397,6 +431,7 @@ class DummyData {
     },
     {
       'name': '만두(5개)',
+      'nameEn': 'Dumplings (5 pieces)',
       'calories': 280,
       'carbs': 30.0,
       'protein': 12.0,
@@ -405,6 +440,7 @@ class DummyData {
     },
     {
       'name': '토스트 1개',
+      'nameEn': 'Toast (1 piece)',
       'calories': 320,
       'carbs': 35.0,
       'protein': 12.0,
@@ -414,6 +450,7 @@ class DummyData {
     // ── 빵·베이커리 ──
     {
       'name': '식빵 1장',
+      'nameEn': 'White bread (1 slice)',
       'calories': 80,
       'carbs': 14.0,
       'protein': 3.0,
@@ -422,6 +459,7 @@ class DummyData {
     },
     {
       'name': '크로아상 1개',
+      'nameEn': 'Croissant (1)',
       'calories': 230,
       'carbs': 26.0,
       'protein': 5.0,
@@ -430,6 +468,7 @@ class DummyData {
     },
     {
       'name': '베이글 1개',
+      'nameEn': 'Bagel (1)',
       'calories': 270,
       'carbs': 53.0,
       'protein': 10.0,
@@ -439,6 +478,7 @@ class DummyData {
     // ── 달걀·유제품 ──
     {
       'name': '계란 1개',
+      'nameEn': 'Egg (1)',
       'calories': 78,
       'carbs': 0.6,
       'protein': 6.0,
@@ -447,6 +487,7 @@ class DummyData {
     },
     {
       'name': '계란 프라이 1개',
+      'nameEn': 'Fried egg (1)',
       'calories': 110,
       'carbs': 0.6,
       'protein': 6.0,
@@ -455,6 +496,7 @@ class DummyData {
     },
     {
       'name': '그릭요거트 1컵',
+      'nameEn': 'Greek yogurt (1 cup)',
       'calories': 130,
       'carbs': 6.0,
       'protein': 17.0,
@@ -463,6 +505,7 @@ class DummyData {
     },
     {
       'name': '우유 1잔 (200ml)',
+      'nameEn': 'Milk (1 glass, 200ml)',
       'calories': 120,
       'carbs': 10.0,
       'protein': 6.0,
@@ -471,6 +514,7 @@ class DummyData {
     },
     {
       'name': '치즈 1장',
+      'nameEn': 'Cheese (1 slice)',
       'calories': 60,
       'carbs': 1.0,
       'protein': 4.0,
@@ -479,6 +523,7 @@ class DummyData {
     },
     {
       'name': '두부 반모',
+      'nameEn': 'Tofu (half block)',
       'calories': 94,
       'carbs': 2.0,
       'protein': 10.0,
@@ -488,6 +533,7 @@ class DummyData {
     // ── 과일 ──
     {
       'name': '바나나 1개',
+      'nameEn': 'Banana (1)',
       'calories': 105,
       'carbs': 27.0,
       'protein': 1.3,
@@ -496,6 +542,7 @@ class DummyData {
     },
     {
       'name': '사과 1개',
+      'nameEn': 'Apple (1)',
       'calories': 95,
       'carbs': 25.0,
       'protein': 0.5,
@@ -504,6 +551,7 @@ class DummyData {
     },
     {
       'name': '귤 1개',
+      'nameEn': 'Mandarin orange (1)',
       'calories': 40,
       'carbs': 10.0,
       'protein': 0.6,
@@ -512,6 +560,7 @@ class DummyData {
     },
     {
       'name': '딸기 10개',
+      'nameEn': 'Strawberries (10)',
       'calories': 50,
       'carbs': 12.0,
       'protein': 1.0,
@@ -520,6 +569,7 @@ class DummyData {
     },
     {
       'name': '아보카도 반개',
+      'nameEn': 'Avocado (half)',
       'calories': 120,
       'carbs': 6.0,
       'protein': 1.5,
@@ -528,6 +578,7 @@ class DummyData {
     },
     {
       'name': '블루베리 1컵',
+      'nameEn': 'Blueberries (1 cup)',
       'calories': 85,
       'carbs': 21.0,
       'protein': 1.0,
@@ -537,6 +588,7 @@ class DummyData {
     // ── 채소·샐러드 ──
     {
       'name': '샐러드(드레싱 포함)',
+      'nameEn': 'Salad with dressing',
       'calories': 150,
       'carbs': 12.0,
       'protein': 3.0,
@@ -545,6 +597,7 @@ class DummyData {
     },
     {
       'name': '고구마 1개',
+      'nameEn': 'Sweet potato (1)',
       'calories': 130,
       'carbs': 30.0,
       'protein': 2.0,
@@ -553,6 +606,7 @@ class DummyData {
     },
     {
       'name': '감자 1개',
+      'nameEn': 'Potato (1)',
       'calories': 110,
       'carbs': 25.0,
       'protein': 2.5,
@@ -561,6 +615,7 @@ class DummyData {
     },
     {
       'name': '옥수수 1개',
+      'nameEn': 'Corn on the cob (1)',
       'calories': 130,
       'carbs': 27.0,
       'protein': 4.0,
@@ -570,6 +625,7 @@ class DummyData {
     // ── 음료 ──
     {
       'name': '아메리카노',
+      'nameEn': 'Americano',
       'calories': 10,
       'carbs': 2.0,
       'protein': 0.3,
@@ -578,6 +634,7 @@ class DummyData {
     },
     {
       'name': '카페라떼',
+      'nameEn': 'Caffe latte',
       'calories': 150,
       'carbs': 12.0,
       'protein': 8.0,
@@ -586,6 +643,7 @@ class DummyData {
     },
     {
       'name': '녹차라떼',
+      'nameEn': 'Green tea latte',
       'calories': 190,
       'carbs': 28.0,
       'protein': 7.0,
@@ -594,6 +652,7 @@ class DummyData {
     },
     {
       'name': '스무디 1잔',
+      'nameEn': 'Smoothie (1 cup)',
       'calories': 220,
       'carbs': 45.0,
       'protein': 3.0,
@@ -602,6 +661,7 @@ class DummyData {
     },
     {
       'name': '콜라 1캔',
+      'nameEn': 'Cola (1 can)',
       'calories': 140,
       'carbs': 39.0,
       'protein': 0.0,
@@ -610,6 +670,7 @@ class DummyData {
     },
     {
       'name': '오렌지주스 1잔',
+      'nameEn': 'Orange juice (1 glass)',
       'calories': 110,
       'carbs': 26.0,
       'protein': 2.0,
@@ -619,6 +680,7 @@ class DummyData {
     // ── 건강식 ──
     {
       'name': '프로틴 쉐이크',
+      'nameEn': 'Protein shake',
       'calories': 150,
       'carbs': 5.0,
       'protein': 25.0,
@@ -627,6 +689,7 @@ class DummyData {
     },
     {
       'name': '프로틴 바',
+      'nameEn': 'Protein bar',
       'calories': 190,
       'carbs': 20.0,
       'protein': 15.0,
@@ -635,6 +698,7 @@ class DummyData {
     },
     {
       'name': '견과류 한줌',
+      'nameEn': 'Mixed nuts (1 handful)',
       'calories': 180,
       'carbs': 6.0,
       'protein': 5.0,
@@ -643,6 +707,7 @@ class DummyData {
     },
     {
       'name': '닭가슴살 샐러드',
+      'nameEn': 'Chicken breast salad',
       'calories': 250,
       'carbs': 10.0,
       'protein': 35.0,
@@ -651,6 +716,7 @@ class DummyData {
     },
     {
       'name': '곤약젤리 1개',
+      'nameEn': 'Konjac jelly (1)',
       'calories': 10,
       'carbs': 3.0,
       'protein': 0.0,
@@ -660,6 +726,7 @@ class DummyData {
     // ── 외식·패스트푸드 ──
     {
       'name': '치킨(후라이드) 1조각',
+      'nameEn': 'Fried chicken (1 piece)',
       'calories': 250,
       'carbs': 8.0,
       'protein': 18.0,
@@ -668,6 +735,7 @@ class DummyData {
     },
     {
       'name': '피자 1조각',
+      'nameEn': 'Pizza (1 slice)',
       'calories': 300,
       'carbs': 35.0,
       'protein': 12.0,
@@ -676,6 +744,7 @@ class DummyData {
     },
     {
       'name': '햄버거 1개',
+      'nameEn': 'Hamburger (1)',
       'calories': 450,
       'carbs': 40.0,
       'protein': 22.0,
@@ -684,6 +753,7 @@ class DummyData {
     },
     {
       'name': '감자튀김(중)',
+      'nameEn': 'French fries (medium)',
       'calories': 340,
       'carbs': 44.0,
       'protein': 4.0,
@@ -692,6 +762,7 @@ class DummyData {
     },
     {
       'name': '돈까스 1인분',
+      'nameEn': 'Pork cutlet (1 serving)',
       'calories': 550,
       'carbs': 45.0,
       'protein': 25.0,
@@ -700,6 +771,7 @@ class DummyData {
     },
     {
       'name': '초밥(8피스)',
+      'nameEn': 'Sushi (8 pieces)',
       'calories': 350,
       'carbs': 52.0,
       'protein': 18.0,
@@ -708,6 +780,7 @@ class DummyData {
     },
     {
       'name': '샌드위치 1개',
+      'nameEn': 'Sandwich (1)',
       'calories': 350,
       'carbs': 38.0,
       'protein': 16.0,
@@ -716,6 +789,7 @@ class DummyData {
     },
     {
       'name': '타코 1개',
+      'nameEn': 'Taco (1)',
       'calories': 210,
       'carbs': 20.0,
       'protein': 10.0,
@@ -725,6 +799,7 @@ class DummyData {
     // ── 디저트 ──
     {
       'name': '아이스크림 1스쿱',
+      'nameEn': 'Ice cream (1 scoop)',
       'calories': 140,
       'carbs': 17.0,
       'protein': 2.0,
@@ -733,6 +808,7 @@ class DummyData {
     },
     {
       'name': '초콜릿 1줄(30g)',
+      'nameEn': 'Chocolate bar (30g)',
       'calories': 160,
       'carbs': 17.0,
       'protein': 2.0,
@@ -741,6 +817,7 @@ class DummyData {
     },
     {
       'name': '케이크 1조각',
+      'nameEn': 'Cake (1 slice)',
       'calories': 350,
       'carbs': 45.0,
       'protein': 4.0,
@@ -749,6 +826,7 @@ class DummyData {
     },
     {
       'name': '마카롱 1개',
+      'nameEn': 'Macaron (1)',
       'calories': 100,
       'carbs': 14.0,
       'protein': 1.5,
@@ -757,6 +835,7 @@ class DummyData {
     },
     {
       'name': '붕어빵 1개',
+      'nameEn': 'Bungeoppang, fish-shaped pastry (1)',
       'calories': 150,
       'carbs': 28.0,
       'protein': 3.0,

@@ -12,6 +12,7 @@ import '../../data/models/meal_record.dart';
 import '../../data/services/food_api_service.dart';
 import '../../l10n/app_localizations_context.dart';
 import '../../providers/app_providers.dart';
+import '../../shared/widgets/ai_consent_sheet.dart';
 import '../../shared/widgets/app_svg_icon.dart';
 
 /// Search-based logging (built-in DB, public food DB and AI analysis through
@@ -73,10 +74,12 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     final requestId = ++_searchRequestId;
     final trimmedQuery = query.trim();
     final foodService = ref.read(foodApiServiceProvider);
+    final allowAi = ref.read(aiDataConsentProvider);
 
     setState(() {
       _isSearching = true;
-      _isAiAnalyzing = trimmedQuery.isNotEmpty && foodService.isProxyConfigured;
+      _isAiAnalyzing =
+          trimmedQuery.isNotEmpty && foodService.isProxyConfigured && allowAi;
       _hasSearchError = false;
     });
 
@@ -84,6 +87,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       final foods = await foodService.searchFood(
         trimmedQuery,
         locale: ref.read(resolvedLanguageCodeProvider),
+        allowAi: allowAi,
       );
       if (mounted && requestId == _searchRequestId) {
         setState(() => _filteredFoods = foods);
@@ -212,14 +216,29 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
               const SizedBox(width: 5),
               Expanded(
                 child: Text(
-                  ref.watch(foodApiServiceProvider).isProxyConfigured
+                  !ref.watch(foodApiServiceProvider).isProxyConfigured
+                      ? l10n.addMealOfflineHint
+                      : ref.watch(aiDataConsentProvider)
                       ? l10n.addMealAiHint
-                      : l10n.addMealOfflineHint,
+                      : l10n.aiConsentSearchHint,
                   style: AppTextStyles.micro.copyWith(
                     color: context.colorTextSecondary,
                   ),
                 ),
               ),
+              if (ref.watch(foodApiServiceProvider).isProxyConfigured &&
+                  !ref.watch(aiDataConsentProvider))
+                TextButton(
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  onPressed: () async {
+                    if (await ensureAiConsent(context, ref) && mounted) {
+                      _filterFoods(_searchController.text);
+                    }
+                  },
+                  child: Text(l10n.aiConsentSearchAction),
+                ),
             ],
           ),
         ],

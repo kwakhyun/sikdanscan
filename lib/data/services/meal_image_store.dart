@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import 'image_metadata.dart';
+
 /// Stores captured images inside the app documents directory and keeps only
 /// a *relative* path (e.g. `meal_images/meal_<uuid>.jpg`) in records.
 ///
@@ -47,7 +49,10 @@ class MealImageStore {
       }
       final relative =
           '$folder/${prefix}_${const Uuid().v4()}${_extension(sourcePath)}';
-      await File(sourcePath).copy('$documents/$relative');
+      final bytes = await File(sourcePath).readAsBytes();
+      // The stored copy is what gets uploaded and analysed: drop the
+      // location the camera may have written into it.
+      await File('$documents/$relative').writeAsBytes(stripJpegGps(bytes));
       return relative;
     } catch (_) {
       return sourcePath;
@@ -104,6 +109,70 @@ class MealImageStore {
     } catch (_) {
       // Missing files are fine; the record no longer references them.
     }
+  }
+
+  /// Deletes every stored meal and profile photo (data reset / account
+  /// deletion). Each folder is handled separately so one failure does not
+  /// keep the others.
+  static Future<void> clearAll() async {
+    final documents = _documentsPath;
+    if (documents == null) return;
+    for (final folder in _knownFolders) {
+      try {
+        final directory = Directory('$documents/$folder');
+        if (await directory.exists()) await directory.delete(recursive: true);
+      } catch (_) {
+        // Best effort: a locked file must not block the reset.
+      }
+    }
+  }
+
+  /// Detects JPEG, PNG or WebP from the file header. Image pickers re-encode
+  /// resized photos but can keep the original name (e.g. `scaled_x.heic`
+  /// holding JPEG bytes), so the name alone is not reliable.
+  static String? sniffContentType(List<int> bytes) {
+    if (bytes.length >= 4 &&
+        bytes[0] == 0x89 &&
+        bytes[1] == 0x50 &&
+        bytes[2] == 0x4E &&
+        bytes[3] == 0x47) {
+      return 'image/png';
+    }
+    if (bytes.length >= 3 &&
+        bytes[0] == 0xFF &&
+        bytes[1] == 0xD8 &&
+        bytes[2] == 0xFF) {
+      return 'image/jpeg';
+    }
+    if (bytes.length >= 12 &&
+        String.fromCharCodes(bytes.sublist(0, 4)) == 'RIFF' &&
+        String.fromCharCodes(bytes.sublist(8, 12)) == 'WEBP') {
+      return 'image/webp';
+    }
+    if (bytes.length >= 12 &&
+        String.fromCharCodes(bytes.sublist(4, 8)) == 'ftyp') {
+      const heifBrands = {
+        'heic',
+        'heix',
+        'hevc',
+        'hevx',
+        'heif',
+        'mif1',
+        'msf1',
+      };
+      final brand = String.fromCharCodes(bytes.sublist(8, 12)).toLowerCase();
+      if (heifBrands.contains(brand)) return 'image/heic';
+    }
+    return null;
+  }
+
+  static String extensionForContentType(String contentType) {
+    return switch (contentType) {
+      'image/png' => 'png',
+      'image/webp' => 'webp',
+      'image/heic' => 'heic',
+      _ => 'jpg',
+    };
   }
 
   static String extensionOf(String path) => _extension(path).substring(1);

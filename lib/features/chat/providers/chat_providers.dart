@@ -1,12 +1,15 @@
+import 'dart:ui' show Locale;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/utils/formatters.dart';
 import '../../../data/models/chat_message.dart';
 import '../../../data/models/persisted_model_decoder.dart';
-import '../../../data/models/user_profile.dart';
 import '../../../data/services/ai_chat_service.dart';
 import '../../../data/services/local_storage_service.dart';
+import '../../../l10n/app_localizations_context.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../../providers/service_providers.dart';
 import '../../dashboard/providers/daily_health_providers.dart';
 import '../../dashboard/providers/meal_strategy_providers.dart';
@@ -22,16 +25,31 @@ final chatMessagesProvider =
 
 final chatLoadingProvider = StateProvider<bool>((ref) => false);
 
-/// Whether answers currently come from the AI server: the proxy must be
-/// configured and the latest answer must not have been an offline fallback.
-final chatOnlineProvider = Provider<bool>((ref) {
-  if (!ref.watch(aiChatServiceProvider).isConfigured) return false;
-  final messages = ref.watch(chatMessagesProvider);
-  for (final message in messages.reversed) {
-    if (message.isUser) continue;
-    return message.type != ChatMessageType.offline;
+/// Coach reachability, from the outcome of requests made in this session.
+enum CoachConnection { unknown, online, offline, limited, error, needsConsent }
+
+/// Last request outcome in this app session. Not persisted: an offline answer
+/// saved days ago says nothing about the connection now.
+final coachConnectionProvider = StateProvider<CoachConnection>(
+  (ref) => CoachConnection.unknown,
+);
+
+/// What the chat header shows: offline when no AI server is configured,
+/// otherwise the latest outcome (online until something fails).
+final chatStatusProvider = Provider<CoachConnection>((ref) {
+  if (!ref.watch(aiChatServiceProvider).isConfigured) {
+    return CoachConnection.offline;
   }
-  return true;
+  if (!ref.watch(aiDataConsentProvider)) return CoachConnection.needsConsent;
+  final connection = ref.watch(coachConnectionProvider);
+  return connection == CoachConnection.unknown
+      ? CoachConnection.online
+      : connection;
+});
+
+/// Whether answers currently come from the AI server.
+final chatOnlineProvider = Provider<bool>((ref) {
+  return ref.watch(chatStatusProvider) == CoachConnection.online;
 });
 
 class ChatMessagesNotifier extends StateNotifier<List<ChatMessage>> {
@@ -42,6 +60,10 @@ class ChatMessagesNotifier extends StateNotifier<List<ChatMessage>> {
 
   final Ref _ref;
   final LocalStorageService _storage;
+
+  /// Bumped by [clear] and [dispose]; a reply that arrives for an older
+  /// conversation is dropped instead of being appended and saved.
+  int _generation = 0;
 
   static List<ChatMessage> _load(LocalStorageService storage) {
     try {
@@ -91,19 +113,43 @@ class ChatMessagesNotifier extends StateNotifier<List<ChatMessage>> {
   }
 
   Future<void> clear() async {
+    _generation++;
+    _setLoading(false);
     state = const [];
     await _persist();
   }
 
+  @override
+  void dispose() {
+    _generation++;
+    super.dispose();
+  }
+
   Future<void> _requestReply(String userMessage) async {
-    _ref.read(chatLoadingProvider.notifier).state = true;
+    final generation = _generation;
+    _setLoading(true);
     try {
       final service = _ref.read(aiChatServiceProvider);
-      final reply = await service.reply(
-        userMessage: userMessage,
-        history: _historyBefore(userMessage),
-        context: buildCoachContext(),
-        locale: _ref.read(resolvedLanguageCodeProvider),
+      final locale = _ref.read(resolvedLanguageCodeProvider);
+      // Nothing personal leaves the device without consent.
+      final reply = _ref.read(aiDataConsentProvider)
+          ? await service.reply(
+              userMessage: userMessage,
+              history: _historyBefore(userMessage),
+              context: buildCoachContext(),
+              locale: locale,
+            )
+          : AiChatReply(
+              content: service.fallbackResponse(userMessage, locale: locale),
+              isFallback: true,
+            );
+      if (!mounted || generation != _generation) return;
+      _setConnection(
+        !reply.isFallback
+            ? CoachConnection.online
+            : reply.quotaExceeded
+            ? CoachConnection.limited
+            : CoachConnection.offline,
       );
       _append(
         ChatMessage(
@@ -117,6 +163,8 @@ class ChatMessagesNotifier extends StateNotifier<List<ChatMessage>> {
         ),
       );
     } catch (_) {
+      if (!mounted || generation != _generation) return;
+      _setConnection(CoachConnection.error);
       _append(
         ChatMessage(
           id: 'error_${_uuid.v4()}',
@@ -127,8 +175,23 @@ class ChatMessagesNotifier extends StateNotifier<List<ChatMessage>> {
         ),
       );
     } finally {
-      _ref.read(chatLoadingProvider.notifier).state = false;
+      // A newer conversation (after clear) manages its own loading state.
+      if (generation == _generation) _setLoading(false);
     }
+  }
+
+  void _setLoading(bool value) {
+    try {
+      _ref.read(chatLoadingProvider.notifier).state = value;
+    } catch (_) {
+      // The provider scope is gone (app teardown).
+    }
+  }
+
+  void _setConnection(CoachConnection value) {
+    try {
+      _ref.read(coachConnectionProvider.notifier).state = value;
+    } catch (_) {}
   }
 
   /// Prior turns (excluding the message being answered and failed replies).
@@ -159,15 +222,17 @@ class ChatMessagesNotifier extends StateNotifier<List<ChatMessage>> {
     final macros = _ref.read(todayMacrosProvider);
     final health = _ref.read(dailyHealthProvider);
     final weight = _ref.read(currentWeightProvider);
-    final english = _ref.read(resolvedLanguageCodeProvider) == 'en';
+    final l10n = lookupAppLocalizations(
+      Locale(_ref.read(resolvedLanguageCodeProvider)),
+    );
 
     return {
       'todayCalories': _ref.read(todayCaloriesProvider),
       'calorieGoal': profile.dailyCalorieGoal,
       'currentWeight': weight,
       'targetWeight': profile.targetWeight,
-      'wellnessGoal': _goalLabel(profile.wellnessGoal, english: english),
-      if (!english) 'wellnessGoalDescription': profile.wellnessGoal.description,
+      'wellnessGoal': profile.wellnessGoal.labelOf(l10n),
+      'wellnessGoalDescription': profile.wellnessGoal.descriptionOf(l10n),
       'proteinGoal': MealStrategyBuilder.proteinGoal(
         profile.copyWith(currentWeight: weight),
       ).round(),
@@ -200,18 +265,5 @@ class ChatMessagesNotifier extends StateNotifier<List<ChatMessage>> {
     } catch (_) {
       // History is a convenience; the conversation still works in memory.
     }
-  }
-
-  String _goalLabel(WellnessGoal goal, {required bool english}) {
-    if (!english) return goal.label;
-    return switch (goal) {
-      WellnessGoal.balanced => 'Balanced care',
-      WellnessGoal.weightLoss => 'Weight loss',
-      WellnessGoal.skinHealth => 'Skin health',
-      WellnessGoal.digestion => 'Digestion',
-      WellnessGoal.energy => 'Energy',
-      WellnessGoal.muscle => 'Protein boost',
-      WellnessGoal.glucose => 'Glucose stability',
-    };
   }
 }

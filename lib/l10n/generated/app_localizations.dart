@@ -659,7 +659,7 @@ abstract class AppLocalizations {
   /// No description provided for @dashboardProxyRequired.
   ///
   /// In ko, this message translates to:
-  /// **'사진 인식은 식단스캔 API 프록시 연결 후 사용할 수 있습니다'**
+  /// **'지금은 사진 분석을 사용할 수 없어요. 음식을 검색하거나 직접 입력해 주세요'**
   String get dashboardProxyRequired;
 
   /// No description provided for @dashboardNoFoodFound.
@@ -2539,6 +2539,150 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'AI 서버에 연결되지 않아 기본 팁으로 답변해요. 맞춤 코칭은 연결 후 이용할 수 있어요.'**
   String get chatOfflineBanner;
+
+  /// No description provided for @chatStatusLimited.
+  ///
+  /// In ko, this message translates to:
+  /// **'요청 한도 도달'**
+  String get chatStatusLimited;
+
+  /// No description provided for @chatStatusError.
+  ///
+  /// In ko, this message translates to:
+  /// **'연결 불안정'**
+  String get chatStatusError;
+
+  /// No description provided for @chatLimitedBanner.
+  ///
+  /// In ko, this message translates to:
+  /// **'요청이 많아 잠시 기본 팁으로 답변해요. 잠시 후 다시 시도해 주세요.'**
+  String get chatLimitedBanner;
+
+  /// No description provided for @goalDatePassed.
+  ///
+  /// In ko, this message translates to:
+  /// **'목표일이 지났어요 · 새 날짜를 선택해 주세요'**
+  String get goalDatePassed;
+
+  /// No description provided for @aiConsentTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 기능 사용 동의'**
+  String get aiConsentTitle;
+
+  /// No description provided for @aiConsentIntro.
+  ///
+  /// In ko, this message translates to:
+  /// **'사진 분석, AI 음식 검색, AI 코치를 사용하면 아래 정보가 식단스캔 서버를 거쳐 AI 제공업체(OpenAI)로 전송돼요. 답변을 만드는 데에만 사용돼요.'**
+  String get aiConsentIntro;
+
+  /// No description provided for @aiConsentItemPhoto.
+  ///
+  /// In ko, this message translates to:
+  /// **'분석을 요청한 음식 사진 (위치 정보는 지우고 보내요)'**
+  String get aiConsentItemPhoto;
+
+  /// No description provided for @aiConsentItemMeals.
+  ///
+  /// In ko, this message translates to:
+  /// **'오늘의 식사 이름·시간·영양 정보와 목표, 체중'**
+  String get aiConsentItemMeals;
+
+  /// No description provided for @aiConsentItemChat.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 코치에게 보낸 메시지와 최근 대화'**
+  String get aiConsentItemChat;
+
+  /// No description provided for @aiConsentRevokeNote.
+  ///
+  /// In ko, this message translates to:
+  /// **'설정 > AI 데이터 사용에서 언제든 철회할 수 있어요. 동의하지 않아도 직접 입력·내장 음식 DB·기본 팁은 사용할 수 있어요.'**
+  String get aiConsentRevokeNote;
+
+  /// No description provided for @aiConsentAgree.
+  ///
+  /// In ko, this message translates to:
+  /// **'동의하고 계속'**
+  String get aiConsentAgree;
+
+  /// No description provided for @aiConsentDecline.
+  ///
+  /// In ko, this message translates to:
+  /// **'동의하지 않음'**
+  String get aiConsentDecline;
+
+  /// No description provided for @aiConsentRequired.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 사진 분석은 데이터 사용에 동의한 뒤 사용할 수 있어요. 음식을 검색하거나 직접 입력해 주세요'**
+  String get aiConsentRequired;
+
+  /// No description provided for @aiConsentSearchHint.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 음식 분석은 데이터 사용 동의 후 사용할 수 있어요'**
+  String get aiConsentSearchHint;
+
+  /// No description provided for @aiConsentSearchAction.
+  ///
+  /// In ko, this message translates to:
+  /// **'동의하기'**
+  String get aiConsentSearchAction;
+
+  /// No description provided for @settingsAiConsent.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 데이터 사용'**
+  String get settingsAiConsent;
+
+  /// No description provided for @settingsAiConsentOn.
+  ///
+  /// In ko, this message translates to:
+  /// **'동의함'**
+  String get settingsAiConsentOn;
+
+  /// No description provided for @settingsAiConsentOff.
+  ///
+  /// In ko, this message translates to:
+  /// **'동의 안 함'**
+  String get settingsAiConsentOff;
+
+  /// No description provided for @aiConsentRevokeTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 데이터 사용 동의를 철회할까요?'**
+  String get aiConsentRevokeTitle;
+
+  /// No description provided for @aiConsentRevokeMessage.
+  ///
+  /// In ko, this message translates to:
+  /// **'철회하면 사진 분석과 AI 음식 분석을 사용할 수 없고, AI 코치는 기본 팁으로 답변해요.'**
+  String get aiConsentRevokeMessage;
+
+  /// No description provided for @aiConsentRevokeAction.
+  ///
+  /// In ko, this message translates to:
+  /// **'철회'**
+  String get aiConsentRevokeAction;
+
+  /// No description provided for @settingsPrivacyPolicy.
+  ///
+  /// In ko, this message translates to:
+  /// **'개인정보 처리방침'**
+  String get settingsPrivacyPolicy;
+
+  /// No description provided for @chatStatusNeedsConsent.
+  ///
+  /// In ko, this message translates to:
+  /// **'동의 필요'**
+  String get chatStatusNeedsConsent;
+
+  /// No description provided for @aiConsentChatBanner.
+  ///
+  /// In ko, this message translates to:
+  /// **'데이터 사용에 동의하면 내 기록에 맞춘 AI 답변을 드려요. 지금은 기본 팁으로 답변해요.'**
+  String get aiConsentChatBanner;
 
   /// No description provided for @chatSend.
   ///

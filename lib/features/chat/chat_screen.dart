@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../data/models/chat_message.dart';
+import '../../data/services/ai_chat_service.dart';
 import '../../l10n/app_localizations_context.dart';
 import '../../providers/app_providers.dart';
+import '../../shared/widgets/ai_consent_sheet.dart';
 import 'widgets/chat_bubble.dart';
 import 'widgets/suggestion_chips.dart';
 import 'widgets/typing_indicator.dart';
@@ -37,8 +40,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     super.dispose();
   }
 
-  void _sendMessage(String text) {
+  Future<void> _sendMessage(String text) async {
     if (text.trim().isEmpty || ref.read(chatLoadingProvider)) return;
+    // Personal data goes to the AI provider only after explicit consent;
+    // without it the coach answers with the built-in tips.
+    if (ref.read(aiChatServiceProvider).isConfigured &&
+        !ref.read(aiDataConsentProvider)) {
+      await ensureAiConsent(context, ref);
+      if (!mounted) return;
+    }
     ref.read(chatMessagesProvider.notifier).send(text);
     _controller.clear();
     _scrollToBottom();
@@ -85,7 +95,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget build(BuildContext context) {
     final messages = ref.watch(chatMessagesProvider);
     final isLoading = ref.watch(chatLoadingProvider);
-    final online = ref.watch(chatOnlineProvider);
+    final status = ref.watch(chatStatusProvider);
     final l10n = context.l10n;
     final hasUserMessages = messages.any((m) => m.isUser);
     final welcome = ChatMessage(
@@ -119,9 +129,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           shape: BoxShape.circle,
                           color: isLoading
                               ? AppColors.secondary
-                              : online
-                              ? AppColors.success
-                              : context.colorTextTertiary,
+                              : switch (status) {
+                                  CoachConnection.online ||
+                                  CoachConnection.unknown => AppColors.success,
+                                  CoachConnection.limited ||
+                                  CoachConnection.error => AppColors.warning,
+                                  CoachConnection.offline ||
+                                  CoachConnection.needsConsent =>
+                                    context.colorTextTertiary,
+                                },
                         ),
                       ),
                       const SizedBox(width: 5),
@@ -129,9 +145,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         child: Text(
                           isLoading
                               ? l10n.chatTyping
-                              : online
-                              ? l10n.chatStatusOnline
-                              : l10n.chatStatusOffline,
+                              : switch (status) {
+                                  CoachConnection.online ||
+                                  CoachConnection.unknown =>
+                                    l10n.chatStatusOnline,
+                                  CoachConnection.limited =>
+                                    l10n.chatStatusLimited,
+                                  CoachConnection.error => l10n.chatStatusError,
+                                  CoachConnection.offline =>
+                                    l10n.chatStatusOffline,
+                                  CoachConnection.needsConsent =>
+                                    l10n.chatStatusNeedsConsent,
+                                },
                           overflow: TextOverflow.ellipsis,
                           style: AppTextStyles.micro.copyWith(
                             color: context.colorTextSecondary,
@@ -149,7 +174,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           IconButton(
             icon: const Icon(Icons.delete_outline_rounded),
             tooltip: l10n.chatClearTitle,
-            onPressed: messages.isEmpty
+            onPressed: messages.isEmpty || isLoading
                 ? null
                 : () => _showClearChatDialog(context),
           ),
@@ -157,7 +182,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
       body: Column(
         children: [
-          if (!online)
+          if (status == CoachConnection.offline ||
+              status == CoachConnection.limited ||
+              status == CoachConnection.needsConsent)
             Container(
               width: double.infinity,
               color: context.colorSurfaceVariant,
@@ -165,19 +192,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               child: Row(
                 children: [
                   Icon(
-                    Icons.cloud_off_rounded,
+                    status == CoachConnection.needsConsent
+                        ? Icons.privacy_tip_outlined
+                        : Icons.cloud_off_rounded,
                     size: 18,
                     color: context.colorTextSecondary,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      l10n.chatOfflineBanner,
+                      switch (status) {
+                        CoachConnection.limited => l10n.chatLimitedBanner,
+                        CoachConnection.needsConsent =>
+                          l10n.aiConsentChatBanner,
+                        _ => l10n.chatOfflineBanner,
+                      },
                       style: AppTextStyles.caption.copyWith(
                         color: context.colorTextPrimary,
                       ),
                     ),
                   ),
+                  if (status == CoachConnection.needsConsent)
+                    TextButton(
+                      onPressed: () => ensureAiConsent(context, ref),
+                      child: Text(l10n.aiConsentSearchAction),
+                    ),
                 ],
               ),
             ),
@@ -230,6 +269,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 focusNode: _focusNode,
                 minLines: 1,
                 maxLines: 4,
+                maxLength: AiChatService.maxMessageLength,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                // Show the counter only close to the limit.
+                buildCounter:
+                    (
+                      context, {
+                      required currentLength,
+                      required isFocused,
+                      maxLength,
+                    }) => maxLength != null && currentLength > maxLength - 100
+                    ? Text('$currentLength/$maxLength')
+                    : null,
                 textInputAction: TextInputAction.send,
                 onSubmitted: _sendMessage,
                 decoration: InputDecoration(

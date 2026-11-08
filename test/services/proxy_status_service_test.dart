@@ -173,6 +173,7 @@ class FakeApiService implements ApiService {
     Map<String, dynamic>? headers,
     CancelToken? cancelToken,
     int? maxRetries,
+    Duration? receiveTimeout,
   }) {
     throw UnimplementedError('POST is not used by ProxyStatusService tests');
   }

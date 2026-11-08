@@ -367,17 +367,11 @@ Future<void> _handleFoodImageRecognition(
 
   final content = extractOpenAiContent(response);
   if (content == null || content.isEmpty) {
-    await sendJson(request, {
-      'summary': '',
-      'confidence': 0.0,
-      'needsReview': true,
-      'warning': '음식을 안정적으로 인식하지 못했습니다.',
-      'items': const [],
-    });
+    await sendJson(request, emptyFoodRecognition(locale: locale));
     return;
   }
 
-  await sendJson(request, parseAiFoodRecognition(content));
+  await sendJson(request, parseAiFoodRecognition(content, locale: locale));
 }
 
 int _proxyStatusForUpstream(int upstreamStatusCode) {

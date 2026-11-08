@@ -391,7 +391,7 @@ class _MealRecordSheetState extends ConsumerState<MealRecordSheet> {
       );
       controller.closed.then((reason) {
         if (reason != SnackBarClosedReason.action) {
-          notifier.purgeOrphanImage(meal.imageUrl);
+          notifier.finalizeRemoval(meal);
         }
       });
     } catch (_) {

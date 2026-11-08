@@ -41,6 +41,14 @@ final _offline = [
   proxyClientConfigProvider.overrideWithValue(ProxyClientConfig()),
 ];
 
+/// The user agreed to AI data use (required before any AI request).
+final _consented = [
+  aiDataConsentProvider.overrideWith(
+    (ref) =>
+        SettingsBoolNotifier(LocalStorageService(), 'ai_data_consent', true),
+  ),
+];
+
 void main() {
   setUpAll(() async {
     Hive.init('/tmp/hive_review_test_${DateTime.now().microsecondsSinceEpoch}');
@@ -157,7 +165,10 @@ void main() {
         clock: () => clock,
       );
       await notifier.addMeal(_meal('a', DateTime(2026, 4, 1, 8)));
-      expect(notifier.state.single.updatedAt, clock);
+      final stamped = notifier.state.single.updatedAt!;
+      // Stored in UTC so a time zone change does not reorder edits.
+      expect(stamped.isUtc, isTrue);
+      expect(stamped.isAtSameMomentAs(clock), isTrue);
     });
   });
 
@@ -317,6 +328,7 @@ void main() {
         final container = ProviderContainer(
           overrides: [
             foodImageRecognitionServiceProvider.overrideWithValue(fake),
+            ..._consented,
           ],
         );
         addTearDown(container.dispose);
@@ -339,6 +351,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           foodImageRecognitionServiceProvider.overrideWithValue(fake),
+          ..._consented,
         ],
       );
       addTearDown(container.dispose);
@@ -405,7 +418,10 @@ void main() {
     test('sends prior turns as history and supports retry', () async {
       final service = _ScriptedChatService();
       final container = ProviderContainer(
-        overrides: [aiChatServiceProvider.overrideWithValue(service)],
+        overrides: [
+          aiChatServiceProvider.overrideWithValue(service),
+          ..._consented,
+        ],
       );
       addTearDown(container.dispose);
       final chat = container.read(chatMessagesProvider.notifier);

@@ -51,6 +51,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // A session restored before this screen was built (e.g. the app was
+    // restarted by the OS during the OAuth round trip) is merged once too.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final user = ref.read(supabaseUserProvider).valueOrNull;
+      if (user != null && user.id != _lastMergedOAuthUserId) {
+        _lastMergedOAuthUserId = user.id;
+        unawaited(_completeOAuthSignIn());
+      }
+    });
   }
 
   @override
@@ -84,14 +94,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
 
   @override
   Widget build(BuildContext context) {
+    // React to the sign-in itself, not to the button state: the 5 s resume
+    // timer only re-enables the buttons, and a slow code exchange can still
+    // deliver the session afterwards.
     ref.listen(supabaseUserProvider, (previous, next) {
       final user = next.valueOrNull;
-      if (!_oauthInProgress ||
-          user == null ||
-          user.id == _lastMergedOAuthUserId) {
+      if (user == null ||
+          user.id == _lastMergedOAuthUserId ||
+          previous?.valueOrNull?.id == user.id) {
         return;
       }
 
+      _oauthResumeTimer?.cancel();
       _oauthInProgress = false;
       _lastMergedOAuthUserId = user.id;
       unawaited(_completeOAuthSignIn());
@@ -141,12 +155,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
             width: 76,
             height: 76,
             decoration: BoxDecoration(
-              color: AppColors.primarySurface,
+              color: context.colorPrimarySurface,
               borderRadius: BorderRadius.circular(24),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.camera_alt_rounded,
-              color: AppColors.primaryStrong,
+              color: context.colorPrimaryText,
               size: 38,
             ),
           ),
@@ -406,7 +420,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                   locale,
                 ),
               ),
-              color: AppColors.accentStrong,
+              color: context.colorAccentText,
               trailing: _Stepper(
                 decreaseLabel: context.l10n.onboardingDecreaseTarget,
                 increaseLabel: context.l10n.onboardingIncreaseTarget,
@@ -431,7 +445,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                 ? '$waterGoal ml'
                 : context.l10n.onboardingNeedsCalculation,
             description: context.l10n.onboardingWaterBasisDescription,
-            color: AppColors.infoText,
+            color: context.colorInfoText,
           ),
           const SizedBox(height: 12),
           _ReviewMetricCard(
@@ -440,7 +454,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
             title: context.l10n.profileWellnessGoal,
             value: _goal.labelOf(context.l10n),
             description: _goal.descriptionOf(context.l10n),
-            color: AppColors.primaryStrong,
+            color: context.colorPrimaryText,
           ),
           const SizedBox(height: 18),
           Container(
@@ -760,7 +774,7 @@ class _OnboardingTopBar extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: active
-                          ? AppColors.primaryStrong
+                          ? context.colorPrimaryText
                           : context.colorBorder,
                       borderRadius: BorderRadius.circular(999),
                     ),
@@ -845,7 +859,7 @@ class _BenefitRow extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: context.colorBorder),
           ),
-          child: Icon(icon, color: AppColors.primaryStrong, size: 22),
+          child: Icon(icon, color: context.colorPrimaryText, size: 22),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -895,8 +909,18 @@ class _SelectableTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    // One focus stop that reads title + description and the selected state.
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: MergeSemantics(child: _buildTile(context)),
+    );
+  }
+
+  Widget _buildTile(BuildContext context) {
+    return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.all(16),
@@ -904,7 +928,7 @@ class _SelectableTile extends StatelessWidget {
           color: selected ? context.colorPrimarySurface : context.colorSurface,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: selected ? AppColors.primaryStrong : context.colorBorder,
+            color: selected ? context.colorPrimaryText : context.colorBorder,
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -923,7 +947,7 @@ class _SelectableTile extends StatelessWidget {
               child: AppSvgIcon(
                 iconAsset,
                 size: 22,
-                color: selected ? Colors.white : AppColors.primaryStrong,
+                color: selected ? Colors.white : context.colorPrimaryText,
               ),
             ),
             const SizedBox(width: 14),
@@ -952,11 +976,13 @@ class _SelectableTile extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 10),
-            Icon(
-              selected ? Icons.check_circle_rounded : Icons.circle_outlined,
-              color: selected
-                  ? AppColors.primaryStrong
-                  : context.colorTextTertiary,
+            ExcludeSemantics(
+              child: Icon(
+                selected ? Icons.check_circle_rounded : Icons.circle_outlined,
+                color: selected
+                    ? context.colorPrimaryText
+                    : context.colorTextTertiary,
+              ),
             ),
           ],
         ),

@@ -10,6 +10,7 @@ class LocalStorageService {
 
   static const String _chatHistoryKey = 'chat_history';
   static const String _pendingMealSyncKey = 'pending_meal_sync';
+  static const String _localDataOwnerKey = 'local_data_owner';
 
   LocalStorageService();
 
@@ -132,6 +133,44 @@ class LocalStorageService {
     await _writableBox(
       _settingsBox,
     ).put(_pendingMealSyncKey, jsonEncode(operations));
+  }
+
+  /// Id of the account whose data is on this device, or `null` for data
+  /// that was never tied to an account. Kept on sign-out so signing in to a
+  /// different account does not upload someone else's records into it.
+  String? getLocalDataOwner() {
+    try {
+      return getSetting<String>(_localDataOwnerKey);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> setLocalDataOwner(String? userId) async {
+    if (userId == null) {
+      await removeSetting(_localDataOwnerKey);
+    } else {
+      await saveSetting(_localDataOwnerKey, userId);
+    }
+  }
+
+  /// Clears the signed-in person's records (profile, weights, meals, water,
+  /// coach conversation, sync queue) but keeps device preferences such as
+  /// theme and language. Used when another account signs in on this device.
+  Future<void> clearUserData() async {
+    await Future.wait([
+      for (final name in const [
+        _userProfileBox,
+        _weightRecordsBox,
+        _mealRecordsBox,
+        _dailyHealthBox,
+      ])
+        if (_readableBox(name) != null) _readableBox(name)!.clear(),
+    ]);
+    final settings = _readableBox(_settingsBox);
+    if (settings != null) {
+      await settings.deleteAll(const [_chatHistoryKey, _pendingMealSyncKey]);
+    }
   }
 
   Future<void> clearAll() async {

@@ -274,6 +274,16 @@ EMPTY=
       expect(parseAiFoodItems('not json'), isEmpty);
     });
 
+    test('empty recognition warns in the request language', () {
+      final english = parseAiFoodRecognition('not json', locale: 'en');
+      expect(english['items'], isEmpty);
+      expect(english['warning'], contains("couldn't"));
+      expect(
+        emptyFoodRecognition()['warning'],
+        contains('음식을 안정적으로 인식하지 못했습니다'),
+      );
+    });
+
     test('normalizes AI food image recognition payloads', () {
       final result = parseAiFoodRecognition('''
 ```json

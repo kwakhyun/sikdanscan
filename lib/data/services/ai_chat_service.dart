@@ -56,6 +56,14 @@ class AiChatService {
 
   bool get isConfigured => _proxyConfig.isConfigured;
 
+  /// Longest message sent to the coach; keeps the request well under the
+  /// proxy's body limit together with the trimmed history.
+  static const maxMessageLength = 1000;
+
+  /// Longer than the proxy's upstream timeout, so a slow model answer ends
+  /// with the proxy's own timeout response instead of a client timeout.
+  static const chatReceiveTimeout = Duration(seconds: 60);
+
   /// Returns the coach reply. Throws when the server is configured but the
   /// request fails for a reason other than quota, so the UI can offer retry.
   Future<AiChatReply> reply({
@@ -71,12 +79,19 @@ class AiChatService {
       );
     }
 
+    final message = userMessage.length > maxMessageLength
+        ? userMessage.substring(0, maxMessageLength)
+        : userMessage;
     try {
       final response = await _apiService.post(
         _proxyConfig.baseUrl,
         ApiConstants.proxyChatEndpoint,
+        // One retry: every attempt re-sends the history to the model (and is
+        // billed), and the error bubble already offers a manual retry.
+        maxRetries: 1,
+        receiveTimeout: chatReceiveTimeout,
         data: {
-          'message': userMessage,
+          'message': message,
           'locale': _normalizeLocale(locale),
           'history': trimHistory(history).map((turn) => turn.toJson()).toList(),
           if (context != null) 'context': context,
@@ -111,16 +126,19 @@ class AiChatService {
     }
   }
 
+  /// Only a server that cannot be reached counts as offline. A send or
+  /// receive timeout means the request got through and the answer is slow,
+  /// which is shown as a retryable error instead.
   static bool _isConnectivityError(Object error) {
     if (error is! DioException) return false;
-    final apiError = error.error;
-    if (apiError is ApiError) {
-      return apiError.code == 'NO_CONNECTION' || apiError.code == 'TIMEOUT';
+    if (error.type == DioExceptionType.connectionError ||
+        error.type == DioExceptionType.connectionTimeout) {
+      return true;
     }
-    return error.type == DioExceptionType.connectionError ||
-        error.type == DioExceptionType.connectionTimeout ||
-        error.type == DioExceptionType.receiveTimeout ||
-        error.type == DioExceptionType.sendTimeout;
+    final apiError = error.error;
+    return error.type == DioExceptionType.unknown &&
+        apiError is ApiError &&
+        apiError.code == 'NO_CONNECTION';
   }
 
   /// Backwards-compatible single-string API.

@@ -12,6 +12,7 @@ import '../../../core/utils/formatters.dart';
 import '../../../data/services/meal_image_store.dart';
 import '../../../l10n/app_localizations_context.dart';
 import '../../../providers/app_providers.dart';
+import '../../../shared/widgets/ai_consent_sheet.dart';
 import '../../../shared/widgets/sheet_handle.dart';
 import 'photo_picker.dart';
 
@@ -39,6 +40,7 @@ Future<void> showMealEntrySheet(
       unawaited(context.push(AppRoutes.addMealLocation(date: date)));
     case _EntryChoice.camera:
     case _EntryChoice.gallery:
+      if (!await ensureAiConsent(context, ref) || !context.mounted) return;
       final picked = await PhotoPicker.pick(
         context,
         choice == _EntryChoice.camera

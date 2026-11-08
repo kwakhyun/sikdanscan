@@ -17,52 +17,24 @@ import '../../shared/widgets/app_card.dart';
 /// Confirms what will be saved: shows the photo analysis progress, then
 /// editable food rows (name, nutrition, portion), meal type and time.
 /// Nothing is written to the log until the user taps save.
-class MealReviewScreen extends ConsumerWidget {
+class MealReviewScreen extends ConsumerStatefulWidget {
   const MealReviewScreen({super.key});
 
   static const portionOptions = [0.5, 1.0, 1.5, 2.0];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(mealCaptureProvider);
-    final l10n = context.l10n;
+  ConsumerState<MealReviewScreen> createState() => _MealReviewScreenState();
 
-    final title = switch (state.status) {
-      MealCaptureStatus.analyzing => l10n.reviewAnalyzingTitle,
-      MealCaptureStatus.failed => l10n.reviewFailedTitle,
-      _ => l10n.reviewTitle,
-    };
-
-    return PopScope(
-      canPop: !state.hasUnsavedWork,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-        _confirmLeave(context, ref);
-      },
-      child: Scaffold(
-        backgroundColor: context.colorBackground,
-        appBar: AppBar(
-          title: Text(title),
-          leading: IconButton(
-            tooltip: l10n.commonClose,
-            icon: const Icon(Icons.close_rounded),
-            onPressed: () => _confirmLeave(context, ref),
-          ),
-        ),
-        body: switch (state.status) {
-          MealCaptureStatus.analyzing => _AnalyzingView(state: state),
-          MealCaptureStatus.failed => _FailedView(state: state),
-          _ => _ReviewView(state: state),
-        },
-        bottomNavigationBar: state.status == MealCaptureStatus.review
-            ? _SaveBar(state: state)
-            : null,
-      ),
-    );
-  }
-
+  /// Asks before discarding unsaved work, then leaves the review.
+  ///
+  /// The router and controller are captured up front because the widget
+  /// that asked (e.g. the analyzing view) can be replaced while the dialog
+  /// is open, when the analysis finishes.
   static Future<void> _confirmLeave(BuildContext context, WidgetRef ref) async {
+    final controller = ref.read(mealCaptureProvider.notifier);
+    final router = GoRouter.of(context);
     final state = ref.read(mealCaptureProvider);
+    if (state.saving) return;
     if (state.hasUnsavedWork) {
       final l10n = context.l10n;
       final leave = await showDialog<bool>(
@@ -85,14 +57,79 @@ class MealReviewScreen extends ConsumerWidget {
           ],
         ),
       );
-      if (leave != true || !context.mounted) return;
+      if (leave != true || !controller.mounted) return;
     }
-    ref.read(mealCaptureProvider.notifier).reset();
-    if (context.canPop()) {
-      context.pop();
+    controller.reset();
+    if (router.canPop()) {
+      router.pop();
     } else {
-      context.go(AppRoutes.dashboard);
+      router.go(AppRoutes.dashboard);
     }
+  }
+}
+
+class _MealReviewScreenState extends ConsumerState<MealReviewScreen> {
+  late final MealCaptureController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = ref.read(mealCaptureProvider.notifier);
+  }
+
+  @override
+  void dispose() {
+    // Leaving by any route (system back from an error, a deep link) ends the
+    // flow and deletes a photo no saved record uses. Saved or confirmed
+    // exits already reset, so this is a no-op for them.
+    final controller = _controller;
+    Future.microtask(() {
+      if (controller.mounted) controller.reset();
+    });
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(mealCaptureProvider);
+    final l10n = context.l10n;
+
+    final title = switch (state.status) {
+      MealCaptureStatus.analyzing => l10n.reviewAnalyzingTitle,
+      MealCaptureStatus.failed => l10n.reviewFailedTitle,
+      _ => l10n.reviewTitle,
+    };
+    void leave() => MealReviewScreen._confirmLeave(context, ref);
+
+    return PopScope(
+      canPop: !state.hasUnsavedWork && !state.saving,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop || ref.read(mealCaptureProvider).saving) return;
+        leave();
+      },
+      child: Scaffold(
+        backgroundColor: context.colorBackground,
+        appBar: AppBar(
+          title: Text(title),
+          leading: IconButton(
+            tooltip: l10n.commonClose,
+            icon: const Icon(Icons.close_rounded),
+            onPressed: state.saving ? null : leave,
+          ),
+        ),
+        body: switch (state.status) {
+          MealCaptureStatus.analyzing => _AnalyzingView(
+            state: state,
+            onCancel: leave,
+          ),
+          MealCaptureStatus.failed => _FailedView(state: state),
+          _ => _ReviewView(state: state),
+        },
+        bottomNavigationBar: state.status == MealCaptureStatus.review
+            ? _SaveBar(state: state)
+            : null,
+      ),
+    );
   }
 }
 
@@ -124,9 +161,10 @@ class _PhotoPreview extends StatelessWidget {
 }
 
 class _AnalyzingView extends ConsumerWidget {
-  const _AnalyzingView({required this.state});
+  const _AnalyzingView({required this.state, required this.onCancel});
 
   final MealCaptureState state;
+  final VoidCallback onCancel;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -165,10 +203,7 @@ class _AnalyzingView extends ConsumerWidget {
           label: Text(l10n.reviewSwitchToManual),
         ),
         const SizedBox(height: 8),
-        TextButton(
-          onPressed: () => MealReviewScreen._confirmLeave(context, ref),
-          child: Text(l10n.reviewCancelAnalysis),
-        ),
+        TextButton(onPressed: onCancel, child: Text(l10n.reviewCancelAnalysis)),
       ],
     );
   }
@@ -185,6 +220,7 @@ class _FailedView extends ConsumerWidget {
     final controller = ref.read(mealCaptureProvider.notifier);
     final message = switch (state.error) {
       MealCaptureError.proxyRequired => l10n.dashboardProxyRequired,
+      MealCaptureError.consentRequired => l10n.aiConsentRequired,
       MealCaptureError.noFoodFound =>
         state.errorMessage?.isNotEmpty == true
             ? state.errorMessage!
@@ -196,7 +232,8 @@ class _FailedView extends ConsumerWidget {
     };
     final canRetry =
         state.imagePath != null &&
-        state.error != MealCaptureError.proxyRequired;
+        state.error != MealCaptureError.proxyRequired &&
+        state.error != MealCaptureError.consentRequired;
 
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -768,10 +805,14 @@ class DateTimeRow extends StatelessWidget {
 
   Future<void> _pickDate(BuildContext context) async {
     final now = DateTime.now();
+    final initial = value.isAfter(now) ? now : value;
+    // Meals older than the default range (e.g. opened from an old report
+    // period) must still open the picker.
+    final defaultFirst = DateTime(now.year - 2, now.month, now.day);
     final picked = await showDatePicker(
       context: context,
-      initialDate: value.isAfter(now) ? now : value,
-      firstDate: now.subtract(const Duration(days: 365 * 2)),
+      initialDate: initial,
+      firstDate: initial.isBefore(defaultFirst) ? initial : defaultFirst,
       lastDate: now,
     );
     if (picked == null) return;

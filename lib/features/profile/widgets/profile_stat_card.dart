@@ -43,13 +43,18 @@ class ProfileStatCard extends StatelessWidget {
                   ),
                   child: Icon(icon, color: color, size: 18),
                 ),
-                const Spacer(),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: context.colorTextSecondary,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title,
+                    textAlign: TextAlign.end,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: context.colorTextSecondary,
+                    ),
                   ),
                 ),
               ],

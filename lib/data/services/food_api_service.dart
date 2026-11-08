@@ -27,16 +27,19 @@ class FoodApiService {
 
   bool get isProxyConfigured => _proxyConfig.isConfigured;
 
+  /// [allowAi] is false until the user consents to AI data use; the
+  /// built-in list and the public food database are used either way.
   Future<List<FoodItem>> searchFood(
     String query, {
     String locale = 'ko',
+    bool allowAi = true,
   }) async {
     final trimmed = query.trim();
     if (trimmed.isEmpty) {
-      return _searchLocal('');
+      return _searchLocal('', locale: locale);
     }
 
-    final localResults = _searchLocal(trimmed);
+    final localResults = _searchLocal(trimmed, locale: locale);
 
     List<FoodItem> publicResults = [];
     if (isProxyConfigured) {
@@ -45,7 +48,7 @@ class FoodApiService {
 
     final combinedResults = _mergeResults(localResults, publicResults);
 
-    if (combinedResults.length >= 3) {
+    if (combinedResults.length >= 3 || !allowAi) {
       return combinedResults;
     }
 
@@ -172,21 +175,25 @@ class FoodApiService {
     return merged;
   }
 
-  List<FoodItem> _searchLocal(String query) {
-    final results = query.isEmpty
+  /// Built-in foods, matched on the Korean and English names and shown in
+  /// the user's language, so offline search works for both.
+  List<FoodItem> _searchLocal(String query, {String locale = 'ko'}) {
+    final needle = query.toLowerCase();
+    final english = _normalizeLocale(locale) == 'en';
+    final results = needle.isEmpty
         ? DummyData.foodDatabase
-        : DummyData.foodDatabase
-              .where(
-                (f) => (f['name'] as String).toLowerCase().contains(
-                  query.toLowerCase(),
-                ),
-              )
-              .toList();
+        : DummyData.foodDatabase.where((f) {
+            final name = (f['name'] as String).toLowerCase();
+            final nameEn = (f['nameEn'] as String? ?? '').toLowerCase();
+            return name.contains(needle) || nameEn.contains(needle);
+          }).toList();
 
     return results
         .map(
           (f) => FoodItem(
-            name: f['name'] as String,
+            name: english
+                ? (f['nameEn'] as String? ?? f['name'] as String)
+                : f['name'] as String,
             calories: f['calories'] as int,
             carbs: (f['carbs'] as num).toDouble(),
             protein: (f['protein'] as num).toDouble(),

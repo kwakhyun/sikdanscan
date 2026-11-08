@@ -36,7 +36,9 @@ class ProfileScreen extends ConsumerWidget {
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
-            expandedHeight: 70,
+            // Grows with the text size so the name and body line never clip.
+            expandedHeight: (70 * MediaQuery.textScalerOf(context).scale(1))
+                .clamp(70.0, 130.0),
             pinned: true,
             backgroundColor: AppColors.primaryStrong,
             toolbarHeight: 0,

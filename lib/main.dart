@@ -12,6 +12,7 @@ import 'data/services/meal_image_store.dart';
 import 'data/services/supabase_bootstrap.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'providers/app_providers.dart';
+import 'shared/widgets/meal_thumbnail.dart';
 
 Future<void> main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -84,6 +85,18 @@ class _SikdanScanAppState extends ConsumerState<SikdanScanApp> {
   void initState() {
     super.initState();
     _lifecycleListener = AppLifecycleListener(onResume: _onResume);
+    _recordSignedInOwner();
+  }
+
+  /// Installs from before data ownership was tracked: data on a device that
+  /// is already signed in belongs to that account.
+  void _recordSignedInOwner() {
+    final backend = ref.read(supabaseBackendServiceProvider);
+    final user = backend.isConfigured ? backend.currentUser : null;
+    final storage = ref.read(localStorageServiceProvider);
+    if (user != null && storage.getLocalDataOwner() == null) {
+      storage.setLocalDataOwner(user.id).catchError((Object _) {});
+    }
   }
 
   /// Picks up a new calendar day and retries meal uploads that failed while
@@ -91,6 +104,8 @@ class _SikdanScanAppState extends ConsumerState<SikdanScanApp> {
   void _onResume() {
     ref.read(todayDateProvider.notifier).refresh();
     ref.read(mealRecordsProvider.notifier).flushPendingSync();
+    // Signed photo URLs may have expired while the app was in background.
+    ref.invalidate(signedMealImageUrlProvider);
   }
 
   @override

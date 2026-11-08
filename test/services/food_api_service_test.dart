@@ -633,6 +633,7 @@ class FakeApiService implements ApiService {
     Map<String, dynamic>? headers,
     CancelToken? cancelToken,
     int? maxRetries,
+    Duration? receiveTimeout,
   }) async {
     postCount += 1;
     lastPostBaseUrl = baseUrl;

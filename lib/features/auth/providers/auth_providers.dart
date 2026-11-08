@@ -1,8 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../data/services/meal_image_store.dart';
 import '../../../data/services/supabase_backend_service.dart';
 import '../../../providers/service_providers.dart';
+import '../../chat/providers/chat_providers.dart';
+import '../../dashboard/providers/daily_health_providers.dart';
+import '../../meal/providers/meal_capture_providers.dart';
 import '../../meal/providers/meal_providers.dart';
 import '../../profile/providers/profile_providers.dart';
 
@@ -52,7 +56,7 @@ class SupabaseAuthController extends StateNotifier<AsyncValue<void>> {
         password: password,
         displayName: displayName,
       );
-      await _syncBothWays();
+      await _mergeAfterSignIn();
     });
   }
 
@@ -77,9 +81,22 @@ class SupabaseAuthController extends StateNotifier<AsyncValue<void>> {
 
   Future<void> signOut() async {
     await _run(() async {
-      await _service.signOut();
-      // Retry operations belong to the signed-out account.
-      await _ref.read(mealRecordsProvider.notifier).clearPendingSync();
+      final meals = _ref.read(mealRecordsProvider.notifier);
+      // Give queued changes a short chance to reach the account first.
+      await meals.flushPendingSync().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {},
+      );
+      try {
+        await _service.signOut();
+      } catch (_) {
+        // Offline sign-out still ends the local session; only report a
+        // failure while the user is actually still signed in.
+        if (_service.currentUser != null) rethrow;
+      } finally {
+        // Retry operations belong to the signed-out account.
+        await meals.clearPendingSync();
+      }
     });
   }
 
@@ -92,37 +109,45 @@ class SupabaseAuthController extends StateNotifier<AsyncValue<void>> {
     });
   }
 
-  /// Manual "sync now": retries failed uploads, then merges both ways.
+  /// Manual "sync now": retries failed uploads, then merges both ways. The
+  /// device's profile is the one being edited, so it is uploaded.
   Future<void> syncLocalToRemote() async {
-    await _run(_syncBothWays);
+    await _run(() => _syncWithAccount(preferRemoteProfile: false));
   }
 
-  Future<void> _syncBothWays() async {
+  Future<void> _mergeAfterSignIn() =>
+      _syncWithAccount(preferRemoteProfile: true);
+
+  /// Brings the device and the signed-in account together.
+  ///
+  /// Data that was never tied to an account (or belongs to this account) is
+  /// merged by record id and uploaded. Data that belongs to a *different*
+  /// account is not uploaded: it is replaced by this account's data, so one
+  /// person's meals never end up in someone else's account.
+  Future<void> _syncWithAccount({required bool preferRemoteProfile}) async {
     final service = _service;
-    if (!service.isConfigured || service.currentUser == null) return;
+    final user = service.currentUser;
+    if (!service.isConfigured || user == null) return;
 
-    final profile = _ref.read(userProfileProvider);
-    if (profile.onboardingCompleted) {
-      await service.upsertProfile(profile);
+    final storage = _ref.read(localStorageServiceProvider);
+    final owner = storage.getLocalDataOwner();
+    if (owner != null && owner != user.id) {
+      await _replaceLocalDataWithAccount();
+    } else {
+      final localProfile = _ref.read(userProfileProvider);
+      final remoteProfile = preferRemoteProfile
+          ? await service.fetchProfile()
+          : null;
+      if (remoteProfile != null && remoteProfile.onboardingCompleted) {
+        await _ref
+            .read(userProfileProvider.notifier)
+            .updateProfile(remoteProfile);
+      } else if (localProfile.onboardingCompleted) {
+        await service.upsertProfile(localProfile);
+      }
+      await _mergeMeals();
     }
-    await _mergeMeals();
-  }
-
-  Future<void> _mergeAfterSignIn() async {
-    final service = _service;
-    if (!service.isConfigured || service.currentUser == null) return;
-
-    final remoteProfile = await service.fetchProfile();
-    final localProfile = _ref.read(userProfileProvider);
-    if (remoteProfile != null && remoteProfile.onboardingCompleted) {
-      await _ref
-          .read(userProfileProvider.notifier)
-          .updateProfile(remoteProfile);
-    } else if (localProfile.onboardingCompleted) {
-      await service.upsertProfile(localProfile);
-    }
-
-    await _mergeMeals();
+    await storage.setLocalDataOwner(user.id);
   }
 
   /// Merges by record id so meals logged before signing in are kept and
@@ -132,8 +157,32 @@ class SupabaseAuthController extends StateNotifier<AsyncValue<void>> {
     await meals.flushPendingSync();
     final remoteMeals = await _service.fetchMealRecords();
     final result = await meals.mergeWithRemote(remoteMeals);
-    for (final meal in result.toUpload) {
-      await meals.syncRecord(meal);
+    await meals.uploadRecords(result.toUpload);
+  }
+
+  Future<void> _replaceLocalDataWithAccount() async {
+    final service = _service;
+    final remoteProfile = await service.fetchProfile();
+    final remoteMeals = await service.fetchMealRecords();
+
+    await _ref.read(mealRecordsProvider.notifier).clearPendingSync();
+    await _ref.read(localStorageServiceProvider).clearUserData();
+    await MealImageStore.clearAll();
+    _ref
+      ..invalidate(mealCaptureProvider)
+      ..invalidate(mealRecordsProvider)
+      ..invalidate(weightRecordsProvider)
+      ..invalidate(dailyHealthProvider)
+      ..invalidate(chatMessagesProvider)
+      ..invalidate(userProfileProvider);
+
+    if (remoteMeals.isNotEmpty) {
+      await _ref.read(mealRecordsProvider.notifier).replaceAll(remoteMeals);
+    }
+    if (remoteProfile != null && remoteProfile.onboardingCompleted) {
+      await _ref
+          .read(userProfileProvider.notifier)
+          .updateProfile(remoteProfile);
     }
   }
 

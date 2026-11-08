@@ -107,7 +107,13 @@ class MealDraft {
 
 enum MealCaptureStatus { idle, analyzing, review, failed }
 
-enum MealCaptureError { none, proxyRequired, noFoodFound, recognitionFailed }
+enum MealCaptureError {
+  none,
+  proxyRequired,
+  consentRequired,
+  noFoodFound,
+  recognitionFailed,
+}
 
 class MealCaptureState {
   const MealCaptureState({
@@ -120,6 +126,7 @@ class MealCaptureState {
     this.needsReview = false,
     this.error = MealCaptureError.none,
     this.errorMessage,
+    this.saving = false,
     required this.mealType,
     required this.dateTime,
   });
@@ -145,11 +152,16 @@ class MealCaptureState {
   final MealType mealType;
   final DateTime dateTime;
 
+  /// True while [MealCaptureController.save] runs; leaving is ignored then.
+  final bool saving;
+
   List<MealDraft> get selectedDrafts =>
       drafts.where((draft) => draft.selected && draft.isValid).toList();
 
   bool get canSave =>
-      status == MealCaptureStatus.review && selectedDrafts.isNotEmpty;
+      status == MealCaptureStatus.review &&
+      !saving &&
+      selectedDrafts.isNotEmpty;
 
   int get selectedCalories =>
       selectedDrafts.fold(0, (sum, draft) => sum + draft.scaledCalories);
@@ -171,6 +183,7 @@ class MealCaptureState {
     bool clearError = false,
     MealType? mealType,
     DateTime? dateTime,
+    bool? saving,
   }) {
     return MealCaptureState(
       status: status ?? this.status,
@@ -184,6 +197,7 @@ class MealCaptureState {
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       mealType: mealType ?? this.mealType,
       dateTime: dateTime ?? this.dateTime,
+      saving: saving ?? this.saving,
     );
   }
 }
@@ -286,6 +300,13 @@ class MealCaptureController extends StateNotifier<MealCaptureState> {
       );
       return;
     }
+    if (!_ref.read(aiDataConsentProvider)) {
+      state = state.copyWith(
+        status: MealCaptureStatus.failed,
+        error: MealCaptureError.consentRequired,
+      );
+      return;
+    }
 
     try {
       final absolute =
@@ -376,18 +397,20 @@ class MealCaptureController extends StateNotifier<MealCaptureState> {
   }
 
   /// Saves the selected drafts as meal records and resets the flow.
+  ///
+  /// Every record is built from one snapshot of the review (time, meal type,
+  /// photo) and written locally in a single step; uploading happens in the
+  /// background, so this returns almost immediately.
   Future<int> save() async {
     if (!state.canSave) return 0;
-    final drafts = state.selectedDrafts;
-    final notifier = _ref.read(mealRecordsProvider.notifier);
-    final imagePath = state.imagePath;
-
-    for (final draft in drafts) {
-      await notifier.addMeal(
+    final snapshot = state;
+    final drafts = snapshot.selectedDrafts;
+    final records = [
+      for (final draft in drafts)
         MealRecord(
           id: _uuid.v4(),
-          date: state.dateTime,
-          mealType: state.mealType,
+          date: snapshot.dateTime,
+          mealType: snapshot.mealType,
           name: draft.name.trim(),
           calories: draft.scaledCalories,
           carbs: draft.scaledCarbs,
@@ -395,16 +418,22 @@ class MealCaptureController extends StateNotifier<MealCaptureState> {
           fat: draft.scaledFat,
           portion: draft.portion,
           servingSize: draft.servingSize,
-          imageUrl: imagePath,
+          imageUrl: snapshot.imagePath,
           isAiRecognized: draft.source == FoodSource.imageRecognition,
           recognitionConfidence: draft.source == FoodSource.imageRecognition
               ? draft.confidence
               : null,
         ),
-      );
-    }
+    ];
 
-    reset(deleteUnusedImage: false);
+    state = snapshot.copyWith(saving: true);
+    try {
+      await _ref.read(mealRecordsProvider.notifier).addMeals(records);
+    } catch (_) {
+      if (mounted) state = state.copyWith(saving: false);
+      rethrow;
+    }
+    if (mounted) reset(deleteUnusedImage: false);
     return drafts.length;
   }
 

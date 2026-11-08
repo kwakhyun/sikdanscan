@@ -43,6 +43,16 @@ class AppFormat {
     return DateFormat.yMMMM(locale).format(date);
   }
 
+  /// e.g. `2026년 11월 7일 (토)` / `Sat, Nov 7, 2026`.
+  static String mediumDateWithYear(DateTime date, String locale) {
+    return DateFormat.yMMMEd(locale).format(date);
+  }
+
+  /// Numeric date with year, e.g. `2026. 11. 7.` / `11/7/2026`.
+  static String numericDateWithYear(DateTime date, String locale) {
+    return DateFormat.yMd(locale).format(date);
+  }
+
   /// Compact numeric date, e.g. `11/7`.
   static String shortDate(DateTime date) => DateFormat('M/d').format(date);
 

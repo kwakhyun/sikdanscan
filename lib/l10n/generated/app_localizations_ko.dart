@@ -292,7 +292,8 @@ class AppLocalizationsKo extends AppLocalizations {
   String get profileUpdated => '프로필이 업데이트되었습니다';
 
   @override
-  String get dashboardProxyRequired => '사진 인식은 식단스캔 API 프록시 연결 후 사용할 수 있습니다';
+  String get dashboardProxyRequired =>
+      '지금은 사진 분석을 사용할 수 없어요. 음식을 검색하거나 직접 입력해 주세요';
 
   @override
   String get dashboardNoFoodFound => '사진에서 음식을 찾을 수 없습니다. 다시 촬영하거나 직접 검색해 주세요';
@@ -1322,6 +1323,83 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String get chatOfflineBanner =>
       'AI 서버에 연결되지 않아 기본 팁으로 답변해요. 맞춤 코칭은 연결 후 이용할 수 있어요.';
+
+  @override
+  String get chatStatusLimited => '요청 한도 도달';
+
+  @override
+  String get chatStatusError => '연결 불안정';
+
+  @override
+  String get chatLimitedBanner => '요청이 많아 잠시 기본 팁으로 답변해요. 잠시 후 다시 시도해 주세요.';
+
+  @override
+  String get goalDatePassed => '목표일이 지났어요 · 새 날짜를 선택해 주세요';
+
+  @override
+  String get aiConsentTitle => 'AI 기능 사용 동의';
+
+  @override
+  String get aiConsentIntro =>
+      '사진 분석, AI 음식 검색, AI 코치를 사용하면 아래 정보가 식단스캔 서버를 거쳐 AI 제공업체(OpenAI)로 전송돼요. 답변을 만드는 데에만 사용돼요.';
+
+  @override
+  String get aiConsentItemPhoto => '분석을 요청한 음식 사진 (위치 정보는 지우고 보내요)';
+
+  @override
+  String get aiConsentItemMeals => '오늘의 식사 이름·시간·영양 정보와 목표, 체중';
+
+  @override
+  String get aiConsentItemChat => 'AI 코치에게 보낸 메시지와 최근 대화';
+
+  @override
+  String get aiConsentRevokeNote =>
+      '설정 > AI 데이터 사용에서 언제든 철회할 수 있어요. 동의하지 않아도 직접 입력·내장 음식 DB·기본 팁은 사용할 수 있어요.';
+
+  @override
+  String get aiConsentAgree => '동의하고 계속';
+
+  @override
+  String get aiConsentDecline => '동의하지 않음';
+
+  @override
+  String get aiConsentRequired =>
+      'AI 사진 분석은 데이터 사용에 동의한 뒤 사용할 수 있어요. 음식을 검색하거나 직접 입력해 주세요';
+
+  @override
+  String get aiConsentSearchHint => 'AI 음식 분석은 데이터 사용 동의 후 사용할 수 있어요';
+
+  @override
+  String get aiConsentSearchAction => '동의하기';
+
+  @override
+  String get settingsAiConsent => 'AI 데이터 사용';
+
+  @override
+  String get settingsAiConsentOn => '동의함';
+
+  @override
+  String get settingsAiConsentOff => '동의 안 함';
+
+  @override
+  String get aiConsentRevokeTitle => 'AI 데이터 사용 동의를 철회할까요?';
+
+  @override
+  String get aiConsentRevokeMessage =>
+      '철회하면 사진 분석과 AI 음식 분석을 사용할 수 없고, AI 코치는 기본 팁으로 답변해요.';
+
+  @override
+  String get aiConsentRevokeAction => '철회';
+
+  @override
+  String get settingsPrivacyPolicy => '개인정보 처리방침';
+
+  @override
+  String get chatStatusNeedsConsent => '동의 필요';
+
+  @override
+  String get aiConsentChatBanner =>
+      '데이터 사용에 동의하면 내 기록에 맞춘 AI 답변을 드려요. 지금은 기본 팁으로 답변해요.';
 
   @override
   String get chatSend => '보내기';

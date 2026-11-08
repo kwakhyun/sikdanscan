@@ -75,6 +75,7 @@ class ApiService {
     Map<String, dynamic>? headers,
     CancelToken? cancelToken,
     int? maxRetries,
+    Duration? receiveTimeout,
   }) async {
     return _dio.post<T>(
       '$baseUrl$path',
@@ -82,6 +83,7 @@ class ApiService {
       cancelToken: cancelToken,
       options: Options(
         headers: headers,
+        receiveTimeout: receiveTimeout,
         extra: {
           if (maxRetries != null) RetryInterceptor.maxRetriesKey: maxRetries,
         },

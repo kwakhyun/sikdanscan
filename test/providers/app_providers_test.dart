@@ -339,6 +339,7 @@ void main() {
           fat: 12,
         ),
       );
+      await notifier.syncIdle;
       await notifier.updateMeal(
         MealRecord(
           id: "remote_meal",
@@ -351,7 +352,9 @@ void main() {
           fat: 6,
         ),
       );
+      await notifier.syncIdle;
       await notifier.removeMeal("remote_meal");
+      await notifier.syncIdle;
       await notifier.addMeal(
         MealRecord(
           id: "clear_meal",
@@ -364,7 +367,9 @@ void main() {
           fat: 14,
         ),
       );
+      await notifier.syncIdle;
       await notifier.clearDay(date);
+      await notifier.syncIdle;
 
       expect(upserts, ["remote_meal", "remote_meal", "clear_meal"]);
       expect(deletes, ["remote_meal", "clear_meal"]);

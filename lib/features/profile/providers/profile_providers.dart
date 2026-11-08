@@ -133,6 +133,17 @@ enum ThemePreference {
   };
 }
 
+/// Whether the user agreed that meal, body and chat data may be sent to the
+/// AI provider. Every AI request (coach, photo analysis, AI food search)
+/// checks it; without it the app uses its offline features only.
+final aiDataConsentProvider = StateNotifierProvider<SettingsBoolNotifier, bool>(
+  (ref) => SettingsBoolNotifier(
+    ref.read(localStorageServiceProvider),
+    'ai_data_consent',
+    false,
+  ),
+);
+
 final themePreferenceProvider =
     StateNotifierProvider<ThemePreferenceNotifier, ThemePreference>((ref) {
       final storage = ref.read(localStorageServiceProvider);

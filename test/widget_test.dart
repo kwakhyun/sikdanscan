@@ -451,6 +451,54 @@ void main() {
     expect(find.byType(RadioListTile<AppLocalePreference>), findsNWidgets(3));
   });
 
+  testWidgets('AI data consent can be given and withdrawn in settings', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(420, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          themePreferenceProvider.overrideWith(
+            (ref) => ThemePreferenceNotifier(_SettingsStorage()),
+          ),
+          languageProvider.overrideWith(
+            (ref) => LanguageNotifier(_SettingsStorage()),
+          ),
+          aiDataConsentProvider.overrideWith(
+            (ref) => SettingsBoolNotifier(
+              _SettingsStorage(),
+              'ai_data_consent',
+              false,
+            ),
+          ),
+        ],
+        child: const _LocalizedMaterialApp(
+          home: Scaffold(body: SingleChildScrollView(child: SettingsSection())),
+        ),
+      ),
+    );
+
+    expect(find.text('AI 데이터 사용'), findsOneWidget);
+    expect(find.text('동의 안 함'), findsOneWidget);
+
+    await tester.tap(find.text('AI 데이터 사용'));
+    await tester.pumpAndSettle();
+    expect(find.text('AI 기능 사용 동의'), findsOneWidget);
+    expect(find.textContaining('OpenAI'), findsOneWidget);
+
+    await tester.tap(find.text('동의하고 계속'));
+    await tester.pumpAndSettle();
+    expect(find.text('동의함'), findsOneWidget);
+
+    await tester.tap(find.text('AI 데이터 사용'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('철회'));
+    await tester.pumpAndSettle();
+    expect(find.text('동의 안 함'), findsOneWidget);
+  });
+
   testWidgets('AI coach shows offline mode and hides chips after asking', (
     WidgetTester tester,
   ) async {

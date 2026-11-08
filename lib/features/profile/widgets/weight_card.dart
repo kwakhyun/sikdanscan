@@ -58,8 +58,11 @@ class WeightCard extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          // Wraps under the value at large text sizes instead of overflowing.
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.end,
+            spacing: 10,
+            runSpacing: 2,
             children: [
               Text(
                 current > 0 ? '${AppFormat.decimal(current)} kg' : '-',
@@ -68,7 +71,6 @@ class WeightCard extends ConsumerWidget {
                   fontSize: 28,
                 ),
               ),
-              const SizedBox(width: 10),
               if (current > 0 && start > 0 && delta.abs() >= 0.05)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4),
@@ -137,68 +139,116 @@ class WeightCard extends ConsumerWidget {
 
 /// Opens the weight entry dialog and logs the value.
 Future<void> showWeightEntryDialog(BuildContext context, WidgetRef ref) async {
-  final l10n = context.l10n;
   final current = ref.read(currentWeightProvider);
-  final controller = TextEditingController(
-    text: current > 0 ? AppFormat.decimal(current) : '',
-  );
-  String? error;
-
   final weight = await showDialog<double>(
     context: context,
-    builder: (dialogContext) => StatefulBuilder(
-      builder: (dialogContext, setState) => AlertDialog(
-        title: Text(l10n.weightLogTitle),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-          ],
-          decoration: InputDecoration(
-            suffixText: 'kg',
-            errorText: error,
-            labelText: l10n.profileCurrentWeight,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(l10n.commonCancel),
-          ),
-          FilledButton(
-            onPressed: () {
-              final value = double.tryParse(controller.text.trim());
-              if (value == null || value < 30 || value > 250) {
-                setState(() => error = l10n.onboardingValidationWeight);
-                return;
-              }
-              Navigator.pop(dialogContext, value);
-            },
-            child: Text(l10n.commonSave),
-          ),
-        ],
-      ),
-    ),
+    builder: (_) => _WeightEntryDialog(initialWeight: current),
   );
-  controller.dispose();
   if (weight == null || !context.mounted) return;
   await logWeight(context, ref, weight);
 }
 
-/// Saves a weight record, syncs the profile weight and offers to update the
-/// calorie/water targets when the recommendation changes noticeably.
+/// Owns its text controller, so it is disposed only after the dialog's exit
+/// animation has finished.
+class _WeightEntryDialog extends StatefulWidget {
+  const _WeightEntryDialog({required this.initialWeight});
+
+  final double initialWeight;
+
+  @override
+  State<_WeightEntryDialog> createState() => _WeightEntryDialogState();
+}
+
+class _WeightEntryDialogState extends State<_WeightEntryDialog> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initialWeight > 0
+        ? AppFormat.decimal(widget.initialWeight)
+        : '',
+  );
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final value = double.tryParse(_controller.text.trim());
+    if (value == null || value < 30 || value > 250) {
+      setState(() => _error = context.l10n.onboardingValidationWeight);
+      return;
+    }
+    Navigator.pop(context, value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return AlertDialog(
+      title: Text(l10n.weightLogTitle),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+        onSubmitted: (_) => _submit(),
+        decoration: InputDecoration(
+          suffixText: 'kg',
+          errorText: _error,
+          labelText: l10n.profileCurrentWeight,
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(l10n.commonCancel),
+        ),
+        FilledButton(onPressed: _submit, child: Text(l10n.commonSave)),
+      ],
+    );
+  }
+}
+
+/// Sets the profile weight (used for BMR, recommendations and protein
+/// targets) to the latest logged weight, or back to the starting weight when
+/// the log is empty. Skips the write when nothing changes.
+Future<void> syncProfileWeightFromLog(ProviderContainer container) async {
+  final records = container.read(weightRecordsProvider);
+  final profile = container.read(userProfileProvider);
+  final weight = records.isNotEmpty
+      ? records.last.weight
+      : (profile.startingWeight ?? profile.currentWeight);
+  if (weight <= 0 || (weight - profile.currentWeight).abs() < 0.001) return;
+  await container.read(userProfileProvider.notifier).updateWeight(weight);
+}
+
+/// Saves a weight record, syncs the profile weight and, for people who
+/// follow the recommended targets, offers to update them when the
+/// recommendation changes noticeably. A custom calorie goal is left alone.
+///
+/// [previousRecommendation] / [previousWaterRecommendation] are the
+/// recommendations before the change when the caller already updated the
+/// profile (e.g. the edit sheet).
 Future<void> logWeight(
   BuildContext context,
   WidgetRef ref,
-  double weight,
-) async {
+  double weight, {
+  int? previousRecommendation,
+  int? previousWaterRecommendation,
+}) async {
   final messenger = ScaffoldMessenger.of(context);
   final l10n = context.l10n;
   final locale = context.localeTag;
+  // The snackbar action can outlive the widget (e.g. a closed sheet).
+  final container = ProviderScope.containerOf(context, listen: false);
+  final before = container.read(userProfileProvider);
+  final beforeCalories =
+      previousRecommendation ?? before.recommendedDailyCalorieGoal;
+  final beforeWater =
+      previousWaterRecommendation ?? before.recommendedWaterGoalMl;
 
-  await ref
+  await container
       .read(weightRecordsProvider.notifier)
       .addRecord(
         WeightRecord(
@@ -207,11 +257,18 @@ Future<void> logWeight(
           weight: weight,
         ),
       );
-  await ref.read(userProfileProvider.notifier).updateWeight(weight);
+  await syncProfileWeightFromLog(container);
 
-  final profile = ref.read(userProfileProvider);
+  final profile = container.read(userProfileProvider);
   final recommended = profile.recommendedDailyCalorieGoal;
-  if (recommended > 0 && (recommended - profile.dailyCalorieGoal).abs() >= 50) {
+  final followsRecommendation =
+      beforeCalories > 0 &&
+      (profile.dailyCalorieGoal - beforeCalories).abs() < 50;
+  if (followsRecommendation &&
+      recommended > 0 &&
+      (recommended - profile.dailyCalorieGoal).abs() >= 50) {
+    final followsWater =
+        beforeWater > 0 && (profile.dailyWaterGoalMl - beforeWater).abs() < 50;
     messenger.showSnackBar(
       SnackBar(
         duration: const Duration(seconds: 8),
@@ -223,13 +280,15 @@ Future<void> logWeight(
         action: SnackBarAction(
           label: l10n.weightRecalculateApply,
           onPressed: () {
-            final latest = ref.read(userProfileProvider);
-            ref
+            final latest = container.read(userProfileProvider);
+            container
                 .read(userProfileProvider.notifier)
                 .updateProfile(
                   latest.copyWith(
                     dailyCalorieGoal: latest.recommendedDailyCalorieGoal,
-                    dailyWaterGoalMl: latest.recommendedWaterGoalMl,
+                    dailyWaterGoalMl: followsWater
+                        ? latest.recommendedWaterGoalMl
+                        : latest.dailyWaterGoalMl,
                   ),
                 );
           },
@@ -303,21 +362,21 @@ class _WeightHistorySheet extends ConsumerWidget {
   ) async {
     final messenger = ScaffoldMessenger.of(context);
     final l10n = context.l10n;
-    final notifier = ref.read(weightRecordsProvider.notifier);
+    // The undo action can run after this sheet has closed.
+    final container = ProviderScope.containerOf(context, listen: false);
+    final notifier = container.read(weightRecordsProvider.notifier);
     await notifier.removeRecord(record.id);
-    final remaining = ref.read(weightRecordsProvider);
-    if (remaining.isNotEmpty) {
-      await ref
-          .read(userProfileProvider.notifier)
-          .updateWeight(remaining.last.weight);
-    }
+    await syncProfileWeightFromLog(container);
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
       SnackBar(
         content: Text(l10n.weightDeleted),
         action: SnackBarAction(
           label: l10n.commonUndo,
-          onPressed: () => notifier.addRecord(record),
+          onPressed: () async {
+            await notifier.addRecord(record);
+            await syncProfileWeightFromLog(container);
+          },
         ),
       ),
     );

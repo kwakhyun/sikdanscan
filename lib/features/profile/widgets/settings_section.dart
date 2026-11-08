@@ -7,12 +7,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../core/constants/app_links.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../data/services/proxy_status_service.dart';
 import '../../../l10n/app_localizations_context.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../providers/app_providers.dart';
+import '../../../shared/widgets/ai_consent_sheet.dart';
 import '../../../shared/widgets/app_svg_icon.dart';
 import '../../../shared/widgets/sheet_handle.dart';
 import 'edit_profile_sheet.dart';
@@ -25,6 +27,7 @@ class SettingsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = ref.watch(themePreferenceProvider);
     final language = ref.watch(languageProvider);
+    final aiConsent = ref.watch(aiDataConsentProvider);
     final l10n = context.l10n;
 
     return Container(
@@ -96,6 +99,22 @@ class SettingsSection extends ConsumerWidget {
             onTap: () => _showAiStatus(context, ref),
           ),
           _SettingsTile(
+            icon: Icons.privacy_tip_outlined,
+            title: l10n.settingsAiConsent,
+            value: aiConsent
+                ? l10n.settingsAiConsentOn
+                : l10n.settingsAiConsentOff,
+            onTap: () => aiConsent
+                ? _confirmRevokeAiConsent(context, ref)
+                : ensureAiConsent(context, ref),
+          ),
+          if (AppLinks.privacyPolicy != null)
+            _SettingsTile(
+              icon: Icons.policy_outlined,
+              title: l10n.settingsPrivacyPolicy,
+              onTap: openPrivacyPolicy,
+            ),
+          _SettingsTile(
             icon: Icons.download_outlined,
             title: l10n.settingsExportData,
             onTap: () => _exportData(context, ref),
@@ -116,6 +135,36 @@ class SettingsSection extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _confirmRevokeAiConsent(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final l10n = context.l10n;
+    final revoke = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.aiConsentRevokeTitle),
+        content: Text(l10n.aiConsentRevokeMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(l10n.commonCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: TextButton.styleFrom(
+              foregroundColor: dialogContext.colorErrorText,
+            ),
+            child: Text(l10n.aiConsentRevokeAction),
+          ),
+        ],
+      ),
+    );
+    if (revoke == true) {
+      await ref.read(aiDataConsentProvider.notifier).setValue(false);
+    }
   }
 
   void _showGoalSettings(BuildContext context) {

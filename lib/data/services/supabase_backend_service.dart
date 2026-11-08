@@ -131,27 +131,38 @@ class SupabaseBackendService {
         .upsert(_mealRecordToRow(userId, record));
   }
 
+  /// Fetches the account's meal records page by page. The Data API caps each
+  /// response (1000 rows by default) without an error, so paging continues
+  /// until an empty page, whatever cap the project uses.
   Future<List<MealRecord>> fetchMealRecords({
     DateTime? from,
     DateTime? to,
   }) async {
+    final client = _requireClient();
     final userId = _requireUserId();
-    var query = _requireClient()
-        .from('meal_records')
-        .select()
-        .eq('user_id', userId);
-    if (from != null) {
-      query = query.gte('date', from.toUtc().toIso8601String());
+    const pageSize = 1000;
+    final records = <String, MealRecord>{};
+    var offset = 0;
+    while (true) {
+      var query = client.from('meal_records').select().eq('user_id', userId);
+      if (from != null) {
+        query = query.gte('date', from.toUtc().toIso8601String());
+      }
+      if (to != null) {
+        query = query.lt('date', to.toUtc().toIso8601String());
+      }
+      final rows = await query
+          .order('date', ascending: false)
+          .order('id', ascending: true)
+          .range(offset, offset + pageSize - 1);
+      if (rows.isEmpty) break;
+      for (final row in rows.whereType<Map>()) {
+        final record = _mealRecordFromRow(Map<String, dynamic>.from(row));
+        records[record.id] = record;
+      }
+      offset += rows.length;
     }
-    if (to != null) {
-      query = query.lt('date', to.toUtc().toIso8601String());
-    }
-
-    final rows = await query.order('date', ascending: false);
-    return rows
-        .whereType<Map>()
-        .map((row) => _mealRecordFromRow(Map<String, dynamic>.from(row)))
-        .toList(growable: false);
+    return records.values.toList(growable: false);
   }
 
   Future<void> deleteMealRecord(String id) async {
