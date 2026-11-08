@@ -92,8 +92,10 @@ class SupabaseAuthController extends StateNotifier<AsyncValue<void>> {
         // failure while the user is actually still signed in.
         if (_service.currentUser != null) rethrow;
       } finally {
-        // Retry operations belong to the signed-out account.
-        await meals.clearPendingSync();
+        // Queued uploads are derived again by the next sign-in merge; queued
+        // deletions are kept so the account still receives them (another
+        // account signing in clears them with the rest of the data).
+        await meals.dropPendingUpserts();
       }
     });
   }
@@ -120,10 +122,24 @@ class SupabaseAuthController extends StateNotifier<AsyncValue<void>> {
     final user = service.isConfigured ? service.currentUser : null;
     if (user == null || _pulling) return;
     final storage = _ref.read(localStorageServiceProvider);
-    if (storage.getLocalDataOwner() != user.id) return;
     final now = DateTime.now();
     final last = _lastPull;
     if (!force && last != null && now.difference(last) < pullInterval) return;
+    if (storage.getLocalDataOwner() != user.id) {
+      _lastPull = now;
+      // The sign-in merge did not finish (e.g. offline, or the app was
+      // closed during an OAuth sign-in): finish it now. Uploads stay blocked
+      // until then.
+      if (_pulling) return;
+      _pulling = true;
+      try {
+        await _mergeAfterSignIn();
+      } catch (_) {
+      } finally {
+        _pulling = false;
+      }
+      return;
+    }
 
     _pulling = true;
     _lastPull = now;
@@ -179,11 +195,21 @@ class SupabaseAuthController extends StateNotifier<AsyncValue<void>> {
     final service = _service;
     final storage = _ref.read(localStorageServiceProvider);
     final notifier = _ref.read(userProfileProvider.notifier);
+    final remote = await service.fetchProfileSnapshot();
+    // Read the device copy after the fetch so an edit made meanwhile counts.
     final local = _ref.read(userProfileProvider);
     final localEditedAt = storage.getProfileEditedAt();
-    final remote = await service.fetchProfileSnapshot();
     final remoteProfile = remote?.profile;
     final remoteTime = remote?.updatedAt;
+
+    if (remoteProfile != null && remoteProfile == local) {
+      // The account already has this device's copy (e.g. our own upload
+      // echoed back with a later server time); nothing to do.
+      if (storage.profileSyncPending) {
+        await storage.setProfileSyncPending(false);
+      }
+      return;
+    }
 
     final remoteUsable =
         remoteProfile != null && remoteProfile.onboardingCompleted;
@@ -237,22 +263,25 @@ class SupabaseAuthController extends StateNotifier<AsyncValue<void>> {
     final snapshot = await service.fetchMealSnapshot();
 
     await _ref.read(mealRecordsProvider.notifier).clearPendingSync();
-    await _ref.read(localStorageServiceProvider).clearUserData();
+    final storage = _ref.read(localStorageServiceProvider);
+    await storage.clearUserData();
     await MealImageStore.clearAll();
-    invalidateUserScopedState(_ref);
 
-    if (snapshot.records.isNotEmpty) {
-      await _ref
-          .read(mealRecordsProvider.notifier)
-          .replaceAll(snapshot.records);
-    }
-    await _saveCursor(snapshot.cursor);
+    // Store the account's data first and only then re-create the providers,
+    // so nothing (e.g. the router's onboarding check) sees an empty profile
+    // in between.
+    await storage.saveMealRecords([
+      for (final meal in snapshot.records) meal.toJson(),
+    ]);
     final remoteProfile = remote?.profile;
     if (remoteProfile != null && remoteProfile.onboardingCompleted) {
-      await _ref
-          .read(userProfileProvider.notifier)
-          .applyRemote(remoteProfile, remote?.updatedAt);
+      await storage.saveUserProfile(remoteProfile.toJson());
+      await storage.setProfileEditedAt(remote?.updatedAt);
     }
+    final user = service.currentUser;
+    if (user != null) await storage.setLocalDataOwner(user.id);
+    await _saveCursor(snapshot.cursor);
+    invalidateUserScopedState(_ref);
   }
 
   Future<void> _run(Future<void> Function() action) async {

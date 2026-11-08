@@ -48,6 +48,7 @@ class _Remote {
   final upserted = <MealRecord>[];
   Completer<void>? uploadGate;
   bool failUpload = false;
+  bool rejectUpload = false;
 
   late final notifierArgs = (
     remoteUpsert: (MealRecord meal) async {
@@ -59,7 +60,8 @@ class _Remote {
       log.add('upload ${meal.id}');
       final gate = uploadGate;
       if (gate != null) await gate.future;
-      if (failUpload) throw StateError('bucket rejected the file');
+      if (failUpload) throw StateError('connection reset');
+      if (rejectUpload) return null;
       return 'uid/${meal.id}.jpg';
     },
     remoteDeleteImage: (String path) async => log.add('deleteImage $path'),
@@ -254,7 +256,7 @@ void main() {
     });
 
     test('a rejected photo does not keep the row from syncing', () async {
-      final remote = _Remote()..failUpload = true;
+      final remote = _Remote()..rejectUpload = true;
       final notifier = remote.notifier();
 
       await notifier.addMeal(_meal('e', imageUrl: 'meal_images/e.heic'));
@@ -263,6 +265,79 @@ void main() {
       expect(remote.upserted.single.id, 'e');
       expect(remote.upserted.single.imageStoragePath, isNull);
       expect(LocalStorageService().getPendingMealSync(), isEmpty);
+    });
+
+    test(
+      'a photo that failed temporarily is uploaded on a later pass',
+      () async {
+        final remote = _Remote()..failUpload = true;
+        final notifier = remote.notifier();
+
+        await notifier.addMeal(_meal('t', imageUrl: 'meal_images/t.jpg'));
+        await notifier.syncIdle;
+        // The row is already synced, but the photo is still owed.
+        expect(remote.upserted.single.imageStoragePath, isNull);
+        expect(LocalStorageService().getPendingMealSync(), hasLength(1));
+
+        remote.failUpload = false;
+        await notifier.flushPendingSync();
+        await notifier.syncIdle;
+        expect(remote.upserted.last.imageStoragePath, 'uid/t.jpg');
+        expect(LocalStorageService().getPendingMealSync(), isEmpty);
+      },
+    );
+
+    test(
+      'a shared photo survives while another food can still be undone',
+      () async {
+        final remote = _Remote();
+        final notifier = remote.notifier();
+        await notifier.addMeals([
+          _meal('s1', imageUrl: 'meal_images/s.jpg'),
+          _meal('s2', imageUrl: 'meal_images/s.jpg'),
+        ]);
+        await notifier.syncIdle;
+        final s1 = notifier.state.firstWhere((m) => m.id == 's1');
+        final s2 = notifier.state.firstWhere((m) => m.id == 's2');
+
+        await notifier.removeMeal('s1');
+        await notifier.removeMeal('s2');
+        // s2's snackbar hides s1's: s1 is finalized while s2 can be undone.
+        await notifier.finalizeRemoval(s1);
+        await notifier.syncIdle;
+        expect(remote.log, isNot(contains('deleteImage uid/s1.jpg')));
+
+        await notifier.restoreMeal(s2);
+        await notifier.syncIdle;
+        expect(notifier.state.single.imageStoragePath, 'uid/s1.jpg');
+        expect(remote.log, isNot(contains('deleteImage uid/s1.jpg')));
+      },
+    );
+
+    test('sign-out keeps queued deletions for the same account', () async {
+      final notifier = MealRecordsNotifier(LocalStorageService());
+      await LocalStorageService().savePendingMealSync([
+        {'op': 'upsert', 'id': 'u'},
+        {'op': 'delete', 'id': 'd', 'at': '2026-05-01T00:00:00Z'},
+      ]);
+
+      await notifier.dropPendingUpserts();
+
+      expect(LocalStorageService().getPendingMealSync().single['id'], 'd');
+    });
+
+    test('a meal deleted while a pull is in flight is not put back', () async {
+      final remote = _Remote();
+      final notifier = remote.notifier();
+      await notifier.addMeal(_meal('p'));
+      await notifier.syncIdle;
+      final stale = [notifier.state.single]; // fetched before the delete
+
+      await notifier.removeMeal('p');
+      await notifier.syncIdle; // the delete already reached the server
+      await notifier.mergeWithRemote(stale, uploadLocalOnly: false);
+
+      expect(notifier.state, isEmpty);
     });
 
     test('undoing a delete keeps the cloud photo', () async {
@@ -354,6 +429,20 @@ void main() {
       ]);
       expect(LocalStorageService().getPendingMealSync(), isEmpty);
       expect(LocalStorageService().getLocalDataOwner(), 'user-b');
+    });
+
+    test('AI consent belongs to the person and is asked again', () async {
+      await LocalStorageService().saveSetting(
+        LocalStorageService.aiDataConsentKey,
+        true,
+      );
+      await LocalStorageService().clearUserData();
+      expect(
+        LocalStorageService().getSetting<bool>(
+          LocalStorageService.aiDataConsentKey,
+        ),
+        isNull,
+      );
     });
   });
 
@@ -479,6 +568,58 @@ void main() {
 
       expect(container.read(userProfileProvider).name, 'remote');
       expect(backend.profileUpserts, isEmpty);
+    });
+  });
+
+  group('Profile echo', () {
+    test('the account copy of our own upload is not applied again', () async {
+      await LocalStorageService().setLocalDataOwner('user-a');
+      final mine = UserProfile.defaultProfile().copyWith(
+        name: 'same',
+        onboardingCompleted: true,
+        targetDate: DateTime(2026, 12, 1),
+      );
+      final backend = _FakeBackend(
+        user: _user('user-a'),
+        remoteProfile: RemoteProfile(
+          profile: mine,
+          updatedAt: DateTime.now().toUtc().add(const Duration(minutes: 1)),
+        ),
+      );
+      final container = ProviderContainer(
+        overrides: [supabaseBackendServiceProvider.overrideWithValue(backend)],
+      );
+      addTearDown(container.dispose);
+      await container.read(userProfileProvider.notifier).updateProfile(mine);
+      backend.profileUpserts.clear();
+
+      await container
+          .read(supabaseAuthControllerProvider.notifier)
+          .mergeAfterSignIn();
+
+      expect(backend.profileUpserts, isEmpty);
+      expect(
+        container.read(userProfileProvider).targetDate,
+        DateTime(2026, 12, 1),
+      );
+    });
+  });
+
+  group('Review totals', () {
+    test('a total typed at 1.5× is saved exactly', () {
+      const base = MealDraft(
+        key: 'k',
+        name: 'x',
+        calories: 0,
+        carbs: 0,
+        protein: 0,
+        fat: 0,
+        portion: 1.5,
+      );
+      for (var typed = 1; typed <= 1000; typed++) {
+        final draft = base.copyWith(calories: typed / base.portion);
+        expect(draft.scaledCalories, typed);
+      }
     });
   });
 
@@ -666,6 +807,11 @@ void main() {
           CoachConnection.limited;
       expect(container.read(chatOnlineProvider), isFalse);
       expect(container.read(chatStatusProvider), CoachConnection.limited);
+
+      // Changing consent starts the session status over.
+      await container.read(aiDataConsentProvider.notifier).setValue(false);
+      await container.read(aiDataConsentProvider.notifier).setValue(true);
+      expect(container.read(chatStatusProvider), CoachConnection.online);
     });
   });
 

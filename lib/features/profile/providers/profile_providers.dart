@@ -7,6 +7,7 @@ import '../../../data/models/user_profile.dart';
 import '../../../data/models/weight_record.dart';
 import '../../../data/models/persisted_model_decoder.dart';
 import '../../../data/services/local_storage_service.dart';
+import '../../../data/services/supabase_backend_service.dart';
 import '../../../providers/service_providers.dart';
 
 final userProfileProvider =
@@ -17,6 +18,12 @@ final userProfileProvider =
         remoteSync: (profile) async {
           final service = ref.read(supabaseBackendServiceProvider);
           if (!service.isConfigured || service.currentUser == null) return;
+          // Never send this device's profile to an account that does not own
+          // the data (the sign-in merge has not finished); it stays pending.
+          final owner = storage.getLocalDataOwner();
+          if (owner != null && owner != service.currentUser!.id) {
+            throw const SupabaseAuthRequiredException();
+          }
           await service.upsertProfile(profile);
         },
       );
@@ -34,8 +41,14 @@ class UserProfileNotifier extends StateNotifier<UserProfile> {
 
   static UserProfile _loadProfile(LocalStorageService storage) {
     final data = storage.getUserProfile();
-    return PersistedModelDecoder.userProfile(data) ??
-        UserProfile.defaultProfile();
+    final profile =
+        PersistedModelDecoder.userProfile(data) ?? UserProfile.defaultProfile();
+    // Dates from earlier account syncs could be stored in UTC, which shifts
+    // a chosen goal date by a day in time zones ahead of UTC.
+    return profile.copyWith(
+      targetDate: profile.targetDate?.toLocal(),
+      onboardedAt: profile.onboardedAt?.toLocal(),
+    );
   }
 
   Future<void> updateProfile(UserProfile profile) async {
@@ -54,12 +67,6 @@ class UserProfileNotifier extends StateNotifier<UserProfile> {
   ) async {
     await _commit(profile, editedAt: remoteUpdatedAt, sync: false);
     _setSyncPending(false);
-  }
-
-  /// Sends a change that could not be uploaded earlier.
-  Future<void> retryPendingSync() async {
-    if (!_readSyncPending()) return;
-    await _tryRemoteSync(state);
   }
 
   /// Saves locally first and uploads in the background; a failed upload is
@@ -96,14 +103,6 @@ class UserProfileNotifier extends StateNotifier<UserProfile> {
     } catch (_) {
       // Local persistence remains the source of truth when remote sync fails.
       _setSyncPending(true);
-    }
-  }
-
-  bool _readSyncPending() {
-    try {
-      return _storage.profileSyncPending;
-    } catch (_) {
-      return false;
     }
   }
 
@@ -186,7 +185,7 @@ enum ThemePreference {
 final aiDataConsentProvider = StateNotifierProvider<SettingsBoolNotifier, bool>(
   (ref) => SettingsBoolNotifier(
     ref.read(localStorageServiceProvider),
-    'ai_data_consent',
+    LocalStorageService.aiDataConsentKey,
     false,
   ),
 );

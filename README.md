@@ -17,7 +17,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-iOS%20%7C%20Android-2DD4A8?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Tests-244%20passed-brightgreen?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Tests-251%20passed-brightgreen?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Dart%20Files-115-blue?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Dart%20Lines-31.9k-blue?style=for-the-badge" />
 </p>
@@ -123,7 +123,7 @@
 | **Icons**            | flutter_lucide                                            |
 | **Localization**     | Flutter gen-l10n — 한국어/영어, 시스템 언어/수동 선택 지원 |
 | **Code Generation**  | Freezed, json_serializable, build_runner                  |
-| **Testing**          | flutter_test — 244개 단위·위젯·서버 테스트                 |
+| **Testing**          | flutter_test — 251개 단위·위젯·서버 테스트                 |
 | **CI/CD**            | GitHub Actions — build_runner, format, analyze, test, Android release APK |
 | **Architecture**     | Feature-first + Service Layer + Typed Model Layer         |
 
@@ -230,7 +230,7 @@ lib/l10n/                               # Flutter gen-l10n 다국어 리소스
 ├── app_localizations_context.dart      # context.l10n / enum label helper
 └── generated/                          # AppLocalizations generated files
 
-test/                                   # 244개 테스트
+test/                                   # 251개 테스트
 ├── models/                             # 모델 단위 테스트 (4개 파일, 27개 테스트)
 ├── services/                           # 서비스 단위 테스트 (5개 파일, 64개 테스트)
 ├── providers/                          # 프로바이더 테스트 (2개 파일, 39개 테스트)
@@ -449,7 +449,7 @@ SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
 ## 🧪 테스트 및 빌드
 
 ```bash
-flutter test        # 전체 244개 테스트 실행
+flutter test        # 전체 251개 테스트 실행
 dart analyze        # 앱 정적 분석 (0 issues)
 dart analyze server # 서버 정적 분석 (0 issues)
 dart run build_runner build
@@ -462,10 +462,10 @@ flutter build ios --release --no-codesign
 | -------------- | ------- | --------- | --------------------------------------------- |
 | **모델**       | 4       | 28        | JSON 직렬화/역직렬화, 개선 목표, BMI, 날짜 계산 |
 | **서비스**     | 6       | 74        | 음식 검색/캐시/프록시 파싱, 사진 인식 locale payload·사용자용 오류 문구, AI 멀티턴/폴백/오프라인·타임아웃 판정/재시도 횟수, 이미지 상대경로·레거시 경로 복구, Supabase row 매핑 |
-| **프로바이더** | 4       | 88        | CRUD, 백그라운드 동기화 큐(업로드 중 삭제·수정, 사진 공유 업로드, 되돌리기), 계정 병합·다른 계정 데이터 보호, 오늘/리포트 날짜 분리, 리포트 계산, 양 재계산, 기록 확인 플로우, 대화 저장·재시도·늦은 응답 무시, AI 데이터 동의, 사진 GPS 제거, 테마/언어, 목표별 전략(ko/en) |
+| **프로바이더** | 4       | 95        | CRUD, 백그라운드 동기화 큐(업로드 중 삭제·수정, 사진 공유 업로드, 되돌리기), 계정 병합·다른 계정 데이터 보호, 오늘/리포트 날짜 분리, 리포트 계산, 양 재계산, 기록 확인 플로우, 대화 저장·재시도·늦은 응답 무시, AI 데이터 동의, 사진 GPS 제거, 테마/언어, 목표별 전략(ko/en) |
 | **서버**       | 2       | 35        | 프록시 헬스체크, readiness, metrics, 인증, CORS, 본문 제한, rate limit, 이미지 payload 검증, 대화 기록 검증, 코치 프롬프트 |
 | **위젯**       | 1       | 19        | 온보딩(소셜 로그인 노출, 인라인 검증, 감량 목표 입력 회귀), 데일리·기록 시트·수분, 기록 확인 저장, 기록 편집/되돌리기, 리포트, 설정·AI 데이터 동의/철회, AI 코치 오프라인 |
-| **합계**       | **17**  | **244**   | **All passed ✅**                             |
+| **합계**       | **17**  | **251**   | **All passed ✅**                             |
 
 ## 🚢 운영 배포 체크리스트
 

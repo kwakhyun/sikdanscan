@@ -18,5 +18,6 @@ void invalidateUserScopedState(Ref ref) {
     ..invalidate(chatMessagesProvider)
     ..invalidate(chatLoadingProvider)
     ..invalidate(coachConnectionProvider)
-    ..invalidate(userProfileProvider);
+    ..invalidate(userProfileProvider)
+    ..invalidate(aiDataConsentProvider);
 }

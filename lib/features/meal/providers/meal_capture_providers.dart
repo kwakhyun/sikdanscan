@@ -34,7 +34,7 @@ class MealDraft {
     return MealDraft(
       key: key,
       name: food.name,
-      calories: food.calories,
+      calories: food.calories.toDouble(),
       carbs: food.carbs,
       protein: food.protein,
       fat: food.fat,
@@ -51,7 +51,7 @@ class MealDraft {
     return MealDraft(
       key: key,
       name: item.name,
-      calories: item.calories,
+      calories: item.calories.toDouble(),
       carbs: item.carbs,
       protein: item.protein,
       fat: item.fat,
@@ -63,7 +63,10 @@ class MealDraft {
 
   final String key;
   final String name;
-  final int calories;
+
+  /// 1× calories, kept unrounded so a total typed at another portion
+  /// round-trips exactly.
+  final double calories;
   final double carbs;
   final double protein;
   final double fat;
@@ -95,7 +98,7 @@ class MealDraft {
     return MealDraft(
       key: key,
       name: name,
-      calories: number(json['calories']).round(),
+      calories: number(json['calories']),
       carbs: number(json['carbs']),
       protein: number(json['protein']),
       fat: number(json['fat']),
@@ -121,7 +124,7 @@ class MealDraft {
 
   MealDraft copyWith({
     String? name,
-    int? calories,
+    double? calories,
     double? carbs,
     double? protein,
     double? fat,

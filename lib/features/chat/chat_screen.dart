@@ -45,7 +45,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // Personal data goes to the AI provider only after explicit consent;
     // without it the coach answers with the built-in tips.
     if (ref.read(aiChatServiceProvider).isConfigured &&
-        !ref.read(aiDataConsentProvider)) {
+        !ref.read(aiDataConsentProvider) &&
+        !ref.read(aiConsentAutoPromptedProvider)) {
+      ref.read(aiConsentAutoPromptedProvider.notifier).state = true;
       await ensureAiConsent(context, ref);
       if (!mounted) return;
     }

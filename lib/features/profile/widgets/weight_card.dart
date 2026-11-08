@@ -211,14 +211,17 @@ class _WeightEntryDialogState extends State<_WeightEntryDialog> {
 }
 
 /// Sets the profile weight (used for BMR, recommendations and protein
-/// targets) to the latest logged weight, or back to the starting weight when
-/// the log is empty. Skips the write when nothing changes.
+/// targets) to the latest logged weight. When the log becomes empty, the
+/// weight goes back to what the profile had before this device's first log
+/// entry (the account may hold a newer weight than the starting one), or
+/// stays as it is when that is unknown. Skips the write when nothing changes.
 Future<void> syncProfileWeightFromLog(ProviderContainer container) async {
   final records = container.read(weightRecordsProvider);
   final profile = container.read(userProfileProvider);
+  final storage = container.read(localStorageServiceProvider);
   final weight = records.isNotEmpty
       ? records.last.weight
-      : (profile.startingWeight ?? profile.currentWeight);
+      : (storage.getWeightBaseline() ?? profile.currentWeight);
   if (weight <= 0 || (weight - profile.currentWeight).abs() < 0.001) return;
   await container.read(userProfileProvider.notifier).updateWeight(weight);
 }
@@ -247,6 +250,13 @@ Future<void> logWeight(
       previousRecommendation ?? before.recommendedDailyCalorieGoal;
   final beforeWater =
       previousWaterRecommendation ?? before.recommendedWaterGoalMl;
+  if (container.read(weightRecordsProvider).isEmpty) {
+    try {
+      await container
+          .read(localStorageServiceProvider)
+          .setWeightBaseline(before.currentWeight);
+    } catch (_) {}
+  }
 
   await container
       .read(weightRecordsProvider.notifier)

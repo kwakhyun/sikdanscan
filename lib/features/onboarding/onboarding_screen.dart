@@ -55,6 +55,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     // restarted by the OS during the OAuth round trip) is merged once too.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      // A sign-in merge already running (e.g. an account switch that led
+      // here) finishes on its own.
+      if (ref.read(supabaseAuthControllerProvider).isLoading) return;
       final user = ref.read(supabaseUserProvider).valueOrNull;
       if (user != null && user.id != _lastMergedOAuthUserId) {
         _lastMergedOAuthUserId = user.id;

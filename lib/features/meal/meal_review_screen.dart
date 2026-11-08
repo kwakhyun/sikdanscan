@@ -608,9 +608,8 @@ class _DraftCardState extends ConsumerState<_DraftCard> {
                     controller: _kcal,
                     label: 'kcal',
                     integer: true,
-                    onChanged: (value) => _update(
-                      (d) => d.copyWith(calories: (value / d.portion).round()),
-                    ),
+                    onChanged: (value) =>
+                        _update((d) => d.copyWith(calories: value / d.portion)),
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -682,7 +681,7 @@ class _DraftCardState extends ConsumerState<_DraftCard> {
               padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
               child: Text(
                 l10n.reviewPerPortion(
-                  AppFormat.integer(draft.calories, context.localeTag),
+                  AppFormat.integer(draft.calories.round(), context.localeTag),
                 ),
                 style: AppTextStyles.caption.copyWith(
                   color: context.colorSecondaryText,

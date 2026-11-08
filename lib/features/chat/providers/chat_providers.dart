@@ -25,14 +25,22 @@ final chatMessagesProvider =
 
 final chatLoadingProvider = StateProvider<bool>((ref) => false);
 
+/// Whether the consent sheet was already offered automatically in this
+/// session; after "Not now" the coach keeps answering with tips and the
+/// banner's button is the way to opt in.
+final aiConsentAutoPromptedProvider = StateProvider<bool>((ref) => false);
+
 /// Coach reachability, from the outcome of requests made in this session.
 enum CoachConnection { unknown, online, offline, limited, error, needsConsent }
 
 /// Last request outcome in this app session. Not persisted: an offline answer
 /// saved days ago says nothing about the connection now.
-final coachConnectionProvider = StateProvider<CoachConnection>(
-  (ref) => CoachConnection.unknown,
-);
+final coachConnectionProvider = StateProvider<CoachConnection>((ref) {
+  // Starts over when consent changes: answers given without consent were
+  // local tips and say nothing about the server.
+  ref.watch(aiDataConsentProvider);
+  return CoachConnection.unknown;
+});
 
 /// What the chat header shows: offline when no AI server is configured,
 /// otherwise the latest outcome (online until something fails).
@@ -132,7 +140,8 @@ class ChatMessagesNotifier extends StateNotifier<List<ChatMessage>> {
       final service = _ref.read(aiChatServiceProvider);
       final locale = _ref.read(resolvedLanguageCodeProvider);
       // Nothing personal leaves the device without consent.
-      final reply = _ref.read(aiDataConsentProvider)
+      final allowed = _ref.read(aiDataConsentProvider);
+      final reply = allowed
           ? await service.reply(
               userMessage: userMessage,
               history: _historyBefore(userMessage),
@@ -144,13 +153,15 @@ class ChatMessagesNotifier extends StateNotifier<List<ChatMessage>> {
               isFallback: true,
             );
       if (!mounted || generation != _generation) return;
-      _setConnection(
-        !reply.isFallback
-            ? CoachConnection.online
-            : reply.quotaExceeded
-            ? CoachConnection.limited
-            : CoachConnection.offline,
-      );
+      if (allowed) {
+        _setConnection(
+          !reply.isFallback
+              ? CoachConnection.online
+              : reply.quotaExceeded
+              ? CoachConnection.limited
+              : CoachConnection.offline,
+        );
+      }
       _append(
         ChatMessage(
           id: 'bot_${_uuid.v4()}',

@@ -373,8 +373,8 @@ class SupabaseBackendService {
       activityLevel: _activityLevelFromName(row['activity_level'] as String?),
       onboardingCompleted: row['onboarding_completed'] == true,
       avatarImagePath: row['avatar_image_path'] as String?,
-      targetDate: _readDateTime(row['target_date']),
-      onboardedAt: _readDateTime(row['onboarded_at']),
+      targetDate: _readDateTime(row['target_date'])?.toLocal(),
+      onboardedAt: _readDateTime(row['onboarded_at'])?.toLocal(),
     );
   }
 

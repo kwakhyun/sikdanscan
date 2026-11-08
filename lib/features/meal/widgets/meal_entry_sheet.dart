@@ -46,6 +46,7 @@ Future<void> showMealEntrySheet(
         choice == _EntryChoice.camera
             ? ImageSource.camera
             : ImageSource.gallery,
+        date: date,
       );
       if (picked == null || !context.mounted) return;
       final stored = await MealImageStore.persist(picked.path);

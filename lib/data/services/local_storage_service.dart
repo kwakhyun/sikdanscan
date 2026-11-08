@@ -15,6 +15,11 @@ class LocalStorageService {
   static const String _profileEditedAtKey = 'profile_edited_at';
   static const String _profileSyncPendingKey = 'profile_sync_pending';
   static const String _captureDraftKey = 'capture_draft';
+  static const String _weightBaselineKey = 'weight_baseline';
+
+  /// Consent to send this person's data to the AI provider; it belongs to
+  /// the person, so another account signing in is asked again.
+  static const String aiDataConsentKey = 'ai_data_consent';
 
   LocalStorageService();
 
@@ -161,6 +166,20 @@ class LocalStorageService {
   /// Clears the signed-in person's records (profile, weights, meals, water,
   /// coach conversation, sync queue) but keeps device preferences such as
   /// theme and language. Used when another account signs in on this device.
+  /// Profile weight before the first entry of this device's weight log, to
+  /// return to when the log is emptied again.
+  double? getWeightBaseline() {
+    try {
+      return (getSetting<num>(_weightBaselineKey))?.toDouble();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> setWeightBaseline(double? weight) => weight == null
+      ? removeSetting(_weightBaselineKey)
+      : saveSetting(_weightBaselineKey, weight);
+
   /// Unfinished meal review (see MealCaptureController).
   Map<String, dynamic>? getCaptureDraft() {
     final raw = _readableBox(_settingsBox)?.get(_captureDraftKey);
@@ -241,6 +260,8 @@ class LocalStorageService {
         _profileEditedAtKey,
         _profileSyncPendingKey,
         _captureDraftKey,
+        aiDataConsentKey,
+        _weightBaselineKey,
       ]);
     }
   }

@@ -14,24 +14,30 @@ class PhotoPicker {
 
   static final ImagePicker _picker = ImagePicker();
   static const _purposeKey = 'photo_picker_purpose';
+  static const _dateKey = 'photo_picker_date';
   static const mealPurpose = 'meal';
   static const avatarPurpose = 'avatar';
 
   /// Android can destroy the app while the camera is open; the photo then
-  /// arrives on the next start. Returns it when it was taken for a meal.
-  static Future<XFile?> retrieveLostMealPhoto() async {
+  /// arrives on the next start. Returns it, with the day the meal was being
+  /// logged for, when it was taken for a meal.
+  static Future<({XFile file, DateTime? date})?> retrieveLostMealPhoto() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return null;
     final storage = LocalStorageService();
     String? purpose;
+    DateTime? date;
     try {
       purpose = storage.getSetting<String>(_purposeKey);
+      date = DateTime.tryParse(storage.getSetting<String>(_dateKey) ?? '');
       await storage.removeSetting(_purposeKey);
+      await storage.removeSetting(_dateKey);
     } catch (_) {}
     if (purpose == null) return null;
     try {
       final response = await _picker.retrieveLostData();
       if (response.isEmpty || purpose != mealPurpose) return null;
-      return response.file ?? response.files?.firstOrNull;
+      final file = response.file ?? response.files?.firstOrNull;
+      return file == null ? null : (file: file, date: date);
     } catch (_) {
       return null;
     }
@@ -42,24 +48,28 @@ class PhotoPicker {
     ImageSource source, {
     double maxWidth = 1280,
     String purpose = mealPurpose,
+    DateTime? date,
   }) async {
     final messenger = ScaffoldMessenger.maybeOf(context);
     final l10n = context.l10n;
-    await _setPurpose(purpose);
+    await _setPurpose(purpose, date);
     try {
       return await _pick(messenger, l10n, source, maxWidth: maxWidth);
     } finally {
-      await _setPurpose(null);
+      await _setPurpose(null, null);
     }
   }
 
-  static Future<void> _setPurpose(String? purpose) async {
+  static Future<void> _setPurpose(String? purpose, DateTime? date) async {
     try {
       final storage = LocalStorageService();
       if (purpose == null) {
         await storage.removeSetting(_purposeKey);
+        await storage.removeSetting(_dateKey);
       } else {
         await storage.saveSetting(_purposeKey, purpose);
+        final day = DateUtils.dateOnly(date ?? DateTime.now());
+        await storage.saveSetting(_dateKey, day.toIso8601String());
       }
     } catch (_) {
       // Without storage a lost photo simply is not recovered.

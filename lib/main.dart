@@ -9,6 +9,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
+import 'core/utils/formatters.dart';
 import 'data/services/local_storage_service.dart';
 import 'data/services/meal_image_store.dart';
 import 'data/services/supabase_bootstrap.dart';
@@ -100,11 +101,20 @@ class _SikdanScanAppState extends ConsumerState<SikdanScanApp>
 
   /// A meal photo taken while Android destroyed the app is analysed now.
   Future<void> _recoverLostPhoto() async {
-    final photo = await PhotoPicker.retrieveLostMealPhoto();
-    if (photo == null || !mounted) return;
-    final stored = await MealImageStore.persist(photo.path);
+    final lost = await PhotoPicker.retrieveLostMealPhoto();
+    if (lost == null || !mounted) return;
+    final stored = await MealImageStore.persist(lost.file.path);
     if (!mounted) return;
-    unawaited(ref.read(mealCaptureProvider.notifier).startFromImage(stored));
+    final today = ref.read(todayDateProvider);
+    final date = lost.date;
+    unawaited(
+      ref
+          .read(mealCaptureProvider.notifier)
+          .startFromImage(
+            stored,
+            date: date == null || date.isSameDay(today) ? null : date,
+          ),
+    );
     unawaited(ref.read(appRouterProvider).push(AppRoutes.mealReview));
   }
 
@@ -120,11 +130,11 @@ class _SikdanScanAppState extends ConsumerState<SikdanScanApp>
   }
 
   /// Brings in changes made on other devices (throttled, signed-in only).
-  void _pullAccount() {
+  void _pullAccount({bool force = false}) {
     if (!mounted) return;
     ref
         .read(supabaseAuthControllerProvider.notifier)
-        .pullAccountChanges()
+        .pullAccountChanges(force: force)
         .catchError((Object _) {});
   }
 
@@ -153,8 +163,11 @@ class _SikdanScanAppState extends ConsumerState<SikdanScanApp>
     ref.read(todayDateProvider.notifier).refresh();
     ref.read(currentHourProvider.notifier).refresh();
     ref.read(mealRecordsProvider.notifier).flushPendingSync();
-    ref.read(userProfileProvider.notifier).retryPendingSync();
-    _pullAccount();
+    // A profile change that did not reach the account is reconciled
+    // newer-wins by the pull, never uploaded blindly.
+    _pullAccount(
+      force: ref.read(localStorageServiceProvider).profileSyncPending,
+    );
     // Signed photo URLs may have expired while the app was in background.
     ref.invalidate(signedMealImageUrlProvider);
   }
